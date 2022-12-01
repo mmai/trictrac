@@ -6,3 +6,8 @@
 **/*.rs.bk
 .devenv*
 devenv.local.nix
+
+
+# Added by cargo
+
+/target

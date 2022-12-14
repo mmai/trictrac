@@ -1,9 +1,9 @@
 shell:
-	# devenv shell
-	nix develop
+	devenv shell
+	# nix develop
 startserver:
-	cargo run --bin=server
+	cargo run --bin=trictrac-server
 startclient1:
-	cargo run --bin=client Titi
+	cargo run --bin=trictrac-client Titi
 startclient2:
-	cargo run --bin=client Tutu
+	cargo run --bin=trictrac-client Tutu

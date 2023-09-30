@@ -22,6 +22,8 @@ cf. https://blessed.rs/crates
 - front : yew + tauri 
   - egui
 
+- https://docs.rs/board-game/latest/board_game/
+
 ## Others
 - plugins avec https://github.com/extism/extism
 

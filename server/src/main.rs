@@ -1,7 +1,13 @@
 use log::{info, trace};
-use renet::{RenetConnectionConfig, RenetServer, ServerAuthentication, ServerConfig, ServerEvent};
-use std::net::{SocketAddr, UdpSocket};
+use std::net::{SocketAddr, UdpSocket, IpAddr, Ipv4Addr};
 use std::time::{Duration, Instant, SystemTime};
+
+use renet::{
+    transport::{
+        NetcodeServerTransport, ServerAuthentication, ServerConfig, NETCODE_USER_DATA_BYTES,
+    },
+    ConnectionConfig, DefaultChannel, RenetClient, RenetServer, ServerEvent,
+};
 
 // Only clients that can provide the same PROTOCOL_ID that the server is using will be able to connect.
 // This can be used to make sure players use the most recent version of the client for instance.
@@ -10,40 +16,39 @@ pub const PROTOCOL_ID: u64 = 2878;
 fn main() {
     env_logger::init();
 
-    let server_addr: SocketAddr = "127.0.0.1:5000".parse().unwrap();
-    let mut server: RenetServer = RenetServer::new(
-        // Pass the current time to renet, so it can use it to order messages
-        SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap(),
-        // Pass a server configuration specifying that we want to allow only 2 clients to connect
-        // and that we don't want to authenticate them. Everybody is welcome!
-        ServerConfig::new(2, PROTOCOL_ID, server_addr, ServerAuthentication::Unsecure),
-        // Pass the default connection configuration. 
-        // This will create a reliable, unreliable and blocking channel.
-        // We only actually need the reliable one, but we can just not use the other two.
-        RenetConnectionConfig::default(),
-        UdpSocket::bind(server_addr).unwrap(),
-    )
-    .unwrap();
+    let mut server = RenetServer::new(ConnectionConfig::default());
 
-    trace!("❂ TricTrac server listening on {}", server_addr);
+    // Setup transport layer
+    const SERVER_ADDR: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 5000);
+    let socket: UdpSocket = UdpSocket::bind(SERVER_ADDR).unwrap();
+    let server_config = ServerConfig {
+        max_clients: 2,
+        protocol_id: PROTOCOL_ID,
+        public_addr: SERVER_ADDR,
+        authentication: ServerAuthentication::Unsecure,
+    };
+    let current_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap();
+    let mut transport = NetcodeServerTransport::new(current_time, server_config, socket).unwrap();
+
+    trace!("❂ TricTrac server listening on {}", SERVER_ADDR);
 
     let mut last_updated = Instant::now();
     loop {
         // Update server time
         let now = Instant::now();
-        server.update(now - last_updated).unwrap();
+        let delta_time = now - last_updated;
+        server.update(delta_time);
+        transport.update(delta_time, &mut server).unwrap();
         last_updated = now;
 
         // Receive connection events from clients
         while let Some(event) = server.get_event() {
             match event {
-                ServerEvent::ClientConnected(id, _user_data) => {
-                    info!("🎉 Client {} connected.", id);
+                ServerEvent::ClientConnected { client_id } => {
+                    info!("🎉 Client {} connected.", client_id);
                 }
-                ServerEvent::ClientDisconnected(id) => {
-                    info!("👋 Client {} disconnected", id);
+                ServerEvent::ClientDisconnected { client_id, reason } => {
+                    info!("👋 Client {} disconnected", client_id);
                 }
             }
         }

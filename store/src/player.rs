@@ -3,8 +3,9 @@ use std::fmt;
 
 
 // This just makes it easier to dissern between a player id and any ol' u64
-type PlayerId = u64;
+pub type PlayerId = u64;
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Color {
     White,
     Black,

@@ -1,6 +1,7 @@
 use log::{info, trace};
 use std::net::{SocketAddr, UdpSocket, IpAddr, Ipv4Addr};
 use std::time::{Duration, Instant, SystemTime};
+use store::EndGameReason;
 
 use renet::{
     transport::{
@@ -45,13 +46,80 @@ fn main() {
         while let Some(event) = server.get_event() {
             match event {
                 ServerEvent::ClientConnected { client_id } => {
+                    let user_data = transport.user_data(client_id).unwrap();
                     info!("🎉 Client {} connected.", client_id);
+
+                    // Tell the recently joined player about the other player
+                    for (player_id, player) in game_state.players.iter() {
+                        let event = store::GameEvent::PlayerJoined {
+                            player_id: *player_id,
+                            name: player.name.clone(),
+                        };
+                        server.send_message(client_id, 0, bincode::serialize(&event).unwrap());
+                    }
+
+                    // Add the new player to the game
+                    let event = store::GameEvent::PlayerJoined {
+                        player_id: client_id,
+                        name: name_from_user_data(&user_data),
+                    };
+                    game_state.consume(&event);
+
+                    // Tell all players that a new player has joined
+                    server.broadcast_message(0, bincode::serialize(&event).unwrap());
+
+                    info!("Client {} connected.", id);
+                    // In TicTacTussle the game can begin once two players has joined
+                    if game_state.players.len() == 2 {
+                        let event = store::GameEvent::BeginGame { goes_first: client_id };
+                        game_state.consume(&event);
+                        server.broadcast_message(0, bincode::serialize(&event).unwrap());
+                        trace!("The game gas begun");
+                    }
                 }
                 ServerEvent::ClientDisconnected { client_id, reason } => {
-                    info!("👋 Client {} disconnected", client_id);
+                    // First consume a disconnect event
+                    let event = store::GameEvent::PlayerDisconnected { player_id: client_id };
+                    game_state.consume(&event);
+                    server.broadcast_message(0, bincode::serialize(&event).unwrap());
+                    info!("Client {} disconnected", client_id);
+
+                    // Then end the game, since tic tac toe can't go on with a single player
+                    let event = store::GameEvent::EndGame {
+                        reason: EndGameReason::PlayerLeft { player_id: client_id },
+                    };
+                    game_state.consume(&event);
+                    server.broadcast_message(0, bincode::serialize(&event).unwrap());
+
+                    // NOTE: Since we don't authenticate users we can't do any reconnection attempts.
+                    // We simply have no way to know if the next user is the same as the one that disconnected.
                 }
             }
         }
-        std::thread::sleep(Duration::from_millis(50));
-    }
+
+        // Receive GameEvents from clients. Broadcast valid events.
+        for client_id in server.clients_id().into_iter() {
+            while let Some(message) = server.receive_message(client_id, 0) {
+                if let Ok(event) = bincode::deserialize::<store::GameEvent>(&message) {
+                    if game_state.validate(&event) {
+                        game_state.consume(&event);
+                        trace!("Player {} sent:\n\t{:#?}", client_id, event);
+                        server.broadcast_message(0, bincode::serialize(&event).unwrap());
+
+                        // Determine if a player has won the game
+                        if let Some(winner) = game_state.determine_winner() {
+                            let event = store::GameEvent::EndGame {
+                                reason: store::EndGameReason::PlayerWon { winner },
+                            };
+                            server.broadcast_message(0, bincode::serialize(&event).unwrap());
+                        }
+                    } else {
+                        warn!("Player {} sent invalid event:\n\t{:#?}", client_id, event);
+                    }
+                }
+            }
+        }
+
+        server.send_packets().unwrap();
+        thread::sleep(Duration::from_millis(50));}
 }

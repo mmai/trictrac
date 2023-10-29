@@ -1,7 +1,8 @@
-use log::{info, trace};
+use log::{info, trace, warn};
+use std::thread;
+use bincode;
 use std::net::{SocketAddr, UdpSocket, IpAddr, Ipv4Addr};
 use std::time::{Duration, Instant, SystemTime};
-use store::EndGameReason;
 
 use renet::{
     transport::{
@@ -13,6 +14,16 @@ use renet::{
 // Only clients that can provide the same PROTOCOL_ID that the server is using will be able to connect.
 // This can be used to make sure players use the most recent version of the client for instance.
 pub const PROTOCOL_ID: u64 = 2878;
+
+/// Utility function for extracting a players name from renet user data
+fn name_from_user_data(user_data: &[u8; NETCODE_USER_DATA_BYTES]) -> String {
+    let mut buffer = [0u8; 8];
+    buffer.copy_from_slice(&user_data[0..8]);
+    let mut len = u64::from_le_bytes(buffer) as usize;
+    len = len.min(NETCODE_USER_DATA_BYTES - 8);
+    let data = user_data[8..len + 8].to_vec();
+    String::from_utf8(data).unwrap()
+}
 
 fn main() {
     env_logger::init();
@@ -33,6 +44,7 @@ fn main() {
 
     trace!("❂ TricTrac server listening on {}", SERVER_ADDR);
 
+    let mut game_state = store::GameState::default();
     let mut last_updated = Instant::now();
     loop {
         // Update server time
@@ -68,7 +80,7 @@ fn main() {
                     // Tell all players that a new player has joined
                     server.broadcast_message(0, bincode::serialize(&event).unwrap());
 
-                    info!("Client {} connected.", id);
+                    info!("Client {} connected.", client_id);
                     // In TicTacTussle the game can begin once two players has joined
                     if game_state.players.len() == 2 {
                         let event = store::GameEvent::BeginGame { goes_first: client_id };
@@ -86,7 +98,7 @@ fn main() {
 
                     // Then end the game, since tic tac toe can't go on with a single player
                     let event = store::GameEvent::EndGame {
-                        reason: EndGameReason::PlayerLeft { player_id: client_id },
+                        reason: store::EndGameReason::PlayerLeft { player_id: client_id },
                     };
                     game_state.consume(&event);
                     server.broadcast_message(0, bincode::serialize(&event).unwrap());
@@ -120,6 +132,6 @@ fn main() {
             }
         }
 
-        server.send_packets().unwrap();
+        transport.send_packets(&mut server);
         thread::sleep(Duration::from_millis(50));}
 }

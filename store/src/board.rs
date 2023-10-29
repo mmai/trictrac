@@ -80,7 +80,7 @@ impl Board {
     /// If the field is blocked for the player, an error is returned. If the field is not blocked,
     /// but there is already one checker from the other player on the field, that checker is hit and
     /// moved to the bar.
-    pub fn set(&mut self, player: Player, field: usize, amount: i8) -> Result<(), Error> {
+    pub fn set(&mut self, player: &Player, field: usize, amount: i8) -> Result<(), Error> {
         if field > 23 {
             return Err(Error::FieldInvalid);
         }
@@ -112,7 +112,7 @@ impl Board {
     }
 
     /// Check if a field is blocked for a player
-    pub fn blocked(&self, player: Player, field: usize) -> Result<bool, Error> {
+    pub fn blocked(&self, player: &Player, field: usize) -> Result<bool, Error> {
         if field > 23 {
             return Err(Error::FieldInvalid);
         }
@@ -137,7 +137,7 @@ impl Board {
 
     /// Set checkers for a player off the board. This method adds amount to the already existing
     /// checkers there.
-    pub fn set_off(&mut self, player: Player, amount: u8) -> Result<(), Error> {
+    pub fn set_off(&mut self, player: &Player, amount: u8) -> Result<(), Error> {
         match player.color {
             Color::White => {
                 let new = self.raw_board.0.off + amount;
@@ -174,12 +174,12 @@ impl Default for PlayerBoard {
 /// Trait to move checkers
 pub trait Move {
     /// Move a checker
-    fn move_checker(&mut self, player: Player, dice: u8, from: usize) -> Result<&mut Self, Error>
+    fn move_checker(&mut self, player: &Player, dice: u8, from: usize) -> Result<&mut Self, Error>
     where
         Self: Sized;
 
     /// Move permitted
-    fn move_permitted(&mut self, player: Player, dice: u8) -> Result<&mut Self, Error>
+    fn move_permitted(&mut self, player: &Player, dice: u8) -> Result<&mut Self, Error>
     where
         Self: Sized;
 }
@@ -229,7 +229,7 @@ mod tests {
     fn set_player0() -> Result<(), Error> {
         let mut board = Board::new();
         let player = Player {name: "".into(), color: Color::White};
-        board.set(player, 1, 1)?;
+        board.set(&player, 1, 1)?;
         assert_eq!(board.get().board[1], 1);
         Ok(())
     }
@@ -238,7 +238,7 @@ mod tests {
     fn set_player1() -> Result<(), Error> {
         let mut board = Board::new();
         let player = Player {name: "".into(), color: Color::Black};
-        board.set(player, 2, 1)?;
+        board.set(&player, 2, 1)?;
         assert_eq!(board.get().board[21], -1);
         Ok(())
     }
@@ -274,44 +274,44 @@ mod tests {
     #[test]
     fn blocked_player0() -> Result<(), Error> {
         let board = Board::new();
-        assert!(board.blocked(Player { name:"".into(), color: Color::White }, 0)?);
+        assert!(board.blocked(&Player { name:"".into(), color: Color::White }, 0)?);
         Ok(())
     }
 
     #[test]
     fn blocked_player1() -> Result<(), Error> {
         let board = Board::new();
-        assert!(board.blocked(Player { name:"".into(), color: Color::Black }, 0)?);
+        assert!(board.blocked(&Player { name:"".into(), color: Color::Black }, 0)?);
         Ok(())
     }
 
     #[test]
     fn blocked_player0_a() -> Result<(), Error> {
         let mut board = Board::new();
-        board.set(Player { name:"".into(), color: Color::Black }, 1, 2)?;
-        assert!(board.blocked(Player { name:"".into(), color: Color::White }, 22)?);
+        board.set(&Player { name:"".into(), color: Color::Black }, 1, 2)?;
+        assert!(board.blocked(&Player { name:"".into(), color: Color::White }, 22)?);
         Ok(())
     }
 
     #[test]
     fn blocked_player1_a() -> Result<(), Error> {
         let mut board = Board::new();
-        board.set(Player { name:"".into(), color: Color::White }, 1, 2)?;
-        assert!(board.blocked(Player { name:"".into(), color: Color::Black }, 22)?);
+        board.set(&Player { name:"".into(), color: Color::White }, 1, 2)?;
+        assert!(board.blocked(&Player { name:"".into(), color: Color::Black }, 22)?);
         Ok(())
     }
 
     #[test]
     fn blocked_invalid_field() {
         let board = Board::new();
-        assert!(board.blocked(Player { name:"".into(), color: Color::White }, 24).is_err());
+        assert!(board.blocked(&Player { name:"".into(), color: Color::White }, 24).is_err());
     }
 
     #[test]
     fn set_field_with_1_checker_player0_a() -> Result<(), Error> {
         let mut board = Board::new();
-        board.set(Player { name:"".into(), color: Color::White }, 1, 1)?;
-        board.set(Player { name:"".into(), color: Color::Black }, 22, 1)?;
+        board.set(&Player { name:"".into(), color: Color::White }, 1, 1)?;
+        board.set(&Player { name:"".into(), color: Color::Black }, 22, 1)?;
         assert_eq!(board.get().board[1], -1);
         Ok(())
     }
@@ -319,8 +319,8 @@ mod tests {
     #[test]
     fn set_field_with_1_checker_player0_b() -> Result<(), Error> {
         let mut board = Board::new();
-        board.set(Player { name:"".into(), color: Color::White }, 1, 1)?;
-        board.set(Player { name:"".into(), color: Color::Black }, 22, 1)?;
+        board.set(&Player { name:"".into(), color: Color::White }, 1, 1)?;
+        board.set(&Player { name:"".into(), color: Color::Black }, 22, 1)?;
         assert_eq!(board.get().board[1], -1);
         Ok(())
     }
@@ -328,8 +328,8 @@ mod tests {
     #[test]
     fn set_field_with_1_checker_player1_a() -> Result<(), Error> {
         let mut board = Board::new();
-        board.set(Player { name:"".into(), color: Color::Black }, 1, 1)?;
-        board.set(Player { name:"".into(), color: Color::White }, 22, 1)?;
+        board.set(&Player { name:"".into(), color: Color::Black }, 1, 1)?;
+        board.set(&Player { name:"".into(), color: Color::White }, 22, 1)?;
         assert_eq!(board.get().board[22], 1);
         Ok(())
     }
@@ -337,8 +337,8 @@ mod tests {
     #[test]
     fn set_field_with_1_checker_player1_b() -> Result<(), Error> {
         let mut board = Board::new();
-        board.set(Player { name:"".into(), color: Color::Black }, 1, 1)?;
-        board.set(Player { name:"".into(), color: Color::White }, 22, 1)?;
+        board.set(&Player { name:"".into(), color: Color::Black }, 1, 1)?;
+        board.set(&Player { name:"".into(), color: Color::White }, 22, 1)?;
         assert_eq!(board.get().board[22], 1);
         Ok(())
     }
@@ -346,7 +346,7 @@ mod tests {
     #[test]
     fn set_field_with_2_checkers_player0_a() -> Result<(), Error> {
         let mut board = Board::new();
-        board.set(Player { name:"".into(), color: Color::White }, 23, 2)?;
+        board.set(&Player { name:"".into(), color: Color::White }, 23, 2)?;
         assert_eq!(board.get().board[23], 4);
         Ok(())
     }
@@ -354,7 +354,7 @@ mod tests {
     #[test]
     fn set_field_with_2_checkers_player0_b() -> Result<(), Error> {
         let mut board = Board::new();
-        board.set(Player { name:"".into(), color: Color::White }, 23, -1)?;
+        board.set(&Player { name:"".into(), color: Color::White }, 23, -1)?;
         assert_eq!(board.get().board[23], 1);
         Ok(())
     }
@@ -362,24 +362,24 @@ mod tests {
     #[test]
     fn set_field_blocked() {
         let mut board = Board::new();
-        assert!(board.set(Player { name:"".into(), color: Color::White }, 0, 2).is_err());
+        assert!(board.set(&Player { name:"".into(), color: Color::White }, 0, 2).is_err());
     }
 
     #[test]
     fn set_wrong_field1() {
         let mut board = Board::new();
-        assert!(board.set(Player { name:"".into(), color: Color::White }, 50, 2).is_err());
+        assert!(board.set(&Player { name:"".into(), color: Color::White }, 50, 2).is_err());
     }
 
     #[test]
     fn set_wrong_amount0() {
         let mut board = Board::new();
-        assert!(board.set(Player { name:"".into(), color: Color::White }, 23, -3).is_err());
+        assert!(board.set(&Player { name:"".into(), color: Color::White }, 23, -3).is_err());
     }
 
     #[test]
     fn set_wrong_amount1() {
         let mut board = Board::new();
-        assert!(board.set(Player { name:"".into(), color: Color::Black }, 23, -3).is_err());
+        assert!(board.set(&Player { name:"".into(), color: Color::Black }, 23, -3).is_err());
     }
 }

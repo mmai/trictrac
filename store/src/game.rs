@@ -35,7 +35,7 @@ impl fmt::Display for GameState {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut s = String::new();
         s.push_str(&format!("Dices: {:?}\n", self.dices));
-        s.push_str(&format!("Who plays: {}\n", self.who_plays().map(|player| player.name ).unwrap_or("".to_string())));
+        // s.push_str(&format!("Who plays: {}\n", self.who_plays().map(|player| &player.name ).unwrap_or("")));
         s.push_str(&format!("Board: {:?}\n", self.board.get()));
         write!(f, "{}", s)
     }
@@ -61,8 +61,8 @@ impl GameState {
         GameState::default()
     }
 
-    pub fn who_plays(&self) -> &Option<&Player> {
-        &self.players.get(&self.active_player_id)
+    pub fn who_plays(&self) -> Option<&Player> {
+        self.players.get(&self.active_player_id)
     }
 
     pub fn switch_active_player(&mut self) {
@@ -182,8 +182,8 @@ impl GameState {
             }
             Move { player_id, from, to } => {
                 let player = self.players.get(player_id).unwrap();
-                self.board.set(*player, *from, 0 as i8);
-                self.board.set(*player, *to, 1 as i8);
+                self.board.set(player, *from, 0 as i8);
+                self.board.set(player, *to, 1 as i8);
                 self.active_player_id = self
                     .players
                     .keys()
@@ -245,7 +245,7 @@ impl Roll for GameState {
 }
 
 impl Move for GameState {
-    fn move_checker(&mut self, player: Player, dice: u8, from: usize) -> Result<&mut Self, Error> {
+    fn move_checker(&mut self, player: &Player, dice: u8, from: usize) -> Result<&mut Self, Error> {
         // check if move is permitted
         let _ = self.move_permitted(player, dice)?;
 
@@ -286,7 +286,7 @@ impl Move for GameState {
     }
 
     /// Implements checks to validate if the player is allowed to move
-    fn move_permitted(&mut self, player: Player, dice: u8) -> Result<&mut Self, Error> {
+    fn move_permitted(&mut self, player: &Player, dice: u8) -> Result<&mut Self, Error> {
         let maybe_player_id = self.player_id(&player);
         // check if player is allowed to move
         if maybe_player_id != Some(&self.active_player_id) {

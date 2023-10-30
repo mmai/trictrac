@@ -5,7 +5,28 @@
   # env.GREET = "devenv";
 
   packages = [ 
-    pkgs.alsaLib pkgs.udev # for bevy
+    # for bevy
+    pkgs.alsaLib
+    pkgs.udev
+
+    # copié de https://github.com/mmai/Hyperspeedcube/blob/develop/devenv.nix
+    # TODO : retirer ce qui est inutile
+    # pour erreur à l'exécution, selon https://github.com/emilk/egui/discussions/1587
+    pkgs.libxkbcommon
+    pkgs.libGL
+
+    # WINIT_UNIX_BACKEND=wayland
+    pkgs.wayland
+
+    # WINIT_UNIX_BACKEND=x11
+    pkgs.xorg.libXcursor
+    pkgs.xorg.libXrandr
+    pkgs.xorg.libXi
+    pkgs.xorg.libX11
+
+    pkgs.vulkan-headers pkgs.vulkan-loader
+    # ------------ fin copie
+
   ];
 
   # enterShell = ''

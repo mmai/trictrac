@@ -24,7 +24,7 @@ fn main() {
             primary_window: Some(Window {
                 // Adding the username to the window title makes debugging a whole lot easier.
                 title: format!("TricTrac <{}>", username),
-                resolution: (480.0, 540.0).into(),
+                resolution: (1080.0, 1080.0).into(),
                 ..default()
             }),
             ..default()
@@ -34,8 +34,78 @@ fn main() {
         .add_plugins(NetcodeClientPlugin)
         .insert_resource(client)
         .insert_resource(transport)
+        .add_systems(Startup, setup)
+        .add_systems(Update, update_waiting_text)
         .add_systems(Update, panic_on_error_system)
         .run();
+}
+
+////////// COMPONENTS //////////
+#[derive(Component)]
+struct UIRoot;
+
+#[derive(Component)]
+struct WaitingText;
+
+////////// UPDATE SYSTEMS //////////
+fn update_waiting_text(mut text_query: Query<&mut Text, With<WaitingText>>, time: Res<Time>) {
+    if let Ok(mut text) = text_query.get_single_mut() {
+        let num_dots = (time.elapsed_seconds() as usize % 3) + 1;
+        text.sections[0].value = format!(
+            "Waiting for an opponent{}{}",
+            ".".repeat(num_dots as usize),
+            // Pad with spaces to avoid text changing width and dancing all around the screen 🕺
+            " ".repeat(3 - num_dots as usize)
+        );
+    }
+}
+
+////////// SETUP //////////
+fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
+    // Tric Trac is a 2D game
+    // To show 2D sprites we need a 2D camera
+    commands.spawn(Camera2dBundle::default());
+
+    // Spawn board background
+    commands.spawn(SpriteBundle {
+        transform: Transform::from_xyz(0.0, -30.0, 0.0),
+        sprite: Sprite {
+            custom_size: Some(Vec2::new(1025.0, 880.0)),
+            ..default()
+        },
+        texture: asset_server.load("board.png").into(),
+        ..default()
+    });
+
+    // Spawn pregame ui
+    commands
+        // A container that centers its children on the screen
+        .spawn(NodeBundle {
+            style: Style {
+                position_type: PositionType::Absolute,
+                left: Val::Px(0.0),
+                top: Val::Px(0.0),
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
+                ..default()
+            },
+            ..default()
+        })
+        .insert(UIRoot)
+        .with_children(|parent| {
+            parent
+                .spawn(TextBundle::from_section(
+                    "Waiting for an opponent...",
+                    TextStyle {
+                        font: asset_server.load("Inconsolata.ttf"),
+                        font_size: 24.0,
+                        color: Color::hex("ebdbb2").unwrap(),
+                    },
+                ))
+                .insert(WaitingText);
+        });
 }
 
 ////////// RENET NETWORKING //////////

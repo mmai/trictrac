@@ -58,11 +58,9 @@ fn main() {
 
         // Receive connection events from clients
         while let Some(event) = server.get_event() {
-            trace!("event received");
             match event {
                 ServerEvent::ClientConnected { client_id } => {
                     let user_data = transport.user_data(client_id).unwrap();
-                    info!("🎉 Client {} connected.", client_id);
 
                     // Tell the recently joined player about the other player
                     for (player_id, player) in game_state.players.iter() {
@@ -83,7 +81,7 @@ fn main() {
                     // Tell all players that a new player has joined
                     server.broadcast_message(0, bincode::serialize(&event).unwrap());
 
-                    info!("Client {} connected.", client_id);
+                    info!("🎉 Client {} connected.", client_id);
                     // In TicTacTussle the game can begin once two players has joined
                     if game_state.players.len() == 2 {
                         let event = store::GameEvent::BeginGame {

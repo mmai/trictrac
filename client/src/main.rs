@@ -1,14 +1,12 @@
 use bevy::prelude::*;
-use bevy_renet::RenetClientPlugin;
 use std::{net::UdpSocket, time::SystemTime};
 
-use renet::{
-    transport::{
-        ClientAuthentication, NetcodeClientTransport, NetcodeTransportError,
-        NETCODE_USER_DATA_BYTES,
-    },
-    ConnectionConfig, RenetClient,
+use bevy_renet::{
+    renet::{transport::ClientAuthentication, ConnectionConfig, RenetClient},
+    transport::NetcodeClientPlugin,
+    RenetClientPlugin,
 };
+use renet::transport::{NetcodeClientTransport, NetcodeTransportError, NETCODE_USER_DATA_BYTES};
 
 // This id needs to be the same as the server is using
 const PROTOCOL_ID: u64 = 2878;
@@ -33,6 +31,7 @@ fn main() {
         }))
         // Renet setup
         .add_plugins(RenetClientPlugin)
+        .add_plugins(NetcodeClientPlugin)
         .insert_resource(client)
         .insert_resource(transport)
         .add_systems(Update, panic_on_error_system)

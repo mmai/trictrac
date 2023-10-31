@@ -9,6 +9,9 @@
     pkgs.alsaLib
     pkgs.udev
 
+    # bevy fast compile
+    pkgs.clang pkgs.lld
+
     # copié de https://github.com/mmai/Hyperspeedcube/blob/develop/devenv.nix
     # TODO : retirer ce qui est inutile
     # pour erreur à l'exécution, selon https://github.com/emilk/egui/discussions/1587

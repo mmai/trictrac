@@ -1,14 +1,14 @@
-use log::{info, trace, warn};
-use std::thread;
 use bincode;
-use std::net::{SocketAddr, UdpSocket, IpAddr, Ipv4Addr};
+use log::{info, trace, warn};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr, UdpSocket};
+use std::thread;
 use std::time::{Duration, Instant, SystemTime};
 
 use renet::{
     transport::{
         NetcodeServerTransport, ServerAuthentication, ServerConfig, NETCODE_USER_DATA_BYTES,
     },
-    ConnectionConfig, DefaultChannel, RenetClient, RenetServer, ServerEvent,
+    ConnectionConfig, RenetServer, ServerEvent,
 };
 
 // Only clients that can provide the same PROTOCOL_ID that the server is using will be able to connect.
@@ -39,7 +39,9 @@ fn main() {
         public_addr: SERVER_ADDR,
         authentication: ServerAuthentication::Unsecure,
     };
-    let current_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap();
+    let current_time = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap();
     let mut transport = NetcodeServerTransport::new(current_time, server_config, socket).unwrap();
 
     trace!("❂ TricTrac server listening on {}", SERVER_ADDR);
@@ -56,6 +58,7 @@ fn main() {
 
         // Receive connection events from clients
         while let Some(event) = server.get_event() {
+            trace!("event received");
             match event {
                 ServerEvent::ClientConnected { client_id } => {
                     let user_data = transport.user_data(client_id).unwrap();
@@ -83,7 +86,9 @@ fn main() {
                     info!("Client {} connected.", client_id);
                     // In TicTacTussle the game can begin once two players has joined
                     if game_state.players.len() == 2 {
-                        let event = store::GameEvent::BeginGame { goes_first: client_id };
+                        let event = store::GameEvent::BeginGame {
+                            goes_first: client_id,
+                        };
                         game_state.consume(&event);
                         server.broadcast_message(0, bincode::serialize(&event).unwrap());
                         trace!("The game gas begun");
@@ -91,14 +96,18 @@ fn main() {
                 }
                 ServerEvent::ClientDisconnected { client_id, reason } => {
                     // First consume a disconnect event
-                    let event = store::GameEvent::PlayerDisconnected { player_id: client_id };
+                    let event = store::GameEvent::PlayerDisconnected {
+                        player_id: client_id,
+                    };
                     game_state.consume(&event);
                     server.broadcast_message(0, bincode::serialize(&event).unwrap());
                     info!("Client {} disconnected", client_id);
 
                     // Then end the game, since tic tac toe can't go on with a single player
                     let event = store::GameEvent::EndGame {
-                        reason: store::EndGameReason::PlayerLeft { player_id: client_id },
+                        reason: store::EndGameReason::PlayerLeft {
+                            player_id: client_id,
+                        },
                     };
                     game_state.consume(&event);
                     server.broadcast_message(0, bincode::serialize(&event).unwrap());
@@ -133,5 +142,6 @@ fn main() {
         }
 
         transport.send_packets(&mut server);
-        thread::sleep(Duration::from_millis(50));}
+        thread::sleep(Duration::from_millis(50));
+    }
 }

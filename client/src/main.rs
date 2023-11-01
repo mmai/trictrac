@@ -1,12 +1,30 @@
-use bevy::prelude::*;
 use std::{net::UdpSocket, time::SystemTime};
 
+use store::{EndGameReason, GameEvent, GameState};
+use renet::transport::{NetcodeClientTransport, NetcodeTransportError, NETCODE_USER_DATA_BYTES};
+
+
+use bevy::prelude::*;
+use bevy::window::PrimaryWindow;
 use bevy_renet::{
     renet::{transport::ClientAuthentication, ConnectionConfig, RenetClient},
     transport::NetcodeClientPlugin,
     RenetClientPlugin,
 };
-use renet::transport::{NetcodeClientTransport, NetcodeTransportError, NETCODE_USER_DATA_BYTES};
+
+#[derive(Resource)]
+struct BevyGameState(GameState);
+
+impl Default for BevyGameState {
+    fn default() -> Self {
+        Self {
+            0: GameState::default()
+        }
+    }
+}
+
+#[derive(Event)]
+struct BevyGameEvent(GameEvent);
 
 // This id needs to be the same as the server is using
 const PROTOCOL_ID: u64 = 2878;
@@ -29,6 +47,9 @@ fn main() {
             }),
             ..default()
         }))
+        // Add our game state and register GameEvent as a bevy event
+        .insert_resource(BevyGameState::default())
+        .add_event::<BevyGameEvent>()
         // Renet setup
         .add_plugins(RenetClientPlugin)
         .add_plugins(NetcodeClientPlugin)
@@ -36,6 +57,7 @@ fn main() {
         .insert_resource(transport)
         .add_systems(Startup, setup)
         .add_systems(Update, update_waiting_text)
+        .add_systems(Update, input)
         .add_systems(Update, panic_on_error_system)
         .run();
 }
@@ -60,6 +82,34 @@ fn update_waiting_text(mut text_query: Query<&mut Text, With<WaitingText>>, time
     }
 }
 
+fn input(
+    primary_query: Query<&Window, With<PrimaryWindow>>,
+    // windows: Res<Windows>,
+    input: Res<Input<MouseButton>>,
+    game_state: Res<BevyGameState>,
+) {
+    // let window = windows.get_primary().unwrap();
+    let window = primary_query.get_single().unwrap();
+    if let Some(mouse_position) = window.cursor_position() {
+        // Determine the index of the tile that the mouse is currently over
+        // NOTE: This calculation assumes a fixed window size. 
+        // That's fine for now, but consider using the windows size instead.
+        let x_tile: usize = (mouse_position.x / 83.0).floor() as usize;
+        let y_tile: usize = (mouse_position.y / 540.0).floor() as usize;
+        let tile = x_tile + y_tile * 13;
+
+        // If mouse is outside of board we do nothing
+        if 25 < tile {
+            return;
+        }
+
+        // If left mouse button is pressed, send a place tile event to the server
+        if input.just_pressed(MouseButton::Left) {
+            info!("select piece at tile {:?}", tile);
+        }
+    }
+}
+
 ////////// SETUP //////////
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     // Tric Trac is a 2D game
@@ -70,7 +120,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn(SpriteBundle {
         transform: Transform::from_xyz(0.0, -30.0, 0.0),
         sprite: Sprite {
-            custom_size: Some(Vec2::new(1025.0, 880.0)),
+            custom_size: Some(Vec2::new(1080.0, 927.0)),
             ..default()
         },
         texture: asset_server.load("board.png").into(),

@@ -67,23 +67,23 @@ impl GameState {
 
     pub fn switch_active_player(&mut self) {
         let other_player_id = self.players.iter()
-            .filter(|(id, player)| **id != self.active_player_id )
-            .map(|(id, player)| *id )
+            .filter(|(id, _player)| **id != self.active_player_id )
+            .map(|(id, _player)| *id )
             .next();
         self.active_player_id = other_player_id.unwrap_or(0);
     }
 
     pub fn player_id_by_color(&self, color: Color) -> Option<&PlayerId> {
         self.players.iter()
-            .filter(|(id, player)| player.color == color)
-            .map(|(id, player)| id )
+            .filter(|(_id, player)| player.color == color)
+            .map(|(id, _player)| id )
             .next()
     }
 
     pub fn player_id(&self, player: &Player) -> Option<&PlayerId> {
         self.players.iter()
-            .filter(|(id, candidate)| player.color == candidate.color)
-            .map(|(id, candidate)| id )
+            .filter(|(_id, candidate)| player.color == candidate.color)
+            .map(|(id, _candidate)| id )
             .next()
     }
 
@@ -148,6 +148,9 @@ impl GameState {
                 if *to > 23 {
                     return false;
                 }
+                if *from > 23 {
+                    return false;
+                }
             }
         }
 
@@ -182,8 +185,8 @@ impl GameState {
             }
             Move { player_id, from, to } => {
                 let player = self.players.get(player_id).unwrap();
-                self.board.set(player, *from, 0 as i8);
-                self.board.set(player, *to, 1 as i8);
+                self.board.set(player, *from, 0 as i8).unwrap();
+                self.board.set(player, *to, 1 as i8).unwrap();
                 self.active_player_id = self
                     .players
                     .keys()

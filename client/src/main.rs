@@ -1,16 +1,18 @@
 use std::{net::UdpSocket, time::SystemTime};
 
-use store::{EndGameReason, GameEvent, GameState};
 use renet::transport::{NetcodeClientTransport, NetcodeTransportError, NETCODE_USER_DATA_BYTES};
-
+use store::{EndGameReason, GameEvent, GameState};
 
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use bevy_renet::{
     renet::{transport::ClientAuthentication, ConnectionConfig, RenetClient},
-    transport::NetcodeClientPlugin,
+    transport::{client_connected, NetcodeClientPlugin},
     RenetClientPlugin,
 };
+
+#[derive(Debug, Resource)]
+struct CurrentClientId(u64);
 
 #[derive(Resource)]
 struct BevyGameState(GameState);
@@ -18,7 +20,20 @@ struct BevyGameState(GameState);
 impl Default for BevyGameState {
     fn default() -> Self {
         Self {
-            0: GameState::default()
+            0: GameState::default(),
+        }
+    }
+}
+
+#[derive(Resource, Deref, DerefMut)]
+struct GameUIState {
+    selected_tile: Option<usize>,
+}
+
+impl Default for GameUIState {
+    fn default() -> Self {
+        Self {
+            selected_tile: None,
         }
     }
 }
@@ -34,7 +49,7 @@ fn main() {
     let args = std::env::args().collect::<Vec<String>>();
     let username = &args[1];
 
-    let (client, transport) = new_renet_client(&username).unwrap();
+    let (client, transport, client_id) = new_renet_client(&username).unwrap();
     App::new()
         // Lets add a nice dark grey background color
         .insert_resource(ClearColor(Color::hex("282828").unwrap()))
@@ -49,16 +64,20 @@ fn main() {
         }))
         // Add our game state and register GameEvent as a bevy event
         .insert_resource(BevyGameState::default())
+        .insert_resource(GameUIState::default())
         .add_event::<BevyGameEvent>()
         // Renet setup
         .add_plugins(RenetClientPlugin)
         .add_plugins(NetcodeClientPlugin)
         .insert_resource(client)
         .insert_resource(transport)
+        .insert_resource(CurrentClientId(client_id))
         .add_systems(Startup, setup)
-        .add_systems(Update, update_waiting_text)
-        .add_systems(Update, input)
-        .add_systems(Update, panic_on_error_system)
+        .add_systems(Update, (update_waiting_text, input, panic_on_error_system))
+        .add_systems(
+            PostUpdate,
+            receive_events_from_server.run_if(client_connected()),
+        )
         .run();
 }
 
@@ -87,12 +106,20 @@ fn input(
     // windows: Res<Windows>,
     input: Res<Input<MouseButton>>,
     game_state: Res<BevyGameState>,
+    mut game_ui_state: ResMut<GameUIState>,
+    mut client: ResMut<RenetClient>,
+    client_id: Res<CurrentClientId>,
 ) {
+    // We only want to handle inputs once we are ingame
+    if game_state.0.stage != store::Stage::InGame {
+        return;
+    }
+
     // let window = windows.get_primary().unwrap();
     let window = primary_query.get_single().unwrap();
     if let Some(mouse_position) = window.cursor_position() {
         // Determine the index of the tile that the mouse is currently over
-        // NOTE: This calculation assumes a fixed window size. 
+        // NOTE: This calculation assumes a fixed window size.
         // That's fine for now, but consider using the windows size instead.
         let x_tile: usize = (mouse_position.x / 83.0).floor() as usize;
         let y_tile: usize = (mouse_position.y / 540.0).floor() as usize;
@@ -106,6 +133,21 @@ fn input(
         // If left mouse button is pressed, send a place tile event to the server
         if input.just_pressed(MouseButton::Left) {
             info!("select piece at tile {:?}", tile);
+            if game_ui_state.selected_tile.is_some() {
+                let from_tile = game_ui_state.selected_tile.unwrap();
+                info!("sending movement from: {:?} to: {:?} ", from_tile, tile);
+                let event = GameEvent::Move {
+                    player_id: client_id.0,
+                    from: from_tile,
+                    to: tile,
+                };
+                client.send_message(0, bincode::serialize(&event).unwrap());
+            }
+            game_ui_state.selected_tile = if game_ui_state.selected_tile.is_some() {
+                None
+            } else {
+                Some(tile)
+            }
         }
     }
 }
@@ -161,7 +203,9 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 ////////// RENET NETWORKING //////////
 // Creates a RenetClient thats already connected to a server.
 // Returns an Err if connection fails
-fn new_renet_client(username: &String) -> anyhow::Result<(RenetClient, NetcodeClientTransport)> {
+fn new_renet_client(
+    username: &String,
+) -> anyhow::Result<(RenetClient, NetcodeClientTransport, u64)> {
     let client = RenetClient::new(ConnectionConfig::default());
     let server_addr = "127.0.0.1:5000".parse()?;
     let socket = UdpSocket::bind("127.0.0.1:0")?;
@@ -184,7 +228,26 @@ fn new_renet_client(username: &String) -> anyhow::Result<(RenetClient, NetcodeCl
     };
     let transport = NetcodeClientTransport::new(current_time, authentication, socket).unwrap();
 
-    Ok((client, transport))
+    Ok((client, transport, client_id))
+}
+
+fn receive_events_from_server(
+    mut client: ResMut<RenetClient>,
+    mut game_state: ResMut<BevyGameState>,
+    mut game_events: EventWriter<BevyGameEvent>,
+) {
+    while let Some(message) = client.receive_message(0) {
+        // Whenever the server sends a message we know that it must be a game event
+        let event: GameEvent = bincode::deserialize(&message).unwrap();
+        trace!("{:#?}", event);
+
+        // We trust the server - It's always been good to us!
+        // No need to validate the events it is sending us
+        game_state.0.consume(&event);
+
+        // Send the event into the bevy event system so systems can react to it
+        game_events.send(BevyGameEvent(event));
+    }
 }
 
 // If any error is found we just panic

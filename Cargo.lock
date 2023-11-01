@@ -3349,6 +3349,7 @@ dependencies = [
  "anyhow",
  "bevy",
  "bevy_renet",
+ "bincode",
  "renet",
  "store",
 ]

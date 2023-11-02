@@ -121,12 +121,16 @@ fn input(
         // Determine the index of the tile that the mouse is currently over
         // NOTE: This calculation assumes a fixed window size.
         // That's fine for now, but consider using the windows size instead.
-        let x_tile: usize = (mouse_position.x / 83.0).floor() as usize;
-        let y_tile: usize = (mouse_position.y / 540.0).floor() as usize;
-        let tile = x_tile + y_tile * 13;
+        let mut tile_x: usize = (mouse_position.x / 83.0).floor() as usize;
+        let tile_y: usize = (mouse_position.y / 540.0).floor() as usize;
+        if tile_x > 5 {
+            // remove the middle bar offset
+            tile_x = tile_x - 1
+        } 
+        let tile = tile_x + tile_y * 12;
 
         // If mouse is outside of board we do nothing
-        if 25 < tile {
+        if 23 < tile {
             return;
         }
 

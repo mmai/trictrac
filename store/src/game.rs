@@ -3,6 +3,7 @@ use crate::player::{Color, Player, PlayerId};
 use crate::board::{Board, Move};
 use crate::dice::{Dices, Roll};
 use crate::Error;
+use log::{error, info, trace, warn};
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -137,10 +138,12 @@ impl GameState {
             Move { player_id, from, to } => {
                 // Check player exists
                 if !self.players.contains_key(player_id) {
+                        error!("Player {} unknown", player_id);
                     return false;
                 }
                 // Check player is currently the one making their move
                 if self.active_player_id != *player_id {
+                        error!("Player not active : {}", self.active_player_id);
                     return false;
                 }
 

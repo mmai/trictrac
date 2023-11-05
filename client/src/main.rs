@@ -3,7 +3,7 @@ use std::{net::UdpSocket, time::SystemTime};
 use renet::transport::{NetcodeClientTransport, NetcodeTransportError, NETCODE_USER_DATA_BYTES};
 use store::{EndGameReason, GameEvent, GameState};
 
-use bevy::prelude::*;
+use bevy::{prelude::*, utils::HashMap};
 use bevy::window::PrimaryWindow;
 use bevy_renet::{
     renet::{transport::ClientAuthentication, ConnectionConfig, RenetClient},
@@ -73,7 +73,7 @@ fn main() {
         .insert_resource(transport)
         .insert_resource(CurrentClientId(client_id))
         .add_systems(Startup, setup)
-        .add_systems(Update, (update_waiting_text, input, panic_on_error_system))
+        .add_systems(Update, (update_waiting_text, input, update_board, panic_on_error_system))
         .add_systems(
             PostUpdate,
             receive_events_from_server.run_if(client_connected()),
@@ -88,7 +88,70 @@ struct UIRoot;
 #[derive(Component)]
 struct WaitingText;
 
+#[derive(Component)]
+struct Board {
+    squares: [Square; 26]
+}
+
+impl Default for Board {
+    fn default() -> Self {
+        Self {
+            squares: [Square { count: 0, color: None, position: 0}; 26]
+        }
+    }
+}
+
+impl Board {
+    fn square_at(&self, position: usize) -> Square {
+       self.squares[position] 
+    }
+}
+
+#[derive(Component, Clone, Copy)]
+struct Square {
+    count: usize,
+    color: Option<bool>,
+    position: usize,
+}
+
 ////////// UPDATE SYSTEMS //////////
+fn update_board(
+    mut commands: Commands,
+    game_state: Res<BevyGameState>,
+    mut game_events: EventReader<BevyGameEvent>,
+    asset_server: Res<AssetServer>,
+) {
+    for event in game_events.iter() {
+        match event.0 {
+            GameEvent::Move { player_id, from, to } => {
+                // backgammon postions, TODO : dépend de player_id
+                let (x, y) = if to < 13 { (13 - to, 1) } else { (to - 13, 0)};
+                let texture =
+                    asset_server.load(match game_state.0.players[&player_id].color {
+                        store::Color::Black => "tac.png",
+                        store::Color::White => "tic.png",
+                    });
+
+            info!("spawning tictac sprite");
+                commands.spawn(SpriteBundle {
+                    transform: Transform::from_xyz(
+                        83.0 * (x as f32 - 1.0),
+                        -30.0 + 540.0 * (y as f32 - 1.0),
+                        0.0,
+                    ),
+                    sprite: Sprite {
+                        custom_size: Some(Vec2::new(83.0, 83.0)),
+                        ..default()
+                    },
+                    texture: texture.into(),
+                    ..default()
+                });
+            }
+            _ => {}
+        }
+    }
+}
+
 fn update_waiting_text(mut text_query: Query<&mut Text, With<WaitingText>>, time: Res<Time>) {
     if let Ok(mut text) = text_query.get_single_mut() {
         let num_dots = (time.elapsed_seconds() as usize % 3) + 1;
@@ -115,7 +178,6 @@ fn input(
         return;
     }
 
-    // let window = windows.get_primary().unwrap();
     let window = primary_query.get_single().unwrap();
     if let Some(mouse_position) = window.cursor_position() {
         // Determine the index of the tile that the mouse is currently over
@@ -127,7 +189,14 @@ fn input(
             // remove the middle bar offset
             tile_x = tile_x - 1
         } 
-        let tile = tile_x + tile_y * 12;
+        // let tile = tile_x + tile_y * 12;
+
+        // traduction en position backgammon
+        let tile = if tile_y == 0 {
+            13 + tile_x
+        } else {
+            12 - tile_x 
+        };
 
         // If mouse is outside of board we do nothing
         if 23 < tile {
@@ -191,6 +260,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         })
         .insert(UIRoot)
         .with_children(|parent| {
+            // parent.spawn(Board::default()); // panic
             parent
                 .spawn(TextBundle::from_section(
                     "Waiting for an opponent...",

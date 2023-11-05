@@ -2,7 +2,7 @@ use crate::player::{Player, Color};
 use crate::Error;
 use serde::{Deserialize, Serialize};
 
-/// Represents the Backgammon board
+/// Represents the Tric Trac board
 ///
 /// A Tric-Trac board consists of 24 fields, each of which can hold 0 or more checkers.
 ///
@@ -75,7 +75,7 @@ impl Board {
     ///
     /// This method adds the amount of checkers for a player on a field. The field is numbered from
     /// 0 to 23, starting from the last field of each player in the home board, the most far away
-    /// field for each player (where there are 2 checkers to start with) is number 23.
+    /// field for each player is number 23.
     ///
     /// If the field is blocked for the player, an error is returned. If the field is not blocked,
     /// but there is already one checker from the other player on the field, that checker is hit and

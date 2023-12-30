@@ -34,3 +34,23 @@ cf. https://blessed.rs/crates
   - https://github.com/marktani/backgammon
 * network webtarot
 * front ?
+
+## Specs
+
+### Game state notation
+
+Backgammon notation : https://nymann.dev/2023/05/16/Introducing-the-Backgammon-Position-Notation-BPN-A-Standard-for-Representing-Game-State/
+
+* piece placement
+  * dames
+* active player
+* step 
+  * roll dice
+  * mark points (jeton & fichet) & set bredouille markers (3rd jeton & pavillon)
+  * move pieces
+* dice roll
+* points
+  * points
+  * trous
+  * bredouille possible 
+  * grande bredouille possible 

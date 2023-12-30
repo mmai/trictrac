@@ -17,10 +17,19 @@ pub enum Stage {
     Ended,
 }
 
+/// The different states a game turn can be in.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum TurnStage {
+    RollDice,
+    MarkPoints,
+    Move,
+}
+
 /// Represents a TricTrac game
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GameState {
     pub stage: Stage,
+    pub turn_stage: TurnStage,
     pub board: Board,
     pub active_player_id: PlayerId,
     pub players: HashMap<PlayerId, Player>,
@@ -46,6 +55,7 @@ impl Default for GameState {
     fn default() -> Self {
         Self {
             stage: Stage::PreGame,
+            turn_stage: TurnStage::RollDice,
             board: Board::default(),
             active_player_id: 0,
             players: HashMap::new(),

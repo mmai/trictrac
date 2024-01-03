@@ -241,3 +241,18 @@ Les manches, s'appellent des "marqués"
 ## TRICTRAC à Écrire (2e partie : Les Marqués, comment compter les points gagnés)
 https://www.youtube.com/watch?v=_PZ1rkVqljg
 
+## TRICTRAC à Écrire (3e et dernière partie : la comptabilité)
+https://www.youtube.com/watch?v=gNKBm0D67og
+
+- 20 jetons par joueur
+- panier de fiches (rectangles). Une fiche vaut 10 jetons
+
+- à la fin de chaque marqué, le perdant (le marqué) paie la différence de points au gagnant avec ses jetons ou en utilisant ("empruntant") des fiches du panier.
+- jetons de marquage : chaque perte d'un marqué est symbolisée par deux jetons superposés.
+
+à la fin de la partie, quand tous les marqués ont été faits :
+- queue des jetons : celui qui a fait le plus de points (avant la queue des marqués) récupère tous les jetons de marquage
+- queue des marqués : si partie en n marqués (n toujours pair), le "contingent" est n/2. Pour chaque victoire au delà du contingent (un "pari"), un joueur gagne des points.
+Le premier pari est appelé "postillon" et est payé 28 points (ou jetons), les suivants sont payés 8 jetons. Les 20 points supplémentaires du postillons sont appelés "queue des marqués"
+
+queue générale, ou gageure : pari externe au jeu lui même.

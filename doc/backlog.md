@@ -29,6 +29,8 @@ cf. https://blessed.rs/crates
 
 ## Backgammon existing projects
 
+* go : https://bgammon.org/blog/20240101-hello-world/
+
 * lib rust backgammon
   - https://docs.rs/crate/backgammon/0.4.0
   - https://github.com/marktani/backgammon
@@ -77,13 +79,13 @@ Backgammon
 13 14 .. 23 24
 12 11 .. 2  1
 
-Backgammon notation : https://nymann.dev/2023/05/16/Introducing-the-Backgammon-Position-Notation-BPN-A-Standard-for-Representing-Game-State/
-
 => utilisation de la notation Backgammon : uniformisation de la notation quelque soit le jeu de table. 
 Non dénuée d'avantages : 
 - on se débarrasse de la notation spéciale du talon
 - on évite confusion entre côté noir et blanc.
 - bien que l'orientation change par rapport à la plupart des traité, on suit celle du Lepeintre, et celle des vidéos de Philippe Lalanne
+
+Backgammon notation : https://nymann.dev/2023/05/16/Introducing-the-Backgammon-Position-Notation-BPN-A-Standard-for-Representing-Game-State/
 
 #### State data
 * piece placement

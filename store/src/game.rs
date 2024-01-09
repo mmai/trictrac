@@ -9,7 +9,9 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt;
 
-/// The different states a game can be in. (not to be confused with the entire "GameState")
+type TGPN = [u8];
+
+/// The different stages a game can be in. (not to be confused with the entire "GameState")
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Stage {
     PreGame,
@@ -17,7 +19,7 @@ pub enum Stage {
     Ended,
 }
 
-/// The different states a game turn can be in.
+/// The different stages a game turn can be in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TurnStage {
     RollDice,
@@ -70,6 +72,11 @@ impl GameState {
     /// Create a new default game
     pub fn new() -> Self {
         GameState::default()
+    }
+
+    /// Format to TGPN notation (Tables games position notation)
+    fn toTGPN(&self, f: &mut fmt::Formatter) -> TGPN {
+        b"ll"
     }
 
     pub fn who_plays(&self) -> Option<&Player> {

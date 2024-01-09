@@ -88,17 +88,21 @@ Non dénuée d'avantages :
 
 Backgammon notation : https://nymann.dev/2023/05/16/Introducing-the-Backgammon-Position-Notation-BPN-A-Standard-for-Representing-Game-State/
 
+GnuBg : https://www.gnu.org/software/gnubg/manual/html_node/A-technical-description-of-the-Position-ID.html
+
 #### State data
-* piece placement
+* piece placement -> 77bits (24 + 23 + 30 max)
   * dames
-* active player
-* step 
+* active player -> 1 bit
+* step  -> 2 bits
   * roll dice
   * mark points (jeton & fichet) & set bredouille markers (3rd jeton & pavillon)
   * move pieces
-* dice roll
-* points
-  * points
-  * trous
-  * bredouille possible 
-  * grande bredouille possible 
+* dice roll -> 4bits 
+* points 10bits x2 joueurs = 20bits
+  * points -> 4bits
+  * trous -> 4bits
+  * bredouille possible 1bit
+  * grande bredouille possible 1bit
+
+Total : 77 + 1 + 2 + 4 + 20 = 104 bits = 13 * 8 (8^2 = 256) = 17.3333 * 6 (18 u64) -> 108 possible

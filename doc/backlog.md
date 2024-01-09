@@ -30,9 +30,10 @@ cf. https://blessed.rs/crates
 ## Backgammon existing projects
 
 * go : https://bgammon.org/blog/20240101-hello-world/
+  - protocole de communication : https://code.rocket9labs.com/tslocum/bgammon/src/branch/main/PROTOCOL.md
 
 * lib rust backgammon
-  - https://docs.rs/crate/backgammon/0.4.0
+  - https://github.com/carlostrub/backgammon
   - https://github.com/marktani/backgammon
 * network webtarot
 * front ?

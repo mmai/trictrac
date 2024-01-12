@@ -1,13 +1,13 @@
 //! # Play a TricTrac Game
-use crate::player::{Color, Player, PlayerId};
 use crate::board::{Board, Move};
 use crate::dice::{Dices, Roll};
+use crate::player::{Color, Player, PlayerId};
 use crate::Error;
 use log::{error, info, trace, warn};
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::fmt;
+use std::{fmt, vec};
 
 type TGPN = [u8];
 
@@ -48,7 +48,7 @@ impl fmt::Display for GameState {
         let mut s = String::new();
         s.push_str(&format!("Dices: {:?}\n", self.dices));
         // s.push_str(&format!("Who plays: {}\n", self.who_plays().map(|player| &player.name ).unwrap_or("")));
-        s.push_str(&format!("Board: {:?}\n", self.board.get()));
+        s.push_str(&format!("Board: {:?}\n", self.board));
         write!(f, "{}", s)
     }
 }
@@ -75,8 +75,48 @@ impl GameState {
     }
 
     /// Format to TGPN notation (Tables games position notation)
-    fn toTGPN(&self, f: &mut fmt::Formatter) -> TGPN {
-        b"ll"
+    // fn toTGPN(&self, f: &mut fmt::Formatter) -> TGPN {
+    pub fn toTGPN(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut s = String::new();
+        // s.push_str(&format!("Dices: {:?}\n", self.dices));
+        write!(f, "{}", s)
+    }
+
+    /// Calculate game state id :
+    pub fn to_string_id(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        // Pieces placement -> 77 bits (24 + 23 + 30 max)
+        let mut pos_bits = self.board.toGnupgPosId();
+
+        // active player -> 1 bit
+        // white : 0 (false)
+        // black : 1 (true)
+        pos_bits.push(
+            self.who_plays()
+                .map(|player| player.color == Color::Black)
+                .unwrap_or(false), // White by default
+        );
+
+        // step  -> 2 bits
+        //   * roll dice
+        //   * mark points (jeton & fichet) & set bredouille markers (3rd jeton & pavillon)
+        //   * move pieces
+        let mut step_bits = match self.turn_stage {
+            TurnStage::RollDice => [false, false],
+            TurnStage::MarkPoints => [false, true],
+            TurnStage::Move => [true, false],
+        };
+        pos_bits.append(&mut step_bits.into());
+
+        // dice roll -> 4 bits
+        // points 10bits x2 joueurs = 20bits
+        //   * points -> 4bits
+        //   * trous -> 4bits
+        //   * bredouille possible 1bit
+        //   * grande bredouille possible 1bit
+
+        let mut s = String::new();
+        // s.push_str(&format!("Dices: {:?}\n", self.dices));
+        write!(f, "{}", s)
     }
 
     pub fn who_plays(&self) -> Option<&Player> {
@@ -84,35 +124,39 @@ impl GameState {
     }
 
     pub fn switch_active_player(&mut self) {
-        let other_player_id = self.players.iter()
-            .filter(|(id, _player)| **id != self.active_player_id )
-            .map(|(id, _player)| *id )
+        let other_player_id = self
+            .players
+            .iter()
+            .filter(|(id, _player)| **id != self.active_player_id)
+            .map(|(id, _player)| *id)
             .next();
         self.active_player_id = other_player_id.unwrap_or(0);
     }
 
     pub fn player_id_by_color(&self, color: Color) -> Option<&PlayerId> {
-        self.players.iter()
+        self.players
+            .iter()
             .filter(|(_id, player)| player.color == color)
-            .map(|(id, _player)| id )
+            .map(|(id, _player)| id)
             .next()
     }
 
     pub fn player_id(&self, player: &Player) -> Option<&PlayerId> {
-        self.players.iter()
+        self.players
+            .iter()
             .filter(|(_id, candidate)| player.color == candidate.color)
-            .map(|(id, _candidate)| id )
+            .map(|(id, _candidate)| id)
             .next()
     }
 
-     /// Determines whether an event is valid considering the current GameState
+    /// Determines whether an event is valid considering the current GameState
     pub fn validate(&self, event: &GameEvent) -> bool {
         use GameEvent::*;
         match event {
             BeginGame { goes_first } => {
                 // Check that the player supposed to go first exists
                 if !self.players.contains_key(goes_first) {
-                  return false;
+                    return false;
                 }
 
                 // Check that the game hasn't started yet. (we don't want to double start a game)
@@ -150,17 +194,20 @@ impl GameState {
                 if self.active_player_id != *player_id {
                     return false;
                 }
-
             }
-            Move { player_id, from, to } => {
+            Move {
+                player_id,
+                from,
+                to,
+            } => {
                 // Check player exists
                 if !self.players.contains_key(player_id) {
-                        error!("Player {} unknown", player_id);
+                    error!("Player {} unknown", player_id);
                     return false;
                 }
                 // Check player is currently the one making their move
                 if self.active_player_id != *player_id {
-                        error!("Player not active : {}", self.active_player_id);
+                    error!("Player not active : {}", self.active_player_id);
                     return false;
                 }
 
@@ -174,10 +221,10 @@ impl GameState {
             }
         }
 
-        // We couldn't find anything wrong with the event so it must be good 
+        // We couldn't find anything wrong with the event so it must be good
         true
     }
-    
+
     /// Consumes an event, modifying the GameState and adding the event to its history
     /// NOTE: consume assumes the event to have already been validated and will accept *any* event passed to it
     pub fn consume(&mut self, valid_event: &GameEvent) {
@@ -189,21 +236,28 @@ impl GameState {
             }
             EndGame { reason: _ } => self.stage = Stage::Ended,
             PlayerJoined { player_id, name } => {
-                let color = if self.players.len() > 0 { Color::White } else { Color::Black };
+                let color = if self.players.len() > 0 {
+                    Color::White
+                } else {
+                    Color::Black
+                };
                 self.players.insert(
                     *player_id,
                     Player {
                         name: name.to_string(),
-                        color
+                        color,
                     },
                 );
             }
             PlayerDisconnected { player_id } => {
                 self.players.remove(player_id);
             }
-            Roll { player_id } => {
-            }
-            Move { player_id, from, to } => {
+            Roll { player_id } => {}
+            Move {
+                player_id,
+                from,
+                to,
+            } => {
                 let player = self.players.get(player_id).unwrap();
                 self.board.set(player, *from, 0 as i8).unwrap();
                 self.board.set(player, *to, 1 as i8).unwrap();
@@ -223,7 +277,6 @@ impl GameState {
     pub fn determine_winner(&self) -> Option<PlayerId> {
         None
     }
-
 }
 
 /// The reasons why a game could end
@@ -238,28 +291,41 @@ pub enum EndGameReason {
 /// An event that progresses the GameState forward
 #[derive(Debug, Clone, Serialize, PartialEq, Deserialize)]
 pub enum GameEvent {
-    BeginGame { goes_first: PlayerId },
-    EndGame { reason: EndGameReason },
-    PlayerJoined { player_id: PlayerId, name: String },
-    PlayerDisconnected { player_id: PlayerId },
-    Roll { player_id: PlayerId },
-    Move { player_id: PlayerId, from: usize, to: usize },
+    BeginGame {
+        goes_first: PlayerId,
+    },
+    EndGame {
+        reason: EndGameReason,
+    },
+    PlayerJoined {
+        player_id: PlayerId,
+        name: String,
+    },
+    PlayerDisconnected {
+        player_id: PlayerId,
+    },
+    Roll {
+        player_id: PlayerId,
+    },
+    Move {
+        player_id: PlayerId,
+        from: usize,
+        to: usize,
+    },
 }
 
 impl Roll for GameState {
     fn roll(&mut self) -> Result<&mut Self, Error> {
-        if !self.dices.consumed.0
-            && !self.dices.consumed.1
-        {
+        if !self.dices.consumed.0 && !self.dices.consumed.1 {
             return Err(Error::MoveFirst);
         }
 
         self.dices = self.dices.roll();
         if self.who_plays().is_none() {
             let diff = self.dices.values.0 - self.dices.values.1;
-            let active_color =  if diff < 0 { Color::Black } else { Color::White };
+            let active_color = if diff < 0 { Color::Black } else { Color::White };
             let color_player_id = self.player_id_by_color(active_color);
-            if color_player_id.is_some(){
+            if color_player_id.is_some() {
                 self.active_player_id = *color_player_id.unwrap();
             }
         }
@@ -298,9 +364,7 @@ impl Move for GameState {
         }
 
         // switch to other player if all dices have been consumed
-        if self.dices.consumed.0
-            && self.dices.consumed.1
-        {
+        if self.dices.consumed.0 && self.dices.consumed.1 {
             self.switch_active_player();
             self.roll_first = true;
         }

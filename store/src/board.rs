@@ -1,10 +1,11 @@
 use crate::player::{Color, Player};
 use crate::Error;
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
 /// Represents the Tric Trac board
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct Board {
+pub struct Board {
     board: [i8; 24],
 }
 
@@ -18,10 +19,54 @@ impl Default for Board {
     }
 }
 
+// implement Display trait
+impl fmt::Display for Board {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut s = String::new();
+        s.push_str(&format!("{:?}", self.board));
+        write!(f, "{}", s)
+    }
+}
+
 impl Board {
     /// Create a new board
     pub fn new() -> Self {
         Board::default()
+    }
+
+    pub fn toGnupgPosId(&self) -> Vec<bool> {
+        // Pieces placement -> 77bits (24 + 23 + 30 max)
+        // inspired by https://www.gnu.org/software/gnubg/manual/html_node/A-technical-description-of-the-Position-ID.html
+        // - white positions
+        let white_board = self.board.clone();
+        let mut posBits = white_board.iter().fold(vec![], |acc, nb| {
+            let mut newAcc = acc.clone();
+            if *nb as usize > 0 {
+                // add as many `true` as there are pieces on the arrow
+                newAcc.append(&mut vec![true; *nb as usize]);
+            }
+            newAcc.push(false); // arrow separator
+            newAcc
+        });
+
+        // - black positions
+        let mut black_board = self.board.clone();
+        black_board.reverse();
+        let mut posBlackBits = black_board.iter().fold(vec![], |acc, nb| {
+            let mut newAcc = acc.clone();
+            if (*nb as usize) < 0 {
+                // add as many `true` as there are pieces on the arrow
+                newAcc.append(&mut vec![true; 0 - *nb as usize]);
+            }
+            newAcc.push(false); // arrow separator
+            newAcc
+        });
+
+        posBits.append(&mut posBlackBits);
+
+        // fill with 0 bits until 77
+        posBits.resize(77, false);
+        posBits
     }
 
     /// Set checkers for a player on a field

@@ -108,6 +108,12 @@ impl GameState {
         pos_bits.append(&mut step_bits.into());
 
         // dice roll -> 4 bits
+        let mut dice_bits = match self.dices {
+            TurnStage::RollDice => [false, false],
+            TurnStage::MarkPoints => [false, true],
+            TurnStage::Move => [true, false],
+        };
+        pos_bits.append(&mut step_bits.into());
         // points 10bits x2 joueurs = 20bits
         //   * points -> 4bits
         //   * trous -> 4bits

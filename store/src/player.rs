@@ -16,6 +16,29 @@ pub enum Color {
 pub struct Player {
     pub name: String,
     pub color: Color,
+    pub points: u8,
+    pub holes: u8,
+    pub can_bredouille: bool,
+    pub can_big_bredouille: bool,
+}
+
+impl Player {
+
+    pub fn new(name: String, color: Color) -> Self {
+        Player {
+            name,
+            color,
+            points: 0,
+            holes: 0,
+            can_bredouille: true,
+            can_big_bredouille: true,
+        }
+    }
+
+    pub fn to_bits_string(&self) -> String {
+        format!("{:0>4b}{:0>4b}{:b}{:b}", self.points, self.holes, self.can_bredouille as u8, self.can_big_bredouille as u8)
+    }
+
 }
 
 /// Represents a player in the game.
@@ -71,4 +94,12 @@ mod tests {
         assert_eq!(CurrentPlayer::Player0.other(), CurrentPlayer::Player1);
         assert_eq!(CurrentPlayer::Player1.other(), CurrentPlayer::Player0);
     }
+
+    #[test]
+    fn test_to_bits_string() {
+        let player = Player { name: "Edgar".into(), color: Color::White, points: 11, holes: 3, can_bredouille: true, can_big_bredouille: false };
+        println!("{}", player.to_bits_string());
+        assert!(player.to_bits_string() == "1011001110");
+    }
+
 }

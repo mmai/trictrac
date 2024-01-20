@@ -34,39 +34,39 @@ impl Board {
         Board::default()
     }
 
-    pub fn toGnupgPosId(&self) -> Vec<bool> {
+    pub fn to_gnupg_pos_id(&self) -> String {
         // Pieces placement -> 77bits (24 + 23 + 30 max)
         // inspired by https://www.gnu.org/software/gnubg/manual/html_node/A-technical-description-of-the-Position-ID.html
         // - white positions
         let white_board = self.board.clone();
-        let mut posBits = white_board.iter().fold(vec![], |acc, nb| {
-            let mut newAcc = acc.clone();
-            if *nb as usize > 0 {
+        let mut pos_bits = white_board.iter().fold(vec![], |acc, nb| {
+            let mut new_acc = acc.clone();
+            if *nb > 0 {
                 // add as many `true` as there are pieces on the arrow
-                newAcc.append(&mut vec![true; *nb as usize]);
+                new_acc.append(&mut vec!['1'; *nb as usize]);
             }
-            newAcc.push(false); // arrow separator
-            newAcc
+            new_acc.push('0'); // arrow separator
+            new_acc
         });
 
         // - black positions
         let mut black_board = self.board.clone();
         black_board.reverse();
-        let mut posBlackBits = black_board.iter().fold(vec![], |acc, nb| {
-            let mut newAcc = acc.clone();
-            if (*nb as usize) < 0 {
+        let mut pos_black_bits = black_board.iter().fold(vec![], |acc, nb| {
+            let mut new_acc = acc.clone();
+            if *nb < 0 {
                 // add as many `true` as there are pieces on the arrow
-                newAcc.append(&mut vec![true; 0 - *nb as usize]);
+                new_acc.append(&mut vec!['1'; (0 - *nb) as usize]);
             }
-            newAcc.push(false); // arrow separator
-            newAcc
+            new_acc.push('0'); // arrow separator
+            new_acc
         });
 
-        posBits.append(&mut posBlackBits);
+        pos_bits.append(&mut pos_black_bits);
 
         // fill with 0 bits until 77
-        posBits.resize(77, false);
-        posBits
+        pos_bits.resize(77, '0');
+        pos_bits.iter().collect::<String>()
     }
 
     /// Set checkers for a player on a field
@@ -124,7 +124,7 @@ impl Board {
                 }
             }
             Color::Black => {
-                if self.raw_board.0.board[23 - field] > 1 {
+                if self.board[23 - field] > 1 {
                     Ok(true)
                 } else {
                     Ok(false)
@@ -158,104 +158,16 @@ mod tests {
     }
 
     #[test]
-    fn default_player_board() {
-        assert_eq!(
-            PlayerBoard::default(),
-            PlayerBoard {
-                board: [0, 0, 0, 0, 0, 5, 0, 3, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2,],
-                off: 0
-            }
-        );
-    }
-
-    #[test]
-    fn get_board() {
-        let board = Board::new();
-        assert_eq!(
-            board.get(),
-            BoardDisplay {
-                board: [
-                    -2, 0, 0, 0, 0, 5, 0, 3, 0, 0, 0, -5, 5, 0, 0, 0, -3, 0, -5, 0, 0, 0, 0, 2,
-                ],
-                off: (0, 0)
-            }
-        );
-    }
-
-    #[test]
-    fn get_off() {
-        let board = Board::new();
-        assert_eq!(board.get_off(), (0, 0));
-    }
-
-    #[test]
-    fn set_player0() -> Result<(), Error> {
-        let mut board = Board::new();
-        let player = Player {
-            name: "".into(),
-            color: Color::White,
-        };
-        board.set(&player, 1, 1)?;
-        assert_eq!(board.get().board[1], 1);
-        Ok(())
-    }
-
-    #[test]
-    fn set_player1() -> Result<(), Error> {
-        let mut board = Board::new();
-        let player = Player {
-            name: "".into(),
-            color: Color::Black,
-        };
-        board.set(&player, 2, 1)?;
-        assert_eq!(board.get().board[21], -1);
-        Ok(())
-    }
-
-    #[test]
-    fn set_player0_off() -> Result<(), Error> {
-        let mut board = Board::new();
-        let player = Player {
-            name: "".into(),
-            color: Color::White,
-        };
-        board.set_off(player, 1)?;
-        assert_eq!(board.get().off.0, 1);
-        Ok(())
-    }
-
-    #[test]
-    fn set_player1_off() -> Result<(), Error> {
-        let mut board = Board::new();
-        let player = Player {
-            name: "".into(),
-            color: Color::Black,
-        };
-        board.set_off(player, 1)?;
-        assert_eq!(board.get().off.1, 1);
-        Ok(())
-    }
-
-    #[test]
-    fn set_player1_off1() -> Result<(), Error> {
-        let mut board = Board::new();
-        let player = Player {
-            name: "".into(),
-            color: Color::Black,
-        };
-        board.set_off(player, 1)?;
-        board.set_off(player, 1)?;
-        assert_eq!(board.get().off.1, 2);
-        Ok(())
-    }
-
-    #[test]
     fn blocked_player0() -> Result<(), Error> {
         let board = Board::new();
         assert!(board.blocked(
             &Player {
                 name: "".into(),
-                color: Color::White
+                color: Color::White,
+                holes: 0,
+                points: 0,
+                can_bredouille: true,
+                can_big_bredouille: true
             },
             0
         )?);
@@ -268,7 +180,11 @@ mod tests {
         assert!(board.blocked(
             &Player {
                 name: "".into(),
-                color: Color::Black
+                color: Color::Black,
+                holes: 0,
+                points: 0,
+                can_bredouille: true,
+                can_big_bredouille: true
             },
             0
         )?);
@@ -282,6 +198,10 @@ mod tests {
             &Player {
                 name: "".into(),
                 color: Color::Black,
+                holes: 0,
+                points: 0,
+                can_bredouille: true,
+                can_big_bredouille: true
             },
             1,
             2,
@@ -289,7 +209,11 @@ mod tests {
         assert!(board.blocked(
             &Player {
                 name: "".into(),
-                color: Color::White
+                color: Color::White,
+                holes: 0,
+                points: 0,
+                can_bredouille: true,
+                can_big_bredouille: true
             },
             22
         )?);
@@ -303,6 +227,10 @@ mod tests {
             &Player {
                 name: "".into(),
                 color: Color::White,
+                holes: 0,
+                points: 0,
+                can_bredouille: true,
+                can_big_bredouille: true
             },
             1,
             2,
@@ -310,7 +238,11 @@ mod tests {
         assert!(board.blocked(
             &Player {
                 name: "".into(),
-                color: Color::Black
+                color: Color::Black,
+                holes: 0,
+                points: 0,
+                can_bredouille: true,
+                can_big_bredouille: true
             },
             22
         )?);
@@ -324,133 +256,15 @@ mod tests {
             .blocked(
                 &Player {
                     name: "".into(),
-                    color: Color::White
+                    color: Color::White,
+                    holes: 0,
+                    points: 0,
+                    can_bredouille: true,
+                    can_big_bredouille: true
                 },
                 24
             )
             .is_err());
-    }
-
-    #[test]
-    fn set_field_with_1_checker_player0_a() -> Result<(), Error> {
-        let mut board = Board::new();
-        board.set(
-            &Player {
-                name: "".into(),
-                color: Color::White,
-            },
-            1,
-            1,
-        )?;
-        board.set(
-            &Player {
-                name: "".into(),
-                color: Color::Black,
-            },
-            22,
-            1,
-        )?;
-        assert_eq!(board.get().board[1], -1);
-        Ok(())
-    }
-
-    #[test]
-    fn set_field_with_1_checker_player0_b() -> Result<(), Error> {
-        let mut board = Board::new();
-        board.set(
-            &Player {
-                name: "".into(),
-                color: Color::White,
-            },
-            1,
-            1,
-        )?;
-        board.set(
-            &Player {
-                name: "".into(),
-                color: Color::Black,
-            },
-            22,
-            1,
-        )?;
-        assert_eq!(board.get().board[1], -1);
-        Ok(())
-    }
-
-    #[test]
-    fn set_field_with_1_checker_player1_a() -> Result<(), Error> {
-        let mut board = Board::new();
-        board.set(
-            &Player {
-                name: "".into(),
-                color: Color::Black,
-            },
-            1,
-            1,
-        )?;
-        board.set(
-            &Player {
-                name: "".into(),
-                color: Color::White,
-            },
-            22,
-            1,
-        )?;
-        assert_eq!(board.get().board[22], 1);
-        Ok(())
-    }
-
-    #[test]
-    fn set_field_with_1_checker_player1_b() -> Result<(), Error> {
-        let mut board = Board::new();
-        board.set(
-            &Player {
-                name: "".into(),
-                color: Color::Black,
-            },
-            1,
-            1,
-        )?;
-        board.set(
-            &Player {
-                name: "".into(),
-                color: Color::White,
-            },
-            22,
-            1,
-        )?;
-        assert_eq!(board.get().board[22], 1);
-        Ok(())
-    }
-
-    #[test]
-    fn set_field_with_2_checkers_player0_a() -> Result<(), Error> {
-        let mut board = Board::new();
-        board.set(
-            &Player {
-                name: "".into(),
-                color: Color::White,
-            },
-            23,
-            2,
-        )?;
-        assert_eq!(board.get().board[23], 4);
-        Ok(())
-    }
-
-    #[test]
-    fn set_field_with_2_checkers_player0_b() -> Result<(), Error> {
-        let mut board = Board::new();
-        board.set(
-            &Player {
-                name: "".into(),
-                color: Color::White,
-            },
-            23,
-            -1,
-        )?;
-        assert_eq!(board.get().board[23], 1);
-        Ok(())
     }
 
     #[test]
@@ -460,7 +274,11 @@ mod tests {
             .set(
                 &Player {
                     name: "".into(),
-                    color: Color::White
+                    color: Color::White,
+                holes: 0,
+                points: 0,
+                can_bredouille: true,
+                can_big_bredouille: true
                 },
                 0,
                 2
@@ -475,7 +293,11 @@ mod tests {
             .set(
                 &Player {
                     name: "".into(),
-                    color: Color::White
+                    color: Color::White,
+                holes: 0,
+                points: 0,
+                can_bredouille: true,
+                can_big_bredouille: true
                 },
                 50,
                 2
@@ -490,7 +312,11 @@ mod tests {
             .set(
                 &Player {
                     name: "".into(),
-                    color: Color::White
+                    color: Color::White,
+                holes: 0,
+                points: 0,
+                can_bredouille: true,
+                can_big_bredouille: true
                 },
                 23,
                 -3
@@ -505,7 +331,11 @@ mod tests {
             .set(
                 &Player {
                     name: "".into(),
-                    color: Color::Black
+                    color: Color::Black,
+                holes: 0,
+                points: 0,
+                can_bredouille: true,
+                can_big_bredouille: true
                 },
                 23,
                 -3

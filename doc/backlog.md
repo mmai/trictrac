@@ -57,11 +57,11 @@ Encodage efficace : https://www.gnu.org/software/gnubg/manual/html_node/A-techni
   * roll dice
   * mark points (jeton & fichet) & set bredouille markers (3rd jeton & pavillon)
   * move pieces
-* dice roll -> 4bits 
+* dice roll -> 6bits 
 * points 10bits x2 joueurs = 20bits
   * points -> 4bits
   * trous -> 4bits
   * bredouille possible 1bit
   * grande bredouille possible 1bit
 
-Total : 77 + 1 + 2 + 4 + 20 = 104 bits = 13 * 8 (8^2 = 256) = 17.3333 * 6 (18 u64) -> 108 possible
+Total : 77 + 1 + 2 + 6 + 20 = 105 bits = 17.666 * 6 -> 18 u32 (108 possible)

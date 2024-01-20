@@ -23,6 +23,21 @@ impl Dices {
             values: (v.0, v.1),
         }
     }
+
+    pub fn to_bits_string(self) -> String {
+        format!("{:0>3b}{:0>3b}", self.values.0, self.values.1)
+    }
+
+    // pub fn to_bits(self) -> [bool;6] {
+    //     self.to_bits_string().into_bytes().iter().map(|strbit| *strbit == '1' as u8).collect()
+    // }
+
+    // pub from_bits_string(String bits) -> Self {
+    //
+    //     Dices {
+    //         values: ()
+    //     }
+    // }
 }
 
 /// Trait to roll the dices
@@ -40,6 +55,12 @@ mod tests {
         let dices = Dices::default().roll();
         assert!(dices.values.0 >= 1 && dices.values.0 <= 6);
         assert!(dices.values.1 >= 1 && dices.values.1 <= 6);
+    }
+
+    #[test]
+    fn test_to_bits_string() {
+        let dices = Dices { values: (4, 2)};
+        assert!(dices.to_bits_string() == "100010");
     }
 
 }

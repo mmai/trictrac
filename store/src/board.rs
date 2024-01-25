@@ -34,6 +34,7 @@ impl Board {
         Board::default()
     }
 
+    // maybe todo : operate on bits (cf. https://github.com/bungogood/bkgm/blob/a2fb3f395243bcb0bc9f146df73413f73f5ea1e0/src/position.rs#L217)
     pub fn to_gnupg_pos_id(&self) -> String {
         // Pieces placement -> 77bits (24 + 23 + 30 max)
         // inspired by https://www.gnu.org/software/gnubg/manual/html_node/A-technical-description-of-the-Position-ID.html

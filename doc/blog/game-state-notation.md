@@ -48,3 +48,4 @@ Non dénuée d'avantages :
 Backgammon notation : https://nymann.dev/2023/05/16/Introducing-the-Backgammon-Position-Notation-BPN-A-Standard-for-Representing-Game-State/
 
 GnuBg : https://www.gnu.org/software/gnubg/manual/html_node/A-technical-description-of-the-Position-ID.html
+- implémentation rust https://github.com/bungogood/bkgm/blob/main/src/position.rs

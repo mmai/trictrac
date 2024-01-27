@@ -1,9 +1,9 @@
 use std::{net::UdpSocket, time::SystemTime};
 
 use renet::transport::{NetcodeClientTransport, NetcodeTransportError, NETCODE_USER_DATA_BYTES};
-use store::{EndGameReason, GameEvent, GameState};
+use store::{GameEvent, GameState};
 
-use bevy::{prelude::*, utils::HashMap};
+use bevy::{prelude::*};
 use bevy::window::PrimaryWindow;
 use bevy_renet::{
     renet::{transport::ClientAuthentication, ConnectionConfig, RenetClient},
@@ -123,7 +123,7 @@ fn update_board(
 ) {
     for event in game_events.iter() {
         match event.0 {
-            GameEvent::Move { player_id, from, to } => {
+            GameEvent::Move { player_id, from: _, to } => {
                 // backgammon postions, TODO : dépend de player_id
                 let (x, y) = if to < 13 { (13 - to, 1) } else { (to - 13, 0)};
                 let texture =

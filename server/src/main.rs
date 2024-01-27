@@ -92,7 +92,7 @@ fn main() {
                         trace!("The game gas begun");
                     }
                 }
-                ServerEvent::ClientDisconnected { client_id, reason } => {
+                ServerEvent::ClientDisconnected { client_id, reason: _ } => {
                     // First consume a disconnect event
                     let event = store::GameEvent::PlayerDisconnected {
                         player_id: client_id,

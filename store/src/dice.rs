@@ -24,6 +24,14 @@ impl Dices {
         }
     }
 
+    /// Heads or tails
+    pub fn coin(self) -> bool {
+        let between = Uniform::new_inclusive(1, 2);
+        let mut rng = rand::thread_rng();
+        between.sample(&mut rng) == 1
+    }
+
+
     pub fn to_bits_string(self) -> String {
         format!("{:0>3b}{:0>3b}", self.values.0, self.values.1)
     }

@@ -3,12 +3,12 @@ use crate::board::{Board, Move};
 use crate::dice::{Dices, Roll};
 use crate::player::{Color, Player, PlayerId};
 use crate::Error;
-use log::{error, info, trace, warn};
+use log::{error};
 
 // use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::{fmt, vec, str};
+use std::{fmt, str};
 
 use base64::{engine::general_purpose, Engine as _};
 
@@ -77,14 +77,6 @@ impl GameState {
 
     fn add_player(&mut self, player_id: PlayerId, player: Player) {
         self.players.insert(player_id, player);
-    }
-
-    /// Format to TGPN notation (Tables games position notation)
-    // fn toTGPN(&self, f: &mut fmt::Formatter) -> TGPN {
-    pub fn toTGPN(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut s = String::new();
-        // s.push_str(&format!("Dices: {:?}\n", self.dices));
-        write!(f, "{}", s)
     }
 
     /// Calculate game state id :
@@ -282,7 +274,7 @@ impl GameState {
             PlayerDisconnected { player_id } => {
                 self.players.remove(player_id);
             }
-            Roll { player_id } => {}
+            Roll { player_id: _ } => {}
             Move {
                 player_id,
                 from,
@@ -348,8 +340,10 @@ impl Roll for GameState {
     fn roll(&mut self) -> Result<&mut Self, Error> {
         self.dices = self.dices.roll();
         if self.who_plays().is_none() {
-            let diff = self.dices.values.0 - self.dices.values.1;
-            let active_color = if diff < 0 { Color::Black } else { Color::White };
+            let active_color = match self.dices.coin() { 
+                false => Color::Black,
+                true => Color::White 
+            };
             let color_player_id = self.player_id_by_color(active_color);
             if color_player_id.is_some() {
                 self.active_player_id = *color_player_id.unwrap();

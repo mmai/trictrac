@@ -112,7 +112,7 @@ impl Board {
 
     /// Check if a field is blocked for a player
     pub fn blocked(&self, player: &Player, field: usize) -> Result<bool, Error> {
-        if field > 24 {
+        if field < 1 || 24 < field {
             return Err(Error::FieldInvalid);
         }
 
@@ -159,188 +159,65 @@ mod tests {
     }
 
     #[test]
-    fn blocked_player0() -> Result<(), Error> {
+    fn blocked_outofrange() -> Result<(), Error> {
         let board = Board::new();
-        assert!(board.blocked(
-            &Player {
-                name: "".into(),
-                color: Color::White,
-                holes: 0,
-                points: 0,
-                can_bredouille: true,
-                can_big_bredouille: true
-            },
-            0
-        )?);
+        let player = Player::new("".into(), Color::White);
+        assert!(board.blocked( &player, 0).is_err());
+        assert!(board.blocked( &player, 28).is_err());
         Ok(())
     }
 
     #[test]
-    fn blocked_player1() -> Result<(), Error> {
+    fn blocked_otherplayer() -> Result<(), Error> {
         let board = Board::new();
-        assert!(board.blocked(
-            &Player {
-                name: "".into(),
-                color: Color::Black,
-                holes: 0,
-                points: 0,
-                can_bredouille: true,
-                can_big_bredouille: true
-            },
-            0
-        )?);
+        let player = Player::new("".into(), Color::White);
+        assert!(board.blocked( &player, 24)?);
         Ok(())
     }
 
     #[test]
-    fn blocked_player0_a() -> Result<(), Error> {
-        let mut board = Board::new();
-        board.set(
-            &Player {
-                name: "".into(),
-                color: Color::Black,
-                holes: 0,
-                points: 0,
-                can_bredouille: true,
-                can_big_bredouille: true
-            },
-            1,
-            2,
-        )?;
-        assert!(board.blocked(
-            &Player {
-                name: "".into(),
-                color: Color::White,
-                holes: 0,
-                points: 0,
-                can_bredouille: true,
-                can_big_bredouille: true
-            },
-            22
-        )?);
-        Ok(())
-    }
-
-    #[test]
-    fn blocked_player1_a() -> Result<(), Error> {
-        let mut board = Board::new();
-        board.set(
-            &Player {
-                name: "".into(),
-                color: Color::White,
-                holes: 0,
-                points: 0,
-                can_bredouille: true,
-                can_big_bredouille: true
-            },
-            1,
-            2,
-        )?;
-        assert!(board.blocked(
-            &Player {
-                name: "".into(),
-                color: Color::Black,
-                holes: 0,
-                points: 0,
-                can_bredouille: true,
-                can_big_bredouille: true
-            },
-            22
-        )?);
-        Ok(())
-    }
-
-    #[test]
-    fn blocked_invalid_field() {
+    fn blocked_notblocked() -> Result<(), Error> {
         let board = Board::new();
-        assert!(board
-            .blocked(
-                &Player {
-                    name: "".into(),
-                    color: Color::White,
-                    holes: 0,
-                    points: 0,
-                    can_bredouille: true,
-                    can_big_bredouille: true
-                },
-                24
-            )
-            .is_err());
+        let player = Player::new("".into(), Color::White);
+        assert!(!board.blocked( &player, 6)?);
+        Ok(())
     }
+
 
     #[test]
     fn set_field_blocked() {
         let mut board = Board::new();
-        assert!(board
-            .set(
-                &Player {
-                    name: "".into(),
-                    color: Color::White,
-                holes: 0,
-                points: 0,
-                can_bredouille: true,
-                can_big_bredouille: true
-                },
-                0,
-                2
-            )
-            .is_err());
+        let player = Player::new("".into(), Color::White);
+        assert!(
+            board.set( &player, 0, 24)
+            .is_err()
+            );
     }
 
     #[test]
     fn set_wrong_field1() {
         let mut board = Board::new();
+        let player = Player::new("".into(), Color::White);
         assert!(board
-            .set(
-                &Player {
-                    name: "".into(),
-                    color: Color::White,
-                holes: 0,
-                points: 0,
-                can_bredouille: true,
-                can_big_bredouille: true
-                },
-                50,
-                2
-            )
+            .set( &player, 50, 2)
             .is_err());
     }
 
     #[test]
     fn set_wrong_amount0() {
         let mut board = Board::new();
+        let player = Player::new("".into(), Color::White);
         assert!(board
-            .set(
-                &Player {
-                    name: "".into(),
-                    color: Color::White,
-                holes: 0,
-                points: 0,
-                can_bredouille: true,
-                can_big_bredouille: true
-                },
-                23,
-                -3
-            )
+            .set(&player , 23, -3)
             .is_err());
     }
 
     #[test]
     fn set_wrong_amount1() {
         let mut board = Board::new();
+        let player = Player::new("".into(), Color::White);
         assert!(board
-            .set(
-                &Player {
-                    name: "".into(),
-                    color: Color::Black,
-                holes: 0,
-                points: 0,
-                can_bredouille: true,
-                can_big_bredouille: true
-                },
-                23,
-                -3
-            )
+            .set( &player, 23, -3)
             .is_err());
     }
 }

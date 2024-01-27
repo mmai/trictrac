@@ -65,3 +65,29 @@ Encodage efficace : https://www.gnu.org/software/gnubg/manual/html_node/A-techni
   * grande bredouille possible 1bit
 
 Total : 77 + 1 + 2 + 6 + 20 = 105 bits = 17.666 * 6 -> 18 u32 (108 possible)
+
+## TODO
+
+### Epic : jeu simple
+
+Store
+- gestion des évènements 
+  - déplacement de dames
+  - jet des dés
+- déplacements physiques possibles 
+- déplacements autorisés par les règles (pourront être validés physiquement si jeu avec écoles)
+- calcul des points automatique (pas d'écoles)
+
+Server
+- 
+
+Client
+- client tui (ratatui)
+- client desktop (bevy)
+- client web
+
+### Epic : jeu avec écoles
+- déplacement de fiches points : validation physique
+- évenements de déclaration d'école & contre école
+
+### Epic : Bot

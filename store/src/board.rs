@@ -3,16 +3,38 @@ use crate::Error;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
+/// field (aka 'point') position on the board (from 1 to 24)
+pub type Field = usize;
+
+#[derive(Debug, Copy, Clone, Serialize, PartialEq, Deserialize)]
+pub struct CheckerMove {
+    from: Field,
+    to: Field,
+}
+
+impl CheckerMove {
+    pub fn new(from: Field, to: Field) -> Result<Self, Error> {
+        if from < 1 || 24 < from || to < 1 || 24 < to {
+            return Err(Error::FieldInvalid);
+        }
+        Ok(CheckerMove { from, to })
+    }
+
+    pub fn get_to(&self) -> Field {
+        self.to
+    }
+}
+
 /// Represents the Tric Trac board
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Board {
-    board: [i8; 24],
+    positions: [i8; 24],
 }
 
 impl Default for Board {
     fn default() -> Self {
         Board {
-            board: [
+            positions: [
                 15, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -15,
             ],
         }
@@ -23,7 +45,7 @@ impl Default for Board {
 impl fmt::Display for Board {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut s = String::new();
-        s.push_str(&format!("{:?}", self.board));
+        s.push_str(&format!("{:?}", self.positions));
         write!(f, "{}", s)
     }
 }
@@ -39,7 +61,7 @@ impl Board {
         // Pieces placement -> 77bits (24 + 23 + 30 max)
         // inspired by https://www.gnu.org/software/gnubg/manual/html_node/A-technical-description-of-the-Position-ID.html
         // - white positions
-        let white_board = self.board.clone();
+        let white_board = self.positions.clone();
         let mut pos_bits = white_board.iter().fold(vec![], |acc, nb| {
             let mut new_acc = acc.clone();
             if *nb > 0 {
@@ -51,7 +73,7 @@ impl Board {
         });
 
         // - black positions
-        let mut black_board = self.board.clone();
+        let mut black_board = self.positions.clone();
         black_board.reverse();
         let mut pos_black_bits = black_board.iter().fold(vec![], |acc, nb| {
             let mut new_acc = acc.clone();
@@ -79,31 +101,31 @@ impl Board {
     /// If the field is blocked for the player, an error is returned. If the field is not blocked,
     /// but there is already one checker from the other player on the field, that checker is hit and
     /// moved to the bar.
-    pub fn set(&mut self, player: &Player, field: usize, amount: i8) -> Result<(), Error> {
+    pub fn set(&mut self, color: &Color, field: Field, amount: i8) -> Result<(), Error> {
         if field > 24 {
             return Err(Error::FieldInvalid);
         }
 
-        if self.blocked(player, field)? {
+        if self.blocked(color, field)? {
             return Err(Error::FieldBlocked);
         }
 
-        match player.color {
+        match color {
             Color::White => {
-                let new = self.board[field - 1] + amount;
+                let new = self.positions[field - 1] + amount;
                 if new < 0 {
                     return Err(Error::MoveInvalid);
                 }
-                self.board[field - 1] = new;
+                self.positions[field - 1] = new;
 
                 Ok(())
             }
             Color::Black => {
-                let new = self.board[24 - field] - amount;
+                let new = self.positions[24 - field] - amount;
                 if new > 0 {
                     return Err(Error::MoveInvalid);
                 }
-                self.board[24 - field] = new;
+                self.positions[24 - field] = new;
 
                 Ok(())
             }
@@ -111,21 +133,22 @@ impl Board {
     }
 
     /// Check if a field is blocked for a player
-    pub fn blocked(&self, player: &Player, field: usize) -> Result<bool, Error> {
+    pub fn blocked(&self, color: &Color, field: Field) -> Result<bool, Error> {
         if field < 1 || 24 < field {
             return Err(Error::FieldInvalid);
         }
 
-        match player.color {
+        // the square is blocked on the opponent rest corner or if there are opponent's men on the square
+        match color {
             Color::White => {
-                if self.board[field - 1] < 0 {
+                if field == 13 || self.positions[field - 1] < 0 {
                     Ok(true)
                 } else {
                     Ok(false)
                 }
             }
             Color::Black => {
-                if self.board[23 - field] > 1 {
+                if field == 12 || self.positions[23 - field] > 1 {
                     Ok(true)
                 } else {
                     Ok(false)
@@ -133,12 +156,59 @@ impl Board {
             }
         }
     }
+
+    pub fn get_checkers_color(&self, field: Field) -> Result<Option<&Color>, Error> {
+        if field < 1 || field > 24 {
+            return Err(Error::FieldInvalid);
+        }
+        let checkers_count = self.positions[field - 1]; 
+        let color = if checkers_count < 0 {
+            Some(&Color::Black)
+        } else if checkers_count > 0 {
+            Some(&Color::White)
+        } else {
+            None
+        };
+        Ok(color)
+    }
+
+    pub fn move_possible(&self, color: &Color, cmove: CheckerMove) -> bool {
+        let blocked = self.blocked(color, cmove.to).unwrap_or(true);
+        // Check if there is a player's checker on the 'from' square
+        let has_checker = self.get_checkers_color(cmove.from).unwrap_or(None) == Some(color);
+        has_checker && !blocked
+    }
+
+    pub fn move_checker(&mut self, color: &Color, cmove: CheckerMove) -> Result<(), Error> {
+        self.remove_checker(color, cmove.from)?;
+        self.add_checker(color, cmove.to)?;
+        Ok(())
+    }
+
+    pub fn remove_checker(&mut self, color: &Color, field: Field) -> Result<(), Error> {
+        let checker_color = self.get_checkers_color(field)?;
+        if Some(color) != checker_color {
+            return Err(Error::FieldInvalid);
+        }
+        self.positions[field] -= 1;
+        Ok(())
+    }
+
+    pub fn add_checker(&mut self, color: &Color, field: Field) -> Result<(), Error> {
+        let checker_color = self.get_checkers_color(field)?;
+        // error if the case contains the other color
+        if None != checker_color && Some(color) != checker_color {
+            return Err(Error::FieldInvalid);
+        }
+        self.positions[field] += 1;
+        Ok(())
+    }
 }
 
 /// Trait to move checkers
 pub trait Move {
     /// Move a checker
-    fn move_checker(&mut self, player: &Player, dice: u8, from: usize) -> Result<&mut Self, Error>
+    fn move_checker(&mut self, player: &Player, dice: u8, from: Field) -> Result<&mut Self, Error>
     where
         Self: Sized;
 
@@ -161,25 +231,22 @@ mod tests {
     #[test]
     fn blocked_outofrange() -> Result<(), Error> {
         let board = Board::new();
-        let player = Player::new("".into(), Color::White);
-        assert!(board.blocked( &player, 0).is_err());
-        assert!(board.blocked( &player, 28).is_err());
+        assert!(board.blocked( &Color::White, 0).is_err());
+        assert!(board.blocked( &Color::White, 28).is_err());
         Ok(())
     }
 
     #[test]
     fn blocked_otherplayer() -> Result<(), Error> {
         let board = Board::new();
-        let player = Player::new("".into(), Color::White);
-        assert!(board.blocked( &player, 24)?);
+        assert!(board.blocked( &Color::White, 24)?);
         Ok(())
     }
 
     #[test]
     fn blocked_notblocked() -> Result<(), Error> {
         let board = Board::new();
-        let player = Player::new("".into(), Color::White);
-        assert!(!board.blocked( &player, 6)?);
+        assert!(!board.blocked( &Color::White, 6)?);
         Ok(())
     }
 
@@ -187,9 +254,8 @@ mod tests {
     #[test]
     fn set_field_blocked() {
         let mut board = Board::new();
-        let player = Player::new("".into(), Color::White);
         assert!(
-            board.set( &player, 0, 24)
+            board.set( &Color::White, 0, 24)
             .is_err()
             );
     }
@@ -197,18 +263,16 @@ mod tests {
     #[test]
     fn set_wrong_field1() {
         let mut board = Board::new();
-        let player = Player::new("".into(), Color::White);
         assert!(board
-            .set( &player, 50, 2)
+            .set( &Color::White, 50, 2)
             .is_err());
     }
 
     #[test]
     fn set_wrong_amount0() {
         let mut board = Board::new();
-        let player = Player::new("".into(), Color::White);
         assert!(board
-            .set(&player , 23, -3)
+            .set(&Color::White , 23, -3)
             .is_err());
     }
 
@@ -217,7 +281,7 @@ mod tests {
         let mut board = Board::new();
         let player = Player::new("".into(), Color::White);
         assert!(board
-            .set( &player, 23, -3)
+            .set( &Color::White, 23, -3)
             .is_err());
     }
 }

@@ -1,9 +1,9 @@
 //! # Play a TricTrac Game
-use crate::board::{Board, Move};
+use crate::board::{Board, Field, CheckerMove, Move};
 use crate::dice::{Dices, Roll};
 use crate::player::{Color, Player, PlayerId};
 use crate::Error;
-use log::{error};
+use log::error;
 
 // use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -215,8 +215,7 @@ impl GameState {
             }
             Move {
                 player_id,
-                from,
-                to,
+                moves,
             } => {
                 // Check player exists
                 if !self.players.contains_key(player_id) {
@@ -229,13 +228,14 @@ impl GameState {
                     return false;
                 }
 
-                // Check that the tile index is inside the board
-                if *to > 23 {
+                // Check move is physically possible
+                if !self.board.move_possible(&self.players[player_id].color, moves.0){
                     return false;
                 }
-                if *from > 23 {
+                if !self.board.move_possible(&self.players[player_id].color, moves.1){
                     return false;
                 }
+                // Check move is allowed by the rules (to desactivate when playing with schools)
             }
         }
 
@@ -277,12 +277,11 @@ impl GameState {
             Roll { player_id: _ } => {}
             Move {
                 player_id,
-                from,
-                to,
+                moves
             } => {
                 let player = self.players.get(player_id).unwrap();
-                self.board.set(player, *from, 0 as i8).unwrap();
-                self.board.set(player, *to, 1 as i8).unwrap();
+                self.board.move_checker(&player.color, moves.0).unwrap();
+                self.board.move_checker(&player.color, moves.1).unwrap();
                 self.active_player_id = self
                     .players
                     .keys()
@@ -331,8 +330,7 @@ pub enum GameEvent {
     },
     Move {
         player_id: PlayerId,
-        from: usize,
-        to: usize,
+        moves: (CheckerMove, CheckerMove),
     },
 }
 
@@ -359,7 +357,7 @@ impl Move for GameState {
         let _ = self.move_permitted(player, dice)?;
 
         // remove checker from old position
-        self.board.set(player, from, -1)?;
+        self.board.set(&player.color, from, -1)?;
 
         // move checker to new position, in case it is reaching the off position, set it off
         let new_position = from as i8 - dice as i8;

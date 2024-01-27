@@ -8,4 +8,6 @@ mod error;
 pub use error::Error;
 
 mod board;
+pub use board::CheckerMove;
+
 mod dice;

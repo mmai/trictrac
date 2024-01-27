@@ -66,7 +66,7 @@ Encodage efficace : https://www.gnu.org/software/gnubg/manual/html_node/A-techni
 
 Total : 77 + 1 + 2 + 6 + 20 = 105 bits = 17.666 * 6 -> 18 u32 (108 possible)
 
-## TODO
+## DONE
 
 ### Epic : jeu simple
 
@@ -75,6 +75,11 @@ Store
   - déplacement de dames
   - jet des dés
 - déplacements physiques possibles 
+
+## TODO
+
+### Epic : jeu simple
+
 - déplacements autorisés par les règles (pourront être validés physiquement si jeu avec écoles)
 - calcul des points automatique (pas d'écoles)
 

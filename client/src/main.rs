@@ -1,9 +1,9 @@
 use std::{net::UdpSocket, time::SystemTime};
 
 use renet::transport::{NetcodeClientTransport, NetcodeTransportError, NETCODE_USER_DATA_BYTES};
-use store::{GameEvent, GameState};
+use store::{GameEvent, GameState, CheckerMove};
 
-use bevy::{prelude::*};
+use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use bevy_renet::{
     renet::{transport::ClientAuthentication, ConnectionConfig, RenetClient},
@@ -123,9 +123,9 @@ fn update_board(
 ) {
     for event in game_events.iter() {
         match event.0 {
-            GameEvent::Move { player_id, from: _, to } => {
-                // backgammon postions, TODO : dépend de player_id
-                let (x, y) = if to < 13 { (13 - to, 1) } else { (to - 13, 0)};
+            GameEvent::Move { player_id, moves } => {
+                // trictrac positions, TODO : dépend de player_id
+                let (x, y) = if moves.0.get_to() < 13 { (13 - moves.0.get_to(), 1) } else { (moves.0.get_to() - 13, 0)};
                 let texture =
                     asset_server.load(match game_state.0.players[&player_id].color {
                         store::Color::Black => "tac.png",
@@ -211,8 +211,10 @@ fn input(
                 info!("sending movement from: {:?} to: {:?} ", from_tile, tile);
                 let event = GameEvent::Move {
                     player_id: client_id.0,
-                    from: from_tile,
-                    to: tile,
+                    moves: (
+                        CheckerMove::new(from_tile, tile).unwrap(),
+                        CheckerMove::new(from_tile, tile).unwrap()
+                        )
                 };
                 client.send_message(0, bincode::serialize(&event).unwrap());
             }

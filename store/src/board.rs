@@ -3,7 +3,7 @@ use crate::Error;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-/// field (aka 'point') position on the board (from 1 to 24)
+/// field (aka 'point') position on the board (from 0 to 24, 0 being 'outside')
 pub type Field = usize;
 
 #[derive(Debug, Copy, Clone, Serialize, PartialEq, Deserialize)]
@@ -14,10 +14,20 @@ pub struct CheckerMove {
 
 impl CheckerMove {
     pub fn new(from: Field, to: Field) -> Result<Self, Error> {
-        if from < 1 || 24 < from || to < 1 || 24 < to {
+        // check if the field is on the board
+        // we allow 0 for 'to', which represents the exit of a checker
+        if from < 1 || 24 < from || 24 < to{
             return Err(Error::FieldInvalid);
         }
+        // check that the destination is after the origin field
+        if to < from && to != 0 {
+            return Err(Error::MoveInvalid);
+        }
         Ok(CheckerMove { from, to })
+    }
+
+    pub fn get_from(&self) -> Field {
+        self.from
     }
 
     pub fn get_to(&self) -> Field {
@@ -106,6 +116,11 @@ impl Board {
             return Err(Error::FieldInvalid);
         }
 
+        // the exit : no checker added to the board
+        if field == 0 {
+            return Ok(())
+        }
+
         if self.blocked(color, field)? {
             return Err(Error::FieldBlocked);
         }
@@ -134,8 +149,13 @@ impl Board {
 
     /// Check if a field is blocked for a player
     pub fn blocked(&self, color: &Color, field: Field) -> Result<bool, Error> {
-        if field < 1 || 24 < field {
+        if 24 < field {
             return Err(Error::FieldInvalid);
+        }
+
+        // the exit is never 'blocked'
+        if field == 0 {
+            return Ok(false)
         }
 
         // the square is blocked on the opponent rest corner or if there are opponent's men on the square
@@ -157,11 +177,11 @@ impl Board {
         }
     }
 
-    pub fn get_checkers_color(&self, field: Field) -> Result<Option<&Color>, Error> {
+    pub fn get_field_checkers(&self, field: Field) -> Result<(u8, Option<&Color>), Error> {
         if field < 1 || field > 24 {
             return Err(Error::FieldInvalid);
         }
-        let checkers_count = self.positions[field - 1]; 
+        let checkers_count = self.positions[field - 1];
         let color = if checkers_count < 0 {
             Some(&Color::Black)
         } else if checkers_count > 0 {
@@ -169,7 +189,16 @@ impl Board {
         } else {
             None
         };
-        Ok(color)
+        Ok((checkers_count.abs() as u8, color))
+    }
+
+    pub fn get_checkers_color(&self, field: Field) -> Result<Option<&Color>, Error> {
+        self.get_field_checkers(field).map(|(count, color)| color)
+    }
+
+    // Get the corner field for the color
+    pub fn get_color_corner(&self, color: &Color) -> Field {
+        if color == &Color::White { 12 } else { 13 }
     }
 
     pub fn move_possible(&self, color: &Color, cmove: CheckerMove) -> bool {
@@ -231,7 +260,7 @@ mod tests {
     #[test]
     fn blocked_outofrange() -> Result<(), Error> {
         let board = Board::new();
-        assert!(board.blocked( &Color::White, 0).is_err());
+        assert!(!board.blocked( &Color::White, 0).is_err());
         assert!(board.blocked( &Color::White, 28).is_err());
         Ok(())
     }
@@ -255,7 +284,7 @@ mod tests {
     fn set_field_blocked() {
         let mut board = Board::new();
         assert!(
-            board.set( &Color::White, 0, 24)
+            board.set( &Color::White, 24, 2)
             .is_err()
             );
     }

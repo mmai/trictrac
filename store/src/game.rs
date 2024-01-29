@@ -229,17 +229,43 @@ impl GameState {
                 }
 
                 // Check move is physically possible
-                if !self.board.move_possible(&self.players[player_id].color, moves.0){
-                    return false;
-                }
-                if !self.board.move_possible(&self.players[player_id].color, moves.1){
-                    return false;
-                }
+                let color = &self.players[player_id].color;
+                if !self.board.move_possible(color, moves.0) || 
+                    !self.board.move_possible(color, moves.1) {
+                        return false;
+                    }
+
                 // Check move is allowed by the rules (to desactivate when playing with schools)
+                if !self.moves_allowed(color, moves) {
+                    return false;
+                }
             }
         }
 
         // We couldn't find anything wrong with the event so it must be good
+        true
+    }
+
+    fn moves_allowed(&self, color: &Color, moves: &(CheckerMove, CheckerMove)) -> bool {
+        // ------- corner rules ----------
+        let corner_field: Field = self.board.get_color_corner(color);
+        let (corner_count, _color) = self.board.get_field_checkers(corner_field).unwrap();
+        let (from0, to0, from1, to1) = (moves.0.get_from(), moves.0.get_to(), moves.1.get_from(), moves.1.get_to());
+        // 2 checkers must go at the same time on an empty corner
+        if (to0 == corner_field || to1 == corner_field) && 
+            (to0 != to1) && corner_count == 0 {
+                return false;
+        }
+        
+        // the lat 2 checkers of a corner must leave at the same time
+        if (from0 == corner_field || from1 == corner_field) && 
+            (from0 != from1) && corner_count == 2 {
+                return false;
+        }
+        
+        // ------- exit rules ----------
+
+        // no rule was broken
         true
     }
 

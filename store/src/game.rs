@@ -1,5 +1,5 @@
 //! # Play a TricTrac Game
-use crate::board::{Board, Field, CheckerMove, Move};
+use crate::board::{Board, CheckerMove, Field, Move};
 use crate::dice::{Dices, Roll};
 use crate::player::{Color, Player, PlayerId};
 use crate::Error;
@@ -89,7 +89,13 @@ impl GameState {
         // black : 1 (true)
         pos_bits.push(
             self.who_plays()
-                .map(|player| if player.color == Color::Black { '1'} else {'0'})
+                .map(|player| {
+                    if player.color == Color::Black {
+                        '1'
+                    } else {
+                        '0'
+                    }
+                })
                 .unwrap_or('0'), // White by default
         );
 
@@ -114,7 +120,8 @@ impl GameState {
         pos_bits = format!("{:0>108}", pos_bits);
         // println!("{}", pos_bits);
         let pos_u8 = pos_bits
-            .as_bytes().chunks(6)
+            .as_bytes()
+            .chunks(6)
             .map(|chunk| str::from_utf8(chunk).unwrap())
             .map(|chunk| u8::from_str_radix(chunk, 2).unwrap())
             .collect::<Vec<u8>>();
@@ -213,10 +220,7 @@ impl GameState {
                     return false;
                 }
             }
-            Move {
-                player_id,
-                moves,
-            } => {
+            Move { player_id, moves } => {
                 // Check player exists
                 if !self.players.contains_key(player_id) {
                     error!("Player {} unknown", player_id);
@@ -229,11 +233,13 @@ impl GameState {
                 }
 
                 // Check move is physically possible
+                // TODO : à corriger : ne permet pas le jeu tout d'une...
                 let color = &self.players[player_id].color;
-                if !self.board.move_possible(color, moves.0) || 
-                    !self.board.move_possible(color, moves.1) {
-                        return false;
-                    }
+                if !self.board.move_possible(color, moves.0)
+                    || !self.board.move_possible(color, moves.1)
+                {
+                    return false;
+                }
 
                 // Check move is allowed by the rules (to desactivate when playing with schools)
                 if !self.moves_allowed(color, moves) {
@@ -250,21 +256,33 @@ impl GameState {
         // ------- corner rules ----------
         let corner_field: Field = self.board.get_color_corner(color);
         let (corner_count, _color) = self.board.get_field_checkers(corner_field).unwrap();
-        let (from0, to0, from1, to1) = (moves.0.get_from(), moves.0.get_to(), moves.1.get_from(), moves.1.get_to());
+        let (from0, to0, from1, to1) = (
+            moves.0.get_from(),
+            moves.0.get_to(),
+            moves.1.get_from(),
+            moves.1.get_to(),
+        );
         // 2 checkers must go at the same time on an empty corner
-        if (to0 == corner_field || to1 == corner_field) && 
-            (to0 != to1) && corner_count == 0 {
-                return false;
+        if (to0 == corner_field || to1 == corner_field) && (to0 != to1) && corner_count == 0 {
+            return false;
         }
-        
-        // the lat 2 checkers of a corner must leave at the same time
-        if (from0 == corner_field || from1 == corner_field) && 
-            (from0 != from1) && corner_count == 2 {
-                return false;
-        }
-        
-        // ------- exit rules ----------
 
+        // the lat 2 checkers of a corner must leave at the same time
+        if (from0 == corner_field || from1 == corner_field) && (from0 != from1) && corner_count == 2
+        {
+            return false;
+        }
+
+        // ------- exit rules ----------
+        // -- toutes les dames doivent être dans le jan de retour
+        // -- si on peut sortir, on doit sortir
+        // -- priorité :
+        //  - dame se trouvant sur la flêche correspondant au dé
+        //  - dame se trouvant plus loin de la sortie que la flêche (point défaillant)
+        //  - dame se trouvant plus près que la flêche (point exédant)
+
+        // --- cadran rempli si possible ----
+        // --- interdit de jouer dans cadran que l'adversaire peut encore remplir ----
         // no rule was broken
         true
     }
@@ -293,7 +311,7 @@ impl GameState {
                         holes: 0,
                         points: 0,
                         can_bredouille: true,
-                        can_big_bredouille: true
+                        can_big_bredouille: true,
                     },
                 );
             }
@@ -301,10 +319,7 @@ impl GameState {
                 self.players.remove(player_id);
             }
             Roll { player_id: _ } => {}
-            Move {
-                player_id,
-                moves
-            } => {
+            Move { player_id, moves } => {
                 let player = self.players.get(player_id).unwrap();
                 self.board.move_checker(&player.color, moves.0).unwrap();
                 self.board.move_checker(&player.color, moves.1).unwrap();
@@ -364,9 +379,9 @@ impl Roll for GameState {
     fn roll(&mut self) -> Result<&mut Self, Error> {
         self.dices = self.dices.roll();
         if self.who_plays().is_none() {
-            let active_color = match self.dices.coin() { 
+            let active_color = match self.dices.coin() {
                 false => Color::Black,
-                true => Color::White 
+                true => Color::White,
             };
             let color_player_id = self.player_id_by_color(active_color);
             if color_player_id.is_some() {
@@ -425,7 +440,6 @@ impl Move for GameState {
 
         Ok(self)
     }
-
 }
 
 #[cfg(test)]
@@ -441,5 +455,4 @@ mod tests {
         // println!("string_id : {}", string_id);
         assert!(string_id == "Dz8+AAAAAT8/MAAAAAQAADAD");
     }
-
 }

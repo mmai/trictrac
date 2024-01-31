@@ -3,7 +3,7 @@ use crate::board::{Board, CheckerMove, Field, Move};
 use crate::dice::{Dices, Roll};
 use crate::player::{Color, Player, PlayerId};
 use crate::Error;
-use log::error;
+use log::{error, info};
 
 // use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -233,11 +233,18 @@ impl GameState {
                 }
 
                 // Check move is physically possible
-                // TODO : à corriger : ne permet pas le jeu tout d'une...
                 let color = &self.players[player_id].color;
-                if !self.board.move_possible(color, moves.0)
-                    || !self.board.move_possible(color, moves.1)
-                {
+                if !self.board.move_possible(color, &moves.0) {
+                    return false;
+                }
+
+                // Chained_move : "Tout d'une"
+                let chained_move = moves.0.chain(moves.1);
+                if chained_move.is_ok() {
+                    if !self.board.move_possible(color, &chained_move.unwrap()) {
+                        return false;
+                    }
+                } else if !self.board.move_possible(color, &moves.1) {
                     return false;
                 }
 
@@ -454,5 +461,33 @@ mod tests {
         let string_id = state.to_string_id();
         // println!("string_id : {}", string_id);
         assert!(string_id == "Dz8+AAAAAT8/MAAAAAQAADAD");
+    }
+
+    #[test]
+    fn test_validate() {
+        let mut state = GameState::default();
+        let player1 = Player::new("player1".into(), Color::White);
+        let player_id = 1;
+        state.add_player(player_id, player1);
+        state.add_player(2, Player::new("player2".into(), Color::Black));
+        state.consume(&GameEvent::BeginGame {
+            goes_first: player_id,
+        });
+
+        // Chained moves
+        let moves = (
+            CheckerMove::new(1, 5).unwrap(),
+            CheckerMove::new(5, 9).unwrap(),
+        );
+        let event: GameEvent = GameEvent::Move { player_id, moves };
+        assert!(state.validate(&event));
+
+        // not chained moves
+        let moves = (
+            CheckerMove::new(1, 5).unwrap(),
+            CheckerMove::new(6, 9).unwrap(),
+        );
+        let event: GameEvent = GameEvent::Move { player_id, moves };
+        assert!(!state.validate(&event));
     }
 }

@@ -16,14 +16,25 @@ impl CheckerMove {
     pub fn new(from: Field, to: Field) -> Result<Self, Error> {
         // check if the field is on the board
         // we allow 0 for 'to', which represents the exit of a checker
-        if from < 1 || 24 < from || 24 < to{
+        if from < 1 || 24 < from || 24 < to {
             return Err(Error::FieldInvalid);
         }
         // check that the destination is after the origin field
         if to < from && to != 0 {
             return Err(Error::MoveInvalid);
         }
-        Ok(CheckerMove { from, to })
+        Ok(Self { from, to })
+    }
+
+    // Construct the move resulting of two successive moves
+    pub fn chain(self, cmove: Self) -> Result<Self, Error> {
+        if self.to != cmove.from {
+            return Err(Error::MoveInvalid);
+        }
+        Ok(Self {
+            from: self.from,
+            to: cmove.to,
+        })
     }
 
     pub fn get_from(&self) -> Field {
@@ -118,7 +129,7 @@ impl Board {
 
         // the exit : no checker added to the board
         if field == 0 {
-            return Ok(())
+            return Ok(());
         }
 
         if self.blocked(color, field)? {
@@ -155,7 +166,7 @@ impl Board {
 
         // the exit is never 'blocked'
         if field == 0 {
-            return Ok(false)
+            return Ok(false);
         }
 
         // the square is blocked on the opponent rest corner or if there are opponent's men on the square
@@ -198,10 +209,14 @@ impl Board {
 
     // Get the corner field for the color
     pub fn get_color_corner(&self, color: &Color) -> Field {
-        if color == &Color::White { 12 } else { 13 }
+        if color == &Color::White {
+            12
+        } else {
+            13
+        }
     }
 
-    pub fn move_possible(&self, color: &Color, cmove: CheckerMove) -> bool {
+    pub fn move_possible(&self, color: &Color, cmove: &CheckerMove) -> bool {
         let blocked = self.blocked(color, cmove.to).unwrap_or(true);
         // Check if there is a player's checker on the 'from' square
         let has_checker = self.get_checkers_color(cmove.from).unwrap_or(None) == Some(color);
@@ -260,57 +275,47 @@ mod tests {
     #[test]
     fn blocked_outofrange() -> Result<(), Error> {
         let board = Board::new();
-        assert!(!board.blocked( &Color::White, 0).is_err());
-        assert!(board.blocked( &Color::White, 28).is_err());
+        assert!(!board.blocked(&Color::White, 0).is_err());
+        assert!(board.blocked(&Color::White, 28).is_err());
         Ok(())
     }
 
     #[test]
     fn blocked_otherplayer() -> Result<(), Error> {
         let board = Board::new();
-        assert!(board.blocked( &Color::White, 24)?);
+        assert!(board.blocked(&Color::White, 24)?);
         Ok(())
     }
 
     #[test]
     fn blocked_notblocked() -> Result<(), Error> {
         let board = Board::new();
-        assert!(!board.blocked( &Color::White, 6)?);
+        assert!(!board.blocked(&Color::White, 6)?);
         Ok(())
     }
-
 
     #[test]
     fn set_field_blocked() {
         let mut board = Board::new();
-        assert!(
-            board.set( &Color::White, 24, 2)
-            .is_err()
-            );
+        assert!(board.set(&Color::White, 24, 2).is_err());
     }
 
     #[test]
     fn set_wrong_field1() {
         let mut board = Board::new();
-        assert!(board
-            .set( &Color::White, 50, 2)
-            .is_err());
+        assert!(board.set(&Color::White, 50, 2).is_err());
     }
 
     #[test]
     fn set_wrong_amount0() {
         let mut board = Board::new();
-        assert!(board
-            .set(&Color::White , 23, -3)
-            .is_err());
+        assert!(board.set(&Color::White, 23, -3).is_err());
     }
 
     #[test]
     fn set_wrong_amount1() {
         let mut board = Board::new();
         let player = Player::new("".into(), Color::White);
-        assert!(board
-            .set( &Color::White, 23, -3)
-            .is_err());
+        assert!(board.set(&Color::White, 23, -3).is_err());
     }
 }

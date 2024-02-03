@@ -75,9 +75,9 @@ impl GameState {
         GameState::default()
     }
 
-    fn add_player(&mut self, player_id: PlayerId, player: Player) {
-        self.players.insert(player_id, player);
-    }
+    // -------------------------------------------------------------------------
+    //                        accessors
+    // -------------------------------------------------------------------------
 
     /// Calculate game state id :
     pub fn to_string_id(&self) -> String {
@@ -148,16 +148,6 @@ impl GameState {
             .next()
     }
 
-    pub fn switch_active_player(&mut self) {
-        let other_player_id = self
-            .players
-            .iter()
-            .filter(|(id, _player)| **id != self.active_player_id)
-            .map(|(id, _player)| *id)
-            .next();
-        self.active_player_id = other_player_id.unwrap_or(0);
-    }
-
     pub fn player_id_by_color(&self, color: Color) -> Option<&PlayerId> {
         self.players
             .iter()
@@ -173,6 +163,10 @@ impl GameState {
             .map(|(id, _candidate)| id)
             .next()
     }
+
+    // ----------------------------------------------------------------------------------
+    //                          Rules checks
+    // ----------------------------------------------------------------------------------
 
     /// Determines whether an event is valid considering the current GameState
     pub fn validate(&self, event: &GameEvent) -> bool {
@@ -220,6 +214,16 @@ impl GameState {
                     return false;
                 }
             }
+            Mark { player_id, points } => {
+                // Check player exists
+                if !self.players.contains_key(player_id) {
+                    return false;
+                }
+                // Check player is currently the one making their move
+                if self.active_player_id != *player_id {
+                    return false;
+                }
+            }
             Move { player_id, moves } => {
                 // Check player exists
                 if !self.players.contains_key(player_id) {
@@ -231,9 +235,14 @@ impl GameState {
                     error!("Player not active : {}", self.active_player_id);
                     return false;
                 }
+                let color = &self.players[player_id].color;
+
+                // Check moves conforms to the dices
+                if !self.moves_follows_dices(color, moves) {
+                    return false;
+                }
 
                 // Check move is physically possible
-                let color = &self.players[player_id].color;
                 if !self.board.move_possible(color, &moves.0) {
                     return false;
                 }
@@ -257,6 +266,14 @@ impl GameState {
 
         // We couldn't find anything wrong with the event so it must be good
         true
+    }
+
+    fn moves_follows_dices(&self, color: &Color, moves: &(CheckerMove, CheckerMove)) -> bool {
+        // basic : same number
+        // prise de coin par puissance
+        // sorties
+        // no rule was broken
+        false
     }
 
     fn moves_allowed(&self, color: &Color, moves: &(CheckerMove, CheckerMove)) -> bool {
@@ -294,6 +311,23 @@ impl GameState {
         true
     }
 
+    // ----------------------------------------------------------------------------------
+    //                   State updates
+    // ----------------------------------------------------------------------------------
+
+    fn add_player(&mut self, player_id: PlayerId, player: Player) {
+        self.players.insert(player_id, player);
+    }
+
+    pub fn switch_active_player(&mut self) {
+        let other_player_id = self
+            .players
+            .iter()
+            .filter(|(id, _player)| **id != self.active_player_id)
+            .map(|(id, _player)| *id)
+            .next();
+        self.active_player_id = other_player_id.unwrap_or(0);
+    }
     /// Consumes an event, modifying the GameState and adding the event to its history
     /// NOTE: consume assumes the event to have already been validated and will accept *any* event passed to it
     pub fn consume(&mut self, valid_event: &GameEvent) {
@@ -302,6 +336,7 @@ impl GameState {
             BeginGame { goes_first } => {
                 self.active_player_id = *goes_first;
                 self.stage = Stage::InGame;
+                self.turn_stage = TurnStage::RollDice;
             }
             EndGame { reason: _ } => self.stage = Stage::Ended,
             PlayerJoined { player_id, name } => {
@@ -325,7 +360,16 @@ impl GameState {
             PlayerDisconnected { player_id } => {
                 self.players.remove(player_id);
             }
-            Roll { player_id: _ } => {}
+            Roll { player_id: _ } => {
+                self.roll();
+                self.turn_stage = TurnStage::MarkPoints;
+            }
+            Mark { player_id, points } => {
+                self.mark_points(*player_id, *points);
+                if self.stage != Stage::Ended {
+                    self.turn_stage = TurnStage::Move;
+                }
+            }
             Move { player_id, moves } => {
                 let player = self.players.get(player_id).unwrap();
                 self.board.move_checker(&player.color, moves.0).unwrap();
@@ -345,6 +389,10 @@ impl GameState {
     /// Determines if someone has won the game
     pub fn determine_winner(&self) -> Option<PlayerId> {
         None
+    }
+
+    fn mark_points(&mut self, player_id: PlayerId, points: u8) {
+        todo!()
     }
 }
 
@@ -376,6 +424,10 @@ pub enum GameEvent {
     Roll {
         player_id: PlayerId,
     },
+    Mark {
+        player_id: PlayerId,
+        points: u8,
+    },
     Move {
         player_id: PlayerId,
         moves: (CheckerMove, CheckerMove),
@@ -383,7 +435,7 @@ pub enum GameEvent {
 }
 
 impl Roll for GameState {
-    fn roll(&mut self) -> Result<&mut Self, Error> {
+    fn roll(&mut self) -> &mut Self {
         self.dices = self.dices.roll();
         if self.who_plays().is_none() {
             let active_color = match self.dices.coin() {
@@ -395,7 +447,7 @@ impl Roll for GameState {
                 self.active_player_id = *color_player_id.unwrap();
             }
         }
-        Ok(self)
+        self
     }
 }
 
@@ -489,5 +541,23 @@ mod tests {
         );
         let event: GameEvent = GameEvent::Move { player_id, moves };
         assert!(!state.validate(&event));
+    }
+
+    #[test]
+    fn test_moves_follow_dices() {
+        let mut state = GameState::default();
+        let player1 = Player::new("player1".into(), Color::White);
+        let player_id = 1;
+        state.add_player(player_id, player1);
+        state.add_player(2, Player::new("player2".into(), Color::Black));
+        state.consume(&GameEvent::BeginGame {
+            goes_first: player_id,
+        });
+        state.consume(&GameEvent::Roll { player_id });
+        let moves = (
+            CheckerMove::new(1, 5).unwrap(),
+            CheckerMove::new(6, 9).unwrap(),
+        );
+        assert!(state.moves_follows_dices(&Color::White, &moves));
     }
 }

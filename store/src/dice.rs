@@ -19,9 +19,7 @@ impl Dices {
 
         let v = (between.sample(&mut rng), between.sample(&mut rng));
 
-        Dices {
-            values: (v.0, v.1),
-        }
+        Dices { values: (v.0, v.1) }
     }
 
     /// Heads or tails
@@ -30,7 +28,6 @@ impl Dices {
         let mut rng = rand::thread_rng();
         between.sample(&mut rng) == 1
     }
-
 
     pub fn to_bits_string(self) -> String {
         format!("{:0>3b}{:0>3b}", self.values.0, self.values.1)
@@ -51,7 +48,7 @@ impl Dices {
 /// Trait to roll the dices
 pub trait Roll {
     /// Roll the dices
-    fn roll(&mut self) -> Result<&mut Self, Error>;
+    fn roll(&mut self) -> &mut Self;
 }
 
 #[cfg(test)]
@@ -67,8 +64,7 @@ mod tests {
 
     #[test]
     fn test_to_bits_string() {
-        let dices = Dices { values: (4, 2)};
+        let dices = Dices { values: (4, 2) };
         assert!(dices.to_bits_string() == "100010");
     }
-
 }

@@ -4,6 +4,7 @@ use crate::dice::{Dices, Roll};
 use crate::player::{Color, Player, PlayerId};
 use crate::Error;
 use log::{error, info};
+use std::cmp;
 
 // use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -237,23 +238,13 @@ impl GameState {
                 }
                 let color = &self.players[player_id].color;
 
+                // Check moves possibles on the board
+                if !self.moves_possible(color, moves) {
+                    return false;
+                }
+
                 // Check moves conforms to the dices
                 if !self.moves_follows_dices(color, moves) {
-                    return false;
-                }
-
-                // Check move is physically possible
-                if !self.board.move_possible(color, &moves.0) {
-                    return false;
-                }
-
-                // Chained_move : "Tout d'une"
-                let chained_move = moves.0.chain(moves.1);
-                if chained_move.is_ok() {
-                    if !self.board.move_possible(color, &chained_move.unwrap()) {
-                        return false;
-                    }
-                } else if !self.board.move_possible(color, &moves.1) {
                     return false;
                 }
 
@@ -268,12 +259,40 @@ impl GameState {
         true
     }
 
+    fn moves_possible(&self, color: &Color, moves: &(CheckerMove, CheckerMove)) -> bool {
+        // Check move is physically possible
+        if !self.board.move_possible(color, &moves.0) {
+            return false;
+        }
+
+        // Chained_move : "Tout d'une"
+        let chained_move = moves.0.chain(moves.1);
+        if chained_move.is_ok() {
+            if !self.board.move_possible(color, &chained_move.unwrap()) {
+                return false;
+            }
+        } else if !self.board.move_possible(color, &moves.1) {
+            return false;
+        }
+        true
+    }
+
     fn moves_follows_dices(&self, color: &Color, moves: &(CheckerMove, CheckerMove)) -> bool {
+        let (dice1, dice2) = self.dices.values;
+        let (move1, move2): &(CheckerMove, CheckerMove) = moves.into();
+        let dist1 = (move1.get_to() - move1.get_from()) as u8;
+        let dist2 = (move2.get_to() - move2.get_from()) as u8;
+        print!("{}, {}, {}, {}", dist1, dist2, dice1, dice2);
         // basic : same number
+        if cmp::min(dist1, dist2) != cmp::min(dice1, dice2)
+            || cmp::max(dist1, dist2) != cmp::max(dice1, dice2)
+        {
+            return false;
+        }
         // prise de coin par puissance
         // sorties
         // no rule was broken
-        false
+        true
     }
 
     fn moves_allowed(&self, color: &Color, moves: &(CheckerMove, CheckerMove)) -> bool {
@@ -516,7 +535,7 @@ mod tests {
     }
 
     #[test]
-    fn test_validate() {
+    fn test_moves_possible() {
         let mut state = GameState::default();
         let player1 = Player::new("player1".into(), Color::White);
         let player_id = 1;
@@ -531,16 +550,14 @@ mod tests {
             CheckerMove::new(1, 5).unwrap(),
             CheckerMove::new(5, 9).unwrap(),
         );
-        let event: GameEvent = GameEvent::Move { player_id, moves };
-        assert!(state.validate(&event));
+        assert!(state.moves_possible(&Color::White, &moves));
 
         // not chained moves
         let moves = (
             CheckerMove::new(1, 5).unwrap(),
             CheckerMove::new(6, 9).unwrap(),
         );
-        let event: GameEvent = GameEvent::Move { player_id, moves };
-        assert!(!state.validate(&event));
+        assert!(!state.moves_possible(&Color::White, &moves));
     }
 
     #[test]
@@ -554,10 +571,17 @@ mod tests {
             goes_first: player_id,
         });
         state.consume(&GameEvent::Roll { player_id });
+        let dices = state.dices.values;
         let moves = (
-            CheckerMove::new(1, 5).unwrap(),
-            CheckerMove::new(6, 9).unwrap(),
+            CheckerMove::new(1, (1 + dices.0).into()).unwrap(),
+            CheckerMove::new((1 + dices.0).into(), (1 + dices.0 + dices.1).into()).unwrap(),
         );
         assert!(state.moves_follows_dices(&Color::White, &moves));
+
+        let badmoves = (
+            CheckerMove::new(1, (2 + dices.0).into()).unwrap(),
+            CheckerMove::new((1 + dices.0).into(), (1 + dices.0 + dices.1).into()).unwrap(),
+        );
+        assert!(!state.moves_follows_dices(&Color::White, &badmoves));
     }
 }

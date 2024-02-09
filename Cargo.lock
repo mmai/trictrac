@@ -1237,6 +1237,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "client_cli"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bincode",
+ "pico-args",
+ "renet",
+ "store",
+]
+
+[[package]]
 name = "client_tui"
 version = "0.1.0"
 dependencies = [

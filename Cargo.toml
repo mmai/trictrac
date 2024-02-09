@@ -4,6 +4,7 @@ resolver="2"
 members = [
   "client",
   "client_tui",
+  "client_cli",
   "server",
   "store"
 ]

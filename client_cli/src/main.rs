@@ -11,7 +11,7 @@ fn main() -> Result<()> {
 
     // Start the main loop.
     while !app.should_quit {
-        println!("what?>");
+        println!("whot?>");
         let mut input = String::new();
         let _bytecount = io::stdin().read_line(&mut input)?;
         app.input(input.trim());

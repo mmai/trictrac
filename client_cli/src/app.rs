@@ -1,10 +1,11 @@
+use store::GameState;
+
 // Application.
 #[derive(Debug, Default)]
 pub struct App {
     // should the application exit?
     pub should_quit: bool,
-    // counter
-    pub counter: u8,
+    pub game: GameState,
 }
 
 impl App {
@@ -13,8 +14,14 @@ impl App {
         Self::default()
     }
 
+    // Constructs a new instance of [`App`].
+    pub fn start(&mut self) {
+        self.game = GameState::new();
+    }
+
     pub fn input(&mut self, input: &str) {
         println!("'{}'", input);
+        println!("'{}'", self.display());
         if input == "quit" {
             self.quit();
         }
@@ -25,33 +32,55 @@ impl App {
         self.should_quit = true;
     }
 
-    pub fn increment_counter(&mut self) {
-        if let Some(res) = self.counter.checked_add(1) {
-            self.counter = res;
-        }
-    }
+    pub fn display(&mut self) -> String {
+        let mut board = "
+  24   23   22   21   20   19        18   17   16   15   14   13  
+-------------------------------------------------------------------"
+            .to_owned();
+        board = board
+            + "-------------------------------------------------------------------
+   1    2    3    4    5    6         7    8    9   10   11   12   ";
 
-    pub fn decrement_counter(&mut self) {
-        if let Some(res) = self.counter.checked_sub(1) {
-            self.counter = res;
-        }
+        // ligne 1 à 8 : positions 24 à 13
+        // ligne 9 nombre exact
+        // ligne 10 ---
+        // lignes 11 à 18 : positions 1 à 12
+        board
+        // self.game.to_string()
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[test]
-    fn test_app_increment_counter() {
-        let mut app = App::default();
-        app.increment_counter();
-        assert_eq!(app.counter, 1);
-    }
 
     #[test]
-    fn test_app_decrement_counter() {
+    fn test_display() {
+        let expected = "
+  24   23   22   21   20   19        18   17   16   15   14   13  
+-------------------------------------------------------------------
+|                               | |                            X  |
+|                               | |                            X  |
+|                               | |                            X  |
+|                               | |                            X  |
+|                               | |                            X  |
+|                               | |                            X  |
+|                               | |                            X  |
+|                               | |                            X  |
+|                               | |                           15  |
+|------------------------------ | | ------------------------------|
+|                               | |                           15  |
+|                               | |                            O  |
+|                               | |                            O  |
+|                               | |                            O  |
+|                               | |                            O  |
+|                               | |                            O  |
+|                               | |                            O  |
+|                               | |                            O  |
+|                               | |                            O  |
+-------------------------------------------------------------------
+   1    2    3    4    5    6         7    8    9   10   11   12   ";
         let mut app = App::default();
-        app.decrement_counter();
-        assert_eq!(app.counter, 0);
+        assert_eq!(app.display(), expected);
     }
 }

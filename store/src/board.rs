@@ -1,6 +1,7 @@
 use crate::player::{Color, Player};
 use crate::Error;
 use serde::{Deserialize, Serialize};
+use std::cmp;
 use std::fmt;
 
 /// field (aka 'point') position on the board (from 0 to 24, 0 being 'outside')
@@ -10,6 +11,19 @@ pub type Field = usize;
 pub struct CheckerMove {
     from: Field,
     to: Field,
+}
+
+fn transpose(matrix: Vec<Vec<String>>) -> Vec<Vec<String>> {
+    let num_cols = matrix.first().unwrap().len();
+    let mut row_iters: Vec<_> = matrix.into_iter().map(Vec::into_iter).collect();
+    let mut out: Vec<Vec<_>> = (0..num_cols).map(|_| Vec::new()).collect();
+
+    for out_row in out.iter_mut() {
+        for it in row_iters.iter_mut() {
+            out_row.push(it.next().unwrap());
+        }
+    }
+    out
 }
 
 impl CheckerMove {
@@ -111,6 +125,81 @@ impl Board {
         // fill with 0 bits until 77
         pos_bits.resize(77, '0');
         pos_bits.iter().collect::<String>()
+    }
+
+    /// format positions to a grid of symbols
+    pub fn to_display_grid(&self, col_size: usize) -> String {
+        // convert numbers to columns of chars
+        let mut columns: Vec<Vec<String>> = self
+            .positions
+            .iter()
+            .map(|count| {
+                let char = if *count > 0 { "O" } else { "X" };
+                let men_count = count.abs();
+                let mut cells = vec!["".to_owned(); col_size];
+                cells[0..(cmp::min(men_count, col_size as i8) as usize)].fill(char.to_owned());
+                if men_count as usize > col_size {
+                    cells[col_size - 1] = men_count.to_string();
+                }
+                cells
+            })
+            .collect();
+
+        // upper columns (13 to 24)
+        let upper_positions: Vec<Vec<String>> = columns.split_off(12).into_iter().collect();
+
+        // lower columns (12 to 1)
+        let mut lower_positions: Vec<Vec<String>> = columns
+            .into_iter()
+            .map(|mut col| {
+                col.reverse();
+                col
+            })
+            .collect();
+        lower_positions.reverse();
+
+        // display board columns
+        let upper: Vec<String> = transpose(upper_positions)
+            .into_iter()
+            .map(|cells| {
+                cells
+                    .into_iter()
+                    .map(|cell| format!("{:>5}", cell))
+                    .collect::<Vec<String>>()
+                    .join("")
+            })
+            .collect();
+
+        let lower: Vec<String> = transpose(lower_positions)
+            .into_iter()
+            .map(|cells| {
+                cells
+                    .into_iter()
+                    .map(|cell| format!("{:>5}", cell))
+                    .collect::<Vec<String>>()
+                    .join("")
+            })
+            .collect();
+
+        let mut output = "
+    13   14   15   16   17   18       19   20   21   22   23   24  
+  ----------------------------------------------------------------\n"
+            .to_owned();
+        for mut line in upper {
+            // add middle bar
+            line.replace_range(30..30, "| |");
+            output = output + " |" + &line + " |\n";
+        }
+        output = output + " |----------------------------- | | ------------------------------|\n";
+        for mut line in lower {
+            // add middle bar
+            line.replace_range(30..30, "| |");
+            output = output + " |" + &line + " |\n";
+        }
+        output = output
+            + "  ----------------------------------------------------------------
+    12   11   10    9    8    7        6    5    4    3    2    1   \n";
+        output
     }
 
     /// Set checkers for a player on a field

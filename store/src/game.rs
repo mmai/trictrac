@@ -334,6 +334,24 @@ impl GameState {
     //                   State updates
     // ----------------------------------------------------------------------------------
 
+    pub fn init_player(&mut self, player_name: &str) -> Option<PlayerId> {
+        if self.players.len() > 2 {
+            println!("more than two players");
+            return None;
+        }
+
+        let player_id = self.players.len() + 1;
+        println!("player_id {}", player_id);
+        let color = if player_id == 1 {
+            Color::White
+        } else {
+            Color::Black
+        };
+        let player = Player::new(player_name.into(), color);
+        self.players.insert(player_id as PlayerId, player);
+        Some(player_id as PlayerId)
+    }
+
     fn add_player(&mut self, player_id: PlayerId, player: Player) {
         self.players.insert(player_id, player);
     }

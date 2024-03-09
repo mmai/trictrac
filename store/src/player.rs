@@ -1,11 +1,10 @@
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-
 // This just makes it easier to dissern between a player id and any ol' u64
 pub type PlayerId = u64;
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Copy, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Color {
     White,
     Black,
@@ -23,7 +22,6 @@ pub struct Player {
 }
 
 impl Player {
-
     pub fn new(name: String, color: Color) -> Self {
         Player {
             name,
@@ -36,9 +34,11 @@ impl Player {
     }
 
     pub fn to_bits_string(&self) -> String {
-        format!("{:0>4b}{:0>4b}{:b}{:b}", self.points, self.holes, self.can_bredouille as u8, self.can_big_bredouille as u8)
+        format!(
+            "{:0>4b}{:0>4b}{:b}{:b}",
+            self.points, self.holes, self.can_bredouille as u8, self.can_big_bredouille as u8
+        )
     }
-
 }
 
 /// Represents a player in the game.
@@ -97,9 +97,15 @@ mod tests {
 
     #[test]
     fn test_to_bits_string() {
-        let player = Player { name: "Edgar".into(), color: Color::White, points: 11, holes: 3, can_bredouille: true, can_big_bredouille: false };
+        let player = Player {
+            name: "Edgar".into(),
+            color: Color::White,
+            points: 11,
+            holes: 3,
+            can_bredouille: true,
+            can_big_bredouille: false,
+        };
         println!("{}", player.to_bits_string());
         assert!(player.to_bits_string() == "1011001110");
     }
-
 }

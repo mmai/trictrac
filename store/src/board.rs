@@ -323,7 +323,7 @@ impl Board {
         if Some(color) != checker_color {
             return Err(Error::FieldInvalid);
         }
-        self.positions[field] -= 1;
+        self.positions[field - 1] -= 1;
         Ok(())
     }
 
@@ -333,7 +333,7 @@ impl Board {
         if None != checker_color && Some(color) != checker_color {
             return Err(Error::FieldInvalid);
         }
-        self.positions[field] += 1;
+        self.positions[field - 1] += 1;
         Ok(())
     }
 }

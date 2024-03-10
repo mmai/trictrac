@@ -8,6 +8,8 @@ tools
 
 cf. https://blessed.rs/crates
 
+nombres aléatoires avec seed : https://richard.dallaway.com/posts/2021-01-04-repeat-resume/
+
 - cli : https://lib.rs/crates/pico-args ( ou clap )
 - reseau async : tokio
 - web serveur : axum (uses tokio)

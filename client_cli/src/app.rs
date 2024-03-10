@@ -51,8 +51,15 @@ impl App {
         self.should_quit = true;
     }
 
-    // Set running to false to quit the application.
-    fn roll_dice(&mut self) {}
+    fn roll_dice(&mut self) {
+        if self.player_id.is_none() {
+            println!("player_id not set ");
+            return;
+        }
+        self.game.consume(&GameEvent::Roll {
+            player_id: self.player_id.unwrap(),
+        });
+    }
 
     fn add_move(&mut self, input: &str) {
         if self.player_id.is_none() {
@@ -67,10 +74,16 @@ impl App {
             let checker_move = CheckerMove::new(positions[0], positions[1]);
             if checker_move.is_ok() {
                 if self.first_move.is_some() {
-                    self.game.consume(&GameEvent::Move {
+                    let move_event = GameEvent::Move {
                         player_id: self.player_id.unwrap(),
                         moves: (self.first_move.unwrap(), checker_move.unwrap()),
-                    });
+                    };
+                    if !self.game.validate(&move_event) {
+                        println!("Move invalid");
+                        self.first_move = None;
+                        return;
+                    }
+                    self.game.consume(&move_event);
                     self.first_move = None;
                 } else {
                     self.first_move = Some(checker_move.unwrap());
@@ -82,9 +95,11 @@ impl App {
     }
 
     pub fn display(&mut self) -> String {
-        let mut board = "".to_owned();
-        board = board + &self.game.board.to_display_grid(9);
-        board
+        let mut output = "-------------------------------".to_owned();
+        output = output + "\nRolled dice : " + &self.game.dices.to_display_string();
+        output = output + "\n-------------------------------";
+        output = output + "\n" + &self.game.board.to_display_grid(9);
+        output
     }
 }
 
@@ -94,7 +109,10 @@ mod tests {
 
     #[test]
     fn test_display() {
-        let expected = "
+        let expected = "-------------------------------
+Rolled dice : 0 & 0
+-------------------------------
+
     13   14   15   16   17   18       19   20   21   22   23   24  
   ----------------------------------------------------------------
  |                              | |                             X |
@@ -125,7 +143,10 @@ mod tests {
 
     #[test]
     fn test_move() {
-        let expected = "
+        let expected = "-------------------------------
+Rolled dice : 0 & 0
+-------------------------------
+
     13   14   15   16   17   18       19   20   21   22   23   24  
   ----------------------------------------------------------------
  |                              | |                             X |

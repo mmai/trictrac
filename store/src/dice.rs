@@ -33,6 +33,10 @@ impl Dices {
         format!("{:0>3b}{:0>3b}", self.values.0, self.values.1)
     }
 
+    pub fn to_display_string(self) -> String {
+        format!("{} & {}", self.values.0, self.values.1)
+    }
+
     // pub fn to_bits(self) -> [bool;6] {
     //     self.to_bits_string().into_bytes().iter().map(|strbit| *strbit == '1' as u8).collect()
     // }

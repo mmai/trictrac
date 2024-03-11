@@ -11,3 +11,4 @@ mod board;
 pub use board::CheckerMove;
 
 mod dice;
+pub use dice::{Dice, DiceRoller};

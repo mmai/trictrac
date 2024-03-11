@@ -1,6 +1,6 @@
 //! # Play a TricTrac Game
 use crate::board::{Board, CheckerMove, Field, Move};
-use crate::dice::{Dices, Roll};
+use crate::dice::{Dice, DiceRoller, Roll};
 use crate::player::{Color, Player, PlayerId};
 use crate::Error;
 use log::{error, info};
@@ -39,7 +39,7 @@ pub struct GameState {
     pub players: HashMap<PlayerId, Player>,
     pub history: Vec<GameEvent>,
     /// last dice pair rolled
-    pub dices: Dices,
+    pub dice: Dice,
     /// true if player needs to roll first
     roll_first: bool,
 }
@@ -48,7 +48,7 @@ pub struct GameState {
 impl fmt::Display for GameState {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut s = String::new();
-        s.push_str(&format!("Dices: {:?}\n", self.dices));
+        s.push_str(&format!("Dice: {:?}\n", self.dice));
         // s.push_str(&format!("Who plays: {}\n", self.who_plays().map(|player| &player.name ).unwrap_or("")));
         s.push_str(&format!("Board: {:?}\n", self.board));
         write!(f, "{}", s)
@@ -64,7 +64,7 @@ impl Default for GameState {
             active_player_id: 0,
             players: HashMap::new(),
             history: Vec::new(),
-            dices: Dices::default(),
+            dice: Dice::default(),
             roll_first: true,
         }
     }
@@ -109,7 +109,7 @@ impl GameState {
         pos_bits.push_str(step_bits);
 
         // dice roll -> 6 bits
-        let dice_bits = self.dices.to_bits_string();
+        let dice_bits = self.dice.to_bits_string();
         pos_bits.push_str(&dice_bits);
 
         // points 10bits x2 joueurs = 20bits
@@ -205,7 +205,7 @@ impl GameState {
                     return false;
                 }
             }
-            Roll { player_id } => {
+            Roll { player_id } | RollResult { player_id, dice: _ } => {
                 // Check player exists
                 if !self.players.contains_key(player_id) {
                     return false;
@@ -243,7 +243,7 @@ impl GameState {
                     return false;
                 }
 
-                // Check moves conforms to the dices
+                // Check moves conforms to the dice
                 if !self.moves_follows_dices(color, moves) {
                     return false;
                 }
@@ -278,7 +278,7 @@ impl GameState {
     }
 
     fn moves_follows_dices(&self, color: &Color, moves: &(CheckerMove, CheckerMove)) -> bool {
-        let (dice1, dice2) = self.dices.values;
+        let (dice1, dice2) = self.dice.values;
         let (move1, move2): &(CheckerMove, CheckerMove) = moves.into();
         let dist1 = (move1.get_to() - move1.get_from()) as u8;
         let dist2 = (move2.get_to() - move2.get_from()) as u8;
@@ -372,6 +372,16 @@ impl GameState {
         match valid_event {
             BeginGame { goes_first } => {
                 self.active_player_id = *goes_first;
+                // if self.who_plays().is_none() {
+                //     let active_color = match self.dice.coin() {
+                //         false => Color::Black,
+                //         true => Color::White,
+                //     };
+                //     let color_player_id = self.player_id_by_color(active_color);
+                //     if color_player_id.is_some() {
+                //         self.active_player_id = *color_player_id.unwrap();
+                //     }
+                // }
                 self.stage = Stage::InGame;
                 self.turn_stage = TurnStage::RollDice;
             }
@@ -397,8 +407,9 @@ impl GameState {
             PlayerDisconnected { player_id } => {
                 self.players.remove(player_id);
             }
-            Roll { player_id: _ } => {
-                self.roll();
+            Roll { player_id: _ } => {}
+            RollResult { player_id: _, dice } => {
+                self.dice = *dice;
                 self.turn_stage = TurnStage::MarkPoints;
             }
             Mark { player_id, points } => {
@@ -461,6 +472,10 @@ pub enum GameEvent {
     Roll {
         player_id: PlayerId,
     },
+    RollResult {
+        player_id: PlayerId,
+        dice: Dice,
+    },
     Mark {
         player_id: PlayerId,
         points: u8,
@@ -469,23 +484,6 @@ pub enum GameEvent {
         player_id: PlayerId,
         moves: (CheckerMove, CheckerMove),
     },
-}
-
-impl Roll for GameState {
-    fn roll(&mut self) -> &mut Self {
-        self.dices = self.dices.roll();
-        if self.who_plays().is_none() {
-            let active_color = match self.dices.coin() {
-                false => Color::Black,
-                true => Color::White,
-            };
-            let color_player_id = self.player_id_by_color(active_color);
-            if color_player_id.is_some() {
-                self.active_player_id = *color_player_id.unwrap();
-            }
-        }
-        self
-    }
 }
 
 impl Move for GameState {
@@ -504,7 +502,7 @@ impl Move for GameState {
             // self.board.set(player, new_position as usize, 1)?;
         }
 
-        // switch to other player if all dices have been consumed
+        // switch to other player if all dice have been consumed
         self.switch_active_player();
         self.roll_first = true;
 
@@ -530,7 +528,7 @@ impl Move for GameState {
         }
 
         // check if dice value has actually been rolled
-        if dice != self.dices.values.0 && dice != self.dices.values.1 {
+        if dice != self.dice.values.0 && dice != self.dice.values.1 {
             return Err(Error::DiceInvalid);
         }
 
@@ -589,16 +587,16 @@ mod tests {
             goes_first: player_id,
         });
         state.consume(&GameEvent::Roll { player_id });
-        let dices = state.dices.values;
+        let dice = state.dice.values;
         let moves = (
-            CheckerMove::new(1, (1 + dices.0).into()).unwrap(),
-            CheckerMove::new((1 + dices.0).into(), (1 + dices.0 + dices.1).into()).unwrap(),
+            CheckerMove::new(1, (1 + dice.0).into()).unwrap(),
+            CheckerMove::new((1 + dice.0).into(), (1 + dice.0 + dice.1).into()).unwrap(),
         );
         assert!(state.moves_follows_dices(&Color::White, &moves));
 
         let badmoves = (
-            CheckerMove::new(1, (2 + dices.0).into()).unwrap(),
-            CheckerMove::new((1 + dices.0).into(), (1 + dices.0 + dices.1).into()).unwrap(),
+            CheckerMove::new(1, (2 + dice.0).into()).unwrap(),
+            CheckerMove::new((1 + dice.0).into(), (1 + dice.0 + dice.1).into()).unwrap(),
         );
         assert!(!state.moves_follows_dices(&Color::White, &badmoves));
     }

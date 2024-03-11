@@ -2,12 +2,38 @@
 pub mod app;
 
 use anyhow::Result;
-use app::App;
+use app::{App, AppArgs};
 use std::io;
 
+// see pico-args example at https://github.com/RazrFalcon/pico-args/blob/master/examples/app.rs
+const HELP: &str = "\
+Trictrac CLI
+
+USAGE:
+  trictrac-cli [OPTIONS]
+
+FLAGS:
+  -h, --help            Prints help information
+
+OPTIONS:
+  --seed SEED       Sets the random generator seed
+
+ARGS:
+  <INPUT>
+";
+
 fn main() -> Result<()> {
+    let args = match parse_args() {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("Error: {}.", e);
+            std::process::exit(1);
+        }
+    };
+    // println!("{:#?}", args);
+
     // Create an application.
-    let mut app = App::new();
+    let mut app = App::new(args);
 
     // Start the main loop.
     while !app.should_quit {
@@ -19,3 +45,32 @@ fn main() -> Result<()> {
 
     Ok(())
 }
+
+fn parse_args() -> Result<AppArgs, pico_args::Error> {
+    let mut pargs = pico_args::Arguments::from_env();
+
+    // Help has a higher priority and should be handled separately.
+    if pargs.contains(["-h", "--help"]) {
+        print!("{}", HELP);
+        std::process::exit(0);
+    }
+
+    let args = AppArgs {
+        // Parses an optional value that implements `FromStr`.
+        seed: pargs.opt_value_from_str("--seed")?,
+        // Parses an optional value from `&str` using a specified function.
+        // width: pargs.opt_value_from_fn("--width", parse_width)?.unwrap_or(10),
+    };
+
+    // It's up to the caller what to do with the remaining arguments.
+    let remaining = pargs.finish();
+    if !remaining.is_empty() {
+        eprintln!("Warning: unused arguments left: {:?}.", remaining);
+    }
+
+    Ok(args)
+}
+
+// fn parse_width(s: &str) -> Result<u32, &'static str> {
+//     s.parse().map_err(|_| "not a number")
+// }

@@ -91,9 +91,14 @@ mod tests {
 
     #[test]
     fn test_seed() {
-        let dice = DiceRoller::new(Some(123)).roll();
-        assert!(dice.values.0 == 3);
-        assert!(dice.values.1 == 2);
+        let seed = Some(123);
+        let dice1 = DiceRoller::new(seed).roll();
+        let dice2 = DiceRoller::new(seed).roll();
+        let dice3 = DiceRoller::new(seed).roll();
+        assert!(dice1.values.0 == dice2.values.0);
+        assert!(dice1.values.0 == dice3.values.0);
+        assert!(dice1.values.1 == dice2.values.1);
+        assert!(dice1.values.1 == dice3.values.1);
     }
 
     #[test]

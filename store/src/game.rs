@@ -165,6 +165,14 @@ impl GameState {
             .next()
     }
 
+    pub fn player_color_by_id(&self, player_id: &PlayerId) -> Option<Color> {
+        self.players
+            .iter()
+            .filter(|(id, _)| *id == player_id)
+            .map(|(_, player)| player.color)
+            .next()
+    }
+
     // ----------------------------------------------------------------------------------
     //                          Rules checks
     // ----------------------------------------------------------------------------------

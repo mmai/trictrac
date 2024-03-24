@@ -5,6 +5,7 @@ members = [
   "client",
   "client_tui",
   "client_cli",
+  "bot",
   "server",
   "store"
 ]

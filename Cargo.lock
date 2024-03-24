@@ -1110,6 +1110,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "bot"
+version = "0.1.0"
+dependencies = [
+ "pretty_assertions",
+ "store",
+]
+
+[[package]]
 name = "bumpalo"
 version = "3.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1242,6 +1250,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bincode",
+ "bot",
  "pico-args",
  "pretty_assertions",
  "renet",

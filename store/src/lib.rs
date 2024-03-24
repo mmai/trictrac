@@ -1,5 +1,5 @@
 mod game;
-pub use game::{EndGameReason, GameEvent, GameState, Stage};
+pub use game::{EndGameReason, GameEvent, GameState, Stage, TurnStage};
 
 mod player;
 pub use player::{Color, Player, PlayerId};

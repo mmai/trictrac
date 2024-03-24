@@ -1,5 +1,6 @@
+use bot::Bot;
 use pretty_assertions::assert_eq;
-use store::{CheckerMove, Dice, DiceRoller, GameEvent, GameState, PlayerId};
+use store::{CheckerMove, Color, Dice, DiceRoller, GameEvent, GameState, PlayerId};
 
 #[derive(Debug, Default)]
 pub struct AppArgs {
@@ -13,6 +14,7 @@ pub struct Game {
     pub dice_roller: DiceRoller,
     first_move: Option<CheckerMove>,
     player_id: Option<PlayerId>,
+    bot: Bot,
 }
 
 impl Game {
@@ -21,16 +23,27 @@ impl Game {
         let mut state = GameState::default();
         // local : player
         let player_id: Option<PlayerId> = state.init_player("myself");
-        state.init_player("adversary");
-        state.consume(&GameEvent::BeginGame {
-            goes_first: player_id.unwrap(),
-        });
-        Self {
+        // bot
+        let bot_id: PlayerId = state.init_player("bot").unwrap();
+        let bot_color = state.player_color_by_id(&bot_id).unwrap();
+        let bot: Bot = Bot::new(bot_color);
+
+        let mut game = Self {
             state,
             dice_roller: DiceRoller::new(seed),
             first_move: None,
             player_id,
-        }
+            bot,
+        };
+        game.consume(&GameEvent::BeginGame {
+            goes_first: player_id.unwrap(),
+        });
+        game
+    }
+
+    pub fn consume(&mut self, event: &GameEvent) -> Option<GameEvent> {
+        self.state.consume(&event);
+        self.bot.consume(&event)
     }
 }
 
@@ -78,7 +91,7 @@ impl App {
             return;
         }
         let dice = self.game.dice_roller.roll();
-        self.game.state.consume(&GameEvent::RollResult {
+        self.game.consume(&GameEvent::RollResult {
             player_id: self.game.player_id.unwrap(),
             dice,
         });
@@ -106,7 +119,7 @@ impl App {
                         self.game.first_move = None;
                         return;
                     }
-                    self.game.state.consume(&move_event);
+                    self.game.consume(&move_event);
                     self.game.first_move = None;
                 } else {
                     self.game.first_move = Some(checker_move.unwrap());

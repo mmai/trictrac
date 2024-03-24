@@ -296,6 +296,27 @@ impl Board {
         self.get_field_checkers(field).map(|(count, color)| color)
     }
 
+    /// returns the list of Fields containing Checkers of the Color
+    pub fn get_color_fields(&self, color: Color) -> Vec<(usize, i8)> {
+        match color {
+            Color::White => self
+                .positions
+                .iter()
+                .enumerate()
+                .filter(|&(_, count)| *count > 0)
+                .map(|(i, count)| (i + 1, *count))
+                .collect(),
+            Color::Black => self
+                .positions
+                .iter()
+                .enumerate()
+                .filter(|&(_, count)| *count < 0)
+                .rev()
+                .map(|(i, count)| (i + 1, (0 - count)))
+                .collect(),
+        }
+    }
+
     // Get the corner field for the color
     pub fn get_color_corner(&self, color: &Color) -> Field {
         if color == &Color::White {
@@ -406,5 +427,12 @@ mod tests {
         let mut board = Board::new();
         let player = Player::new("".into(), Color::White);
         assert!(board.set(&Color::White, 23, -3).is_err());
+    }
+
+    #[test]
+    fn get_color_fields() {
+        let board = Board::new();
+        assert_eq!(board.get_color_fields(Color::White), vec![(1, 15)]);
+        assert_eq!(board.get_color_fields(Color::Black), vec![(24, 15)]);
     }
 }

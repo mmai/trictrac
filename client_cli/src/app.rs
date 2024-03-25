@@ -42,8 +42,15 @@ impl Game {
     }
 
     pub fn consume(&mut self, event: &GameEvent) -> Option<GameEvent> {
-        self.state.consume(&event);
-        self.bot.consume(&event)
+        if self.state.validate(event) {
+            self.state.consume(event);
+            return self
+                .bot
+                .consume(event)
+                .map(|evt| self.consume(&evt))
+                .flatten();
+        }
+        None
     }
 }
 

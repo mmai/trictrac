@@ -28,6 +28,7 @@ fn transpose(matrix: Vec<Vec<String>>) -> Vec<Vec<String>> {
 
 impl CheckerMove {
     pub fn new(from: Field, to: Field) -> Result<Self, Error> {
+        println!("from {} to {}", from, to);
         // check if the field is on the board
         // we allow 0 for 'to', which represents the exit of a checker
         if from < 1 || 24 < from || 24 < to {

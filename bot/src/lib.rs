@@ -67,15 +67,18 @@ impl Bot {
 
     fn choose_move(&self) -> (CheckerMove, CheckerMove) {
         let (dice1, dice2) = match self.color {
-            Color::White => self.game.dice.values,
-            Color::Black => (0 - self.game.dice.values.0, 0 - self.game.dice.values.1),
+            Color::White => (self.game.dice.values.0 as i8, self.game.dice.values.1 as i8),
+            Color::Black => (
+                0 - self.game.dice.values.0 as i8,
+                0 - self.game.dice.values.1 as i8,
+            ),
         };
 
         let fields = self.game.board.get_color_fields(self.color);
         let first_field = fields.first().unwrap();
         (
-            CheckerMove::new(first_field.0, first_field.0 + dice1 as usize).unwrap(),
-            CheckerMove::new(first_field.0, first_field.0 + dice2 as usize).unwrap(),
+            CheckerMove::new(first_field.0, (first_field.0 as i8 + dice1) as usize).unwrap(),
+            CheckerMove::new(first_field.0, (first_field.0 as i8 + dice2) as usize).unwrap(),
         )
     }
 }

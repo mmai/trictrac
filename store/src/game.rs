@@ -448,7 +448,10 @@ impl GameState {
     }
 
     fn mark_points(&mut self, player_id: PlayerId, points: u8) {
-        todo!()
+        self.players.get_mut(&player_id).map(|p| {
+            p.points = p.points + points;
+            p
+        });
     }
 }
 

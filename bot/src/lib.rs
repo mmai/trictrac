@@ -5,7 +5,7 @@ use store::{CheckerMove, Color, Dice, GameEvent, GameState, Player, PlayerId, St
 #[derive(Debug)]
 pub struct Bot {
     pub game: GameState,
-    player_id: PlayerId,
+    pub player_id: PlayerId,
     color: Color,
 }
 
@@ -46,7 +46,8 @@ impl Bot {
 
     pub fn consume(&mut self, event: &GameEvent) -> Option<GameEvent> {
         self.game.consume(event);
-        // println!("{:?}", self.game);
+        println!("bot game {:?}", self.game);
+        println!("bot player_id {:?}", self.player_id);
         if self.game.active_player_id == self.player_id {
             return match self.game.turn_stage {
                 TurnStage::RollDice => Some(GameEvent::Roll {
@@ -60,6 +61,7 @@ impl Bot {
                     player_id: self.player_id,
                     moves: self.choose_move(),
                 }),
+                _ => None,
             };
         }
         None

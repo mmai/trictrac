@@ -1,6 +1,6 @@
 use bot::Bot;
 use pretty_assertions::assert_eq;
-use store::{CheckerMove, Color, Dice, DiceRoller, GameEvent, GameState, PlayerId};
+use store::{CheckerMove, Color, Dice, DiceRoller, GameEvent, GameState, PlayerId, TurnStage};
 
 #[derive(Debug, Default)]
 pub struct AppArgs {
@@ -43,14 +43,30 @@ impl Game {
 
     pub fn consume(&mut self, event: &GameEvent) -> Option<GameEvent> {
         if self.state.validate(event) {
+            println!("consuming {:?}", event);
             self.state.consume(event);
-            return self
+            // chain all successive bot actions
+            let bot_event = self
                 .bot
                 .consume(event)
                 .map(|evt| self.consume(&evt))
                 .flatten();
+            // roll dice for bot if needed
+            if self.bot_needs_dice_roll() {
+                let dice = self.dice_roller.roll();
+                return self.consume(&GameEvent::RollResult {
+                    player_id: self.bot.player_id,
+                    dice,
+                });
+            }
+            return bot_event;
         }
         None
+    }
+
+    fn bot_needs_dice_roll(&self) -> bool {
+        self.state.active_player_id == self.bot.player_id
+            && self.state.turn_stage == TurnStage::RollWaiting
     }
 }
 
@@ -156,27 +172,27 @@ mod tests {
 Rolled dice : 0 & 0
 -------------------------------
 
-    13   14   15   16   17   18       19   20   21   22   23   24  
+     13   14   15   16   17   18      19   20   21   22   23   24  
   ----------------------------------------------------------------
- |                              | |                             X |
- |                              | |                             X |
- |                              | |                             X |
- |                              | |                             X |
- |                              | |                             X |
- |                              | |                             X |
- |                              | |                             X |
- |                              | |                             X |
- |                              | |                            15 |
- |----------------------------- | | ------------------------------|
- |                              | |                            15 |
- |                              | |                             O |
- |                              | |                             O |
- |                              | |                             O |
- |                              | |                             O |
- |                              | |                             O |
- |                              | |                             O |
- |                              | |                             O |
- |                              | |                             O |
+ |                               | |                            X |
+ |                               | |                            X |
+ |                               | |                            X |
+ |                               | |                            X |
+ |                               | |                            X |
+ |                               | |                            X |
+ |                               | |                            X |
+ |                               | |                            X |
+ |                               | |                           15 |
+ |------------------------------ | | -----------------------------|
+ |                               | |                           15 |
+ |                               | |                            O |
+ |                               | |                            O |
+ |                               | |                            O |
+ |                               | |                            O |
+ |                               | |                            O |
+ |                               | |                            O |
+ |                               | |                            O |
+ |                               | |                            O |
   ----------------------------------------------------------------
     12   11   10    9    8    7        6    5    4    3    2    1   
 ";
@@ -187,30 +203,30 @@ Rolled dice : 0 & 0
     #[test]
     fn test_move() {
         let expected = "-------------------------------
-Rolled dice : 2 & 3
+Rolled dice : 4 & 6
 -------------------------------
 
-    13   14   15   16   17   18       19   20   21   22   23   24  
+     13   14   15   16   17   18      19   20   21   22   23   24  
   ----------------------------------------------------------------
- |                              | |                             X |
- |                              | |                             X |
- |                              | |                             X |
- |                              | |                             X |
- |                              | |                             X |
- |                              | |                             X |
- |                              | |                             X |
- |                              | |                             X |
- |                              | |                            15 |
- |----------------------------- | | ------------------------------|
- |                              | |                            13 |
- |                              | |                             O |
- |                              | |                             O |
- |                              | |                             O |
- |                              | |                             O |
- |                              | |                             O |
- |                              | |                             O |
- |                              | |                             O |
- |                              | |              O    O         O |
+ |                             X | |        X                   X |
+ |                               | |                            X |
+ |                               | |                            X |
+ |                               | |                            X |
+ |                               | |                            X |
+ |                               | |                            X |
+ |                               | |                            X |
+ |                               | |                            X |
+ |                               | |                           13 |
+ |------------------------------ | | -----------------------------|
+ |                               | |                           13 |
+ |                               | |                            O |
+ |                               | |                            O |
+ |                               | |                            O |
+ |                               | |                            O |
+ |                               | |                            O |
+ |                               | |                            O |
+ |                               | |                            O |
+ |                               | |             O    O         O |
   ----------------------------------------------------------------
     12   11   10    9    8    7        6    5    4    3    2    1   
 ";

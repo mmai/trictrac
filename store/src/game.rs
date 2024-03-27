@@ -25,6 +25,7 @@ pub enum Stage {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TurnStage {
     RollDice,
+    RollWaiting,
     MarkPoints,
     Move,
 }
@@ -102,9 +103,10 @@ impl GameState {
 
         // step  -> 2 bits
         let step_bits = match self.turn_stage {
+            TurnStage::RollWaiting => "00",
             TurnStage::RollDice => "01",
-            TurnStage::MarkPoints => "01",
-            TurnStage::Move => "10",
+            TurnStage::MarkPoints => "10",
+            TurnStage::Move => "11",
         };
         pos_bits.push_str(step_bits);
 
@@ -288,8 +290,8 @@ impl GameState {
     fn moves_follows_dices(&self, color: &Color, moves: &(CheckerMove, CheckerMove)) -> bool {
         let (dice1, dice2) = self.dice.values;
         let (move1, move2): &(CheckerMove, CheckerMove) = moves.into();
-        let dist1 = (move1.get_to() - move1.get_from()) as u8;
-        let dist2 = (move2.get_to() - move2.get_from()) as u8;
+        let dist1 = (move1.get_to() as i8 - move1.get_from() as i8).abs() as u8;
+        let dist2 = (move2.get_to() as i8 - move2.get_from() as i8).abs() as u8;
         print!("{}, {}, {}, {}", dist1, dist2, dice1, dice2);
         // basic : same number
         if cmp::min(dist1, dist2) != cmp::min(dice1, dice2)
@@ -415,7 +417,9 @@ impl GameState {
             PlayerDisconnected { player_id } => {
                 self.players.remove(player_id);
             }
-            Roll { player_id: _ } => {}
+            Roll { player_id: _ } => {
+                self.turn_stage = TurnStage::RollWaiting;
+            }
             RollResult { player_id: _, dice } => {
                 self.dice = *dice;
                 self.turn_stage = TurnStage::MarkPoints;
@@ -436,6 +440,7 @@ impl GameState {
                     .find(|id| *id != player_id)
                     .unwrap()
                     .clone();
+                self.turn_stage = TurnStage::RollDice;
             }
         }
 
@@ -585,6 +590,13 @@ mod tests {
             CheckerMove::new(6, 9).unwrap(),
         );
         assert!(!state.moves_possible(&Color::White, &moves));
+
+        // black moves
+        let moves = (
+            CheckerMove::new(24, 20).unwrap(),
+            CheckerMove::new(20, 19).unwrap(),
+        );
+        assert!(state.moves_possible(&Color::Black, &moves));
     }
 
     #[test]

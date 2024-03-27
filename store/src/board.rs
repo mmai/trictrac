@@ -35,9 +35,10 @@ impl CheckerMove {
             return Err(Error::FieldInvalid);
         }
         // check that the destination is after the origin field
-        if to < from && to != 0 {
-            return Err(Error::MoveInvalid);
-        }
+        // --> not applicable for black moves
+        // if to < from && to != 0 {
+        //     return Err(Error::MoveInvalid);
+        // }
         Ok(Self { from, to })
     }
 
@@ -183,18 +184,18 @@ impl Board {
             .collect();
 
         let mut output = "
-    13   14   15   16   17   18       19   20   21   22   23   24  
+     13   14   15   16   17   18      19   20   21   22   23   24  
   ----------------------------------------------------------------\n"
             .to_owned();
         for mut line in upper {
             // add middle bar
-            line.replace_range(30..30, "| |");
+            line.replace_range(31..31, "| |");
             output = output + " |" + &line + " |\n";
         }
-        output = output + " |----------------------------- | | ------------------------------|\n";
+        output = output + " |------------------------------ | | -----------------------------|\n";
         for mut line in lower {
             // add middle bar
-            line.replace_range(30..30, "| |");
+            line.replace_range(31..31, "| |");
             output = output + " |" + &line + " |\n";
         }
         output = output
@@ -345,7 +346,11 @@ impl Board {
         if Some(color) != checker_color {
             return Err(Error::FieldInvalid);
         }
-        self.positions[field - 1] -= 1;
+        let unit = match color {
+            Color::White => 1,
+            Color::Black => -1,
+        };
+        self.positions[field - 1] -= unit;
         Ok(())
     }
 
@@ -355,7 +360,11 @@ impl Board {
         if None != checker_color && Some(color) != checker_color {
             return Err(Error::FieldInvalid);
         }
-        self.positions[field - 1] += 1;
+        let unit = match color {
+            Color::White => 1,
+            Color::Black => -1,
+        };
+        self.positions[field - 1] += unit;
         Ok(())
     }
 }

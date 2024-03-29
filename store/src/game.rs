@@ -292,7 +292,7 @@ impl GameState {
         let (move1, move2): &(CheckerMove, CheckerMove) = moves.into();
         let dist1 = (move1.get_to() as i8 - move1.get_from() as i8).abs() as u8;
         let dist2 = (move2.get_to() as i8 - move2.get_from() as i8).abs() as u8;
-        print!("{}, {}, {}, {}", dist1, dist2, dice1, dice2);
+        // print!("{}, {}, {}, {}", dist1, dist2, dice1, dice2);
         // basic : same number
         if cmp::min(dist1, dist2) != cmp::min(dice1, dice2)
             || cmp::max(dist1, dist2) != cmp::max(dice1, dice2)

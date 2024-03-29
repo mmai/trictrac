@@ -46,8 +46,8 @@ impl Bot {
 
     pub fn consume(&mut self, event: &GameEvent) -> Option<GameEvent> {
         self.game.consume(event);
-        println!("bot game {:?}", self.game);
-        println!("bot player_id {:?}", self.player_id);
+        // println!("bot game {:?}", self.game);
+        // println!("bot player_id {:?}", self.player_id);
         if self.game.active_player_id == self.player_id {
             return match self.game.turn_stage {
                 TurnStage::RollDice => Some(GameEvent::Roll {

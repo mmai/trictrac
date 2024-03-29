@@ -42,26 +42,27 @@ impl Game {
     }
 
     pub fn consume(&mut self, event: &GameEvent) -> Option<GameEvent> {
-        if self.state.validate(event) {
-            println!("consuming {:?}", event);
-            self.state.consume(event);
-            // chain all successive bot actions
-            let bot_event = self
-                .bot
-                .consume(event)
-                .map(|evt| self.consume(&evt))
-                .flatten();
-            // roll dice for bot if needed
-            if self.bot_needs_dice_roll() {
-                let dice = self.dice_roller.roll();
-                return self.consume(&GameEvent::RollResult {
-                    player_id: self.bot.player_id,
-                    dice,
-                });
-            }
-            return bot_event;
+        if !self.state.validate(event) {
+            return None;
         }
-        None
+        // println!("consuming {:?}", event);
+        self.state.consume(event);
+        // chain all successive bot actions
+        let bot_event = self
+            .bot
+            .consume(event)
+            .map(|evt| self.consume(&evt))
+            .flatten();
+        // roll dice for bot if needed
+        if self.bot_needs_dice_roll() {
+            let dice = self.dice_roller.roll();
+            self.consume(&GameEvent::RollResult {
+                player_id: self.bot.player_id,
+                dice,
+            })
+        } else {
+            bot_event
+        }
     }
 
     fn bot_needs_dice_roll(&self) -> bool {
@@ -94,8 +95,10 @@ impl App {
     }
 
     pub fn input(&mut self, input: &str) {
-        println!("'{}'", input);
+        // println!("'{}'", input);
         match input {
+            "state" => self.show_state(),
+            "history" => self.show_history(),
             "quit" => self.quit(),
             "roll" => self.roll_dice(),
             _ => self.add_move(input),
@@ -106,6 +109,16 @@ impl App {
     // Set running to false to quit the application.
     pub fn quit(&mut self) {
         self.should_quit = true;
+    }
+
+    pub fn show_state(&self) {
+        println!("{:?}", self.game.state)
+    }
+
+    pub fn show_history(&self) {
+        for hist in self.game.state.history.iter() {
+            println!("{:?}\n", hist);
+        }
     }
 
     fn roll_dice(&mut self) {
@@ -155,6 +168,15 @@ impl App {
 
     pub fn display(&mut self) -> String {
         let mut output = "-------------------------------".to_owned();
+        output = output
+            + "\nWaiting for player "
+            + &self
+                .game
+                .state
+                .who_plays()
+                .map(|pl| &pl.name)
+                .unwrap_or(&"?".to_owned());
+
         output = output + "\nRolled dice : " + &self.game.state.dice.to_display_string();
         output = output + "\n-------------------------------";
         output = output + "\n" + &self.game.state.board.to_display_grid(9);
@@ -169,6 +191,7 @@ mod tests {
     #[test]
     fn test_display() {
         let expected = "-------------------------------
+Waiting for player ?
 Rolled dice : 0 & 0
 -------------------------------
 
@@ -203,6 +226,7 @@ Rolled dice : 0 & 0
     #[test]
     fn test_move() {
         let expected = "-------------------------------
+Waiting for player myself
 Rolled dice : 4 & 6
 -------------------------------
 

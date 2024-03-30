@@ -1,4 +1,4 @@
-use crate::player::{Color, Player};
+use crate::player::Color;
 use crate::Error;
 use serde::{Deserialize, Serialize};
 use std::cmp;
@@ -31,7 +31,7 @@ impl CheckerMove {
         // println!("from {} to {}", from, to);
         // check if the field is on the board
         // we allow 0 for 'to', which represents the exit of a checker
-        if from < 1 || 24 < from || 24 < to {
+        if !(1..25).contains(&from) || 24 < to {
             return Err(Error::FieldInvalid);
         }
         // check that the destination is after the origin field
@@ -98,7 +98,7 @@ impl Board {
         // Pieces placement -> 77bits (24 + 23 + 30 max)
         // inspired by https://www.gnu.org/software/gnubg/manual/html_node/A-technical-description-of-the-Position-ID.html
         // - white positions
-        let white_board = self.positions.clone();
+        let white_board = self.positions;
         let mut pos_bits = white_board.iter().fold(vec![], |acc, nb| {
             let mut new_acc = acc.clone();
             if *nb > 0 {
@@ -110,7 +110,7 @@ impl Board {
         });
 
         // - black positions
-        let mut black_board = self.positions.clone();
+        let mut black_board = self.positions;
         black_board.reverse();
         let mut pos_black_bits = black_board.iter().fold(vec![], |acc, nb| {
             let mut new_acc = acc.clone();
@@ -192,14 +192,13 @@ impl Board {
             line.replace_range(31..31, "| |");
             output = output + " |" + &line + " |\n";
         }
-        output = output + " |------------------------------ | | -----------------------------|\n";
+        output += " |------------------------------ | | -----------------------------|\n";
         for mut line in lower {
             // add middle bar
             line.replace_range(31..31, "| |");
             output = output + " |" + &line + " |\n";
         }
-        output = output
-            + "  ----------------------------------------------------------------
+        output += "  ----------------------------------------------------------------
     12   11   10    9    8    7        6    5    4    3    2    1   \n";
         output
     }
@@ -280,22 +279,20 @@ impl Board {
     }
 
     pub fn get_field_checkers(&self, field: Field) -> Result<(u8, Option<&Color>), Error> {
-        if field < 1 || field > 24 {
+        if !(1..25).contains(&field) {
             return Err(Error::FieldInvalid);
         }
         let checkers_count = self.positions[field - 1];
-        let color = if checkers_count < 0 {
-            Some(&Color::Black)
-        } else if checkers_count > 0 {
-            Some(&Color::White)
-        } else {
-            None
+        let color = match checkers_count.cmp(&0) {
+            cmp::Ordering::Less => Some(&Color::Black),
+            cmp::Ordering::Greater => Some(&Color::White),
+            cmp::Ordering::Equal => None,
         };
-        Ok((checkers_count.abs() as u8, color))
+        Ok((checkers_count.unsigned_abs(), color))
     }
 
     pub fn get_checkers_color(&self, field: Field) -> Result<Option<&Color>, Error> {
-        self.get_field_checkers(field).map(|(count, color)| color)
+        self.get_field_checkers(field).map(|(_ount, color)| color)
     }
 
     /// returns the list of Fields containing Checkers of the Color
@@ -357,7 +354,7 @@ impl Board {
     pub fn add_checker(&mut self, color: &Color, field: Field) -> Result<(), Error> {
         let checker_color = self.get_checkers_color(field)?;
         // error if the case contains the other color
-        if None != checker_color && Some(color) != checker_color {
+        if checker_color.is_some() && Some(color) != checker_color {
             return Err(Error::FieldInvalid);
         }
         let unit = match color {
@@ -367,19 +364,6 @@ impl Board {
         self.positions[field - 1] += unit;
         Ok(())
     }
-}
-
-/// Trait to move checkers
-pub trait Move {
-    /// Move a checker
-    fn move_checker(&mut self, player: &Player, dice: u8, from: Field) -> Result<&mut Self, Error>
-    where
-        Self: Sized;
-
-    /// Move permitted
-    fn move_permitted(&mut self, player: &Player, dice: u8) -> Result<&mut Self, Error>
-    where
-        Self: Sized;
 }
 
 // Unit Tests
@@ -395,7 +379,7 @@ mod tests {
     #[test]
     fn blocked_outofrange() -> Result<(), Error> {
         let board = Board::new();
-        assert!(!board.blocked(&Color::White, 0).is_err());
+        assert!(board.blocked(&Color::White, 0).is_ok());
         assert!(board.blocked(&Color::White, 28).is_err());
         Ok(())
     }
@@ -435,7 +419,6 @@ mod tests {
     #[test]
     fn set_wrong_amount1() {
         let mut board = Board::new();
-        let player = Player::new("".into(), Color::White);
         assert!(board.set(&Color::White, 23, -3).is_err());
     }
 

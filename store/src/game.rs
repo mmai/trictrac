@@ -1,5 +1,5 @@
 //! # Play a TricTrac Game
-use crate::board::{Board, CheckerMove, Field, Move};
+use crate::board::{Board, CheckerMove, Field};
 use crate::dice::{Dice, DiceRoller, Roll};
 use crate::player::{Color, Player, PlayerId};
 use crate::Error;
@@ -500,56 +500,6 @@ pub enum GameEvent {
         player_id: PlayerId,
         moves: (CheckerMove, CheckerMove),
     },
-}
-
-impl Move for GameState {
-    fn move_checker(&mut self, player: &Player, dice: u8, from: usize) -> Result<&mut Self, Error> {
-        // check if move is permitted
-        let _ = self.move_permitted(player, dice)?;
-
-        // remove checker from old position
-        self.board.set(&player.color, from, -1)?;
-
-        // move checker to new position, in case it is reaching the off position, set it off
-        let new_position = from as i8 - dice as i8;
-        if new_position < 0 {
-            // self.board.set_off(player, 1)?;
-        } else {
-            // self.board.set(player, new_position as usize, 1)?;
-        }
-
-        // switch to other player if all dice have been consumed
-        self.switch_active_player();
-        self.roll_first = true;
-
-        Ok(self)
-    }
-
-    /// Implements checks to validate if the player is allowed to move
-    fn move_permitted(&mut self, player: &Player, dice: u8) -> Result<&mut Self, Error> {
-        let maybe_player_id = self.player_id(&player);
-        // check if player is allowed to move
-        if maybe_player_id != Some(&self.active_player_id) {
-            return Err(Error::NotYourTurn);
-        }
-
-        // if player is nobody, you can not play and have to roll first
-        if maybe_player_id.is_none() {
-            return Err(Error::RollFirst);
-        }
-
-        // check if player has to roll first
-        if self.roll_first {
-            return Err(Error::RollFirst);
-        }
-
-        // check if dice value has actually been rolled
-        if dice != self.dice.values.0 && dice != self.dice.values.1 {
-            return Err(Error::DiceInvalid);
-        }
-
-        Ok(self)
-    }
 }
 
 #[cfg(test)]

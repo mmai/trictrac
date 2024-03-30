@@ -35,13 +35,13 @@ impl Game {
             player_id,
             bot,
         };
-        game.consume(&GameEvent::BeginGame {
+        game.handle_event(&GameEvent::BeginGame {
             goes_first: player_id.unwrap(),
         });
         game
     }
 
-    pub fn consume(&mut self, event: &GameEvent) -> Option<GameEvent> {
+    pub fn handle_event(&mut self, event: &GameEvent) -> Option<GameEvent> {
         if !self.state.validate(event) {
             return None;
         }
@@ -50,13 +50,12 @@ impl Game {
         // chain all successive bot actions
         let bot_event = self
             .bot
-            .consume(event)
-            .map(|evt| self.consume(&evt))
-            .flatten();
+            .handle_event(event)
+            .and_then(|evt| self.handle_event(&evt));
         // roll dice for bot if needed
         if self.bot_needs_dice_roll() {
             let dice = self.dice_roller.roll();
-            self.consume(&GameEvent::RollResult {
+            self.handle_event(&GameEvent::RollResult {
                 player_id: self.bot.player_id,
                 dice,
             })
@@ -127,7 +126,7 @@ impl App {
             return;
         }
         let dice = self.game.dice_roller.roll();
-        self.game.consume(&GameEvent::RollResult {
+        self.game.handle_event(&GameEvent::RollResult {
             player_id: self.game.player_id.unwrap(),
             dice,
         });
@@ -143,22 +142,22 @@ impl App {
             .map(|str| str.parse().unwrap_or(0))
             .collect();
         if positions.len() == 2 && positions[0] != 0 && positions[1] != 0 {
-            let checker_move = CheckerMove::new(positions[0], positions[1]);
-            if checker_move.is_ok() {
+            if let Ok(checker_move) = CheckerMove::new(positions[0], positions[1]) {
+                // if checker_move.is_ok() {
                 if self.game.first_move.is_some() {
                     let move_event = GameEvent::Move {
                         player_id: self.game.player_id.unwrap(),
-                        moves: (self.game.first_move.unwrap(), checker_move.unwrap()),
+                        moves: (self.game.first_move.unwrap(), checker_move),
                     };
                     if !self.game.state.validate(&move_event) {
                         println!("Move invalid");
                         self.game.first_move = None;
                         return;
                     }
-                    self.game.consume(&move_event);
+                    self.game.handle_event(&move_event);
                     self.game.first_move = None;
                 } else {
-                    self.game.first_move = Some(checker_move.unwrap());
+                    self.game.first_move = Some(checker_move);
                 }
                 return;
             }

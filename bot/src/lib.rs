@@ -44,7 +44,7 @@ impl Bot {
         }
     }
 
-    pub fn consume(&mut self, event: &GameEvent) -> Option<GameEvent> {
+    pub fn handle_event(&mut self, event: &GameEvent) -> Option<GameEvent> {
         self.game.consume(event);
         // println!("bot game {:?}", self.game);
         // println!("bot player_id {:?}", self.player_id);
@@ -98,13 +98,13 @@ mod tests {
     #[test]
     fn test_consume() {
         let mut bot = Bot::new(Color::Black);
-        let mut event = bot.consume(&GameEvent::BeginGame { goes_first: 2 });
+        let mut event = bot.handle_event(&GameEvent::BeginGame { goes_first: 2 });
         assert_eq!(event, Some(GameEvent::Roll { player_id: 2 }));
 
-        event = bot.consume(&GameEvent::BeginGame { goes_first: 1 });
+        event = bot.handle_event(&GameEvent::BeginGame { goes_first: 1 });
         assert_eq!(event, None);
 
-        event = bot.consume(&GameEvent::RollResult {
+        bot.handle_event(&GameEvent::RollResult {
             player_id: 2,
             dice: Dice { values: (2, 3) },
         });

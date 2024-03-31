@@ -1,6 +1,9 @@
 use bot::Bot;
 use pretty_assertions::assert_eq;
-use store::{CheckerMove, Color, Dice, DiceRoller, GameEvent, GameState, PlayerId, TurnStage};
+use std::fmt;
+use store::{
+    CheckerMove, Color, Dice, DiceRoller, GameEvent, GameState, PlayerId, Stage, TurnStage,
+};
 
 #[derive(Debug, Default)]
 pub struct AppArgs {
@@ -167,18 +170,34 @@ impl App {
 
     pub fn display(&mut self) -> String {
         let mut output = "-------------------------------".to_owned();
-        output = output
-            + "\nWaiting for player "
-            + &self
-                .game
+        output += format!(
+            "\n{:?} > {} > {:?}",
+            self.game.state.stage,
+            self.game
                 .state
                 .who_plays()
                 .map(|pl| &pl.name)
-                .unwrap_or(&"?".to_owned());
+                .unwrap_or(&"?".to_owned()),
+            self.game.state.turn_stage
+        )
+        .as_str();
 
         output = output + "\nRolled dice : " + &self.game.state.dice.to_display_string();
-        output = output + "\n-------------------------------";
-        output = output + "\n" + &self.game.state.board.to_display_grid(9);
+
+        if self.game.state.stage != Stage::PreGame {
+            // display players points
+            output += format!("\n\n{:<11} :: {:<5} :: {}", "Player", "holes", "points").as_str();
+            for (player_id, player) in self.game.state.players.iter() {
+                output += format!(
+                    "\n{}. {:<8} :: {:<5} :: {}",
+                    &player_id, &player.name, &player.holes, &player.points
+                )
+                .as_str();
+            }
+        }
+
+        output += "\n-------------------------------\n";
+        output += &self.game.state.board.to_display_grid(9);
         output
     }
 }
@@ -190,7 +209,7 @@ mod tests {
     #[test]
     fn test_display() {
         let expected = "-------------------------------
-Waiting for player ?
+PreGame > ? > RollDice
 Rolled dice : 0 & 0
 -------------------------------
 
@@ -225,8 +244,12 @@ Rolled dice : 0 & 0
     #[test]
     fn test_move() {
         let expected = "-------------------------------
-Waiting for player myself
+InGame > myself > RollDice
 Rolled dice : 4 & 6
+
+Player      :: holes :: points
+1. myself   :: 0     :: 0
+2. bot      :: 0     :: 0
 -------------------------------
 
      13   14   15   16   17   18      19   20   21   22   23   24  

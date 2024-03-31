@@ -5,6 +5,7 @@ use crate::player::{Color, Player, PlayerId};
 use crate::Error;
 use log::{error, info};
 use std::cmp;
+use std::fmt::Display;
 
 // use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -49,6 +50,10 @@ pub struct GameState {
 impl fmt::Display for GameState {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut s = String::new();
+        s.push_str(&format!(
+            "Stage: {:?} / {:?}\n",
+            self.stage, self.turn_stage
+        ));
         s.push_str(&format!("Dice: {:?}\n", self.dice));
         // s.push_str(&format!("Who plays: {}\n", self.who_plays().map(|player| &player.name ).unwrap_or("")));
         s.push_str(&format!("Board: {:?}\n", self.board));

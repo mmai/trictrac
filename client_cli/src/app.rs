@@ -1,9 +1,6 @@
 use bot::Bot;
 use pretty_assertions::assert_eq;
-use std::fmt;
-use store::{
-    CheckerMove, Color, Dice, DiceRoller, GameEvent, GameState, PlayerId, Stage, TurnStage,
-};
+use store::{CheckerMove, DiceRoller, GameEvent, GameState, PlayerId, Stage, TurnStage};
 
 #[derive(Debug, Default)]
 pub struct AppArgs {
@@ -90,8 +87,6 @@ impl App {
         }
     }
 
-    fn get_my_player(&mut self) {}
-
     pub fn start(&mut self) {
         self.game.state = GameState::new();
     }
@@ -126,6 +121,10 @@ impl App {
     fn roll_dice(&mut self) {
         if self.game.player_id.is_none() {
             println!("player_id not set ");
+            return;
+        }
+        if self.game.state.turn_stage != TurnStage::RollDice {
+            println!("Not in the dice roll stage");
             return;
         }
         let dice = self.game.dice_roller.roll();

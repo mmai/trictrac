@@ -339,7 +339,8 @@ impl GameState {
         //  - dame se trouvant plus loin de la sortie que la flêche (point défaillant)
         //  - dame se trouvant plus près que la flêche (point exédant)
 
-        // --- cadran rempli si possible ----
+        // --- remplir cadran si possible ----
+        // --- conserver cadran rempli si possible ----
         // --- interdit de jouer dans cadran que l'adversaire peut encore remplir ----
         // no rule was broken
         true

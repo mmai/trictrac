@@ -294,20 +294,70 @@ impl GameState {
 
     fn moves_follows_dices(&self, color: &Color, moves: &(CheckerMove, CheckerMove)) -> bool {
         let (dice1, dice2) = self.dice.values;
-        let (move1, move2): &(CheckerMove, CheckerMove) = moves.into();
+        let (move1, move2): &(CheckerMove, CheckerMove) = moves;
         let dist1 = (move1.get_to() as i8 - move1.get_from() as i8).abs() as u8;
         let dist2 = (move2.get_to() as i8 - move2.get_from() as i8).abs() as u8;
         // print!("{}, {}, {}, {}", dist1, dist2, dice1, dice2);
-        // basic : same number
+        // exceptions
+        //  - prise de coin par puissance
+        if self.is_move_by_puissance(color, moves) {
+            return true;
+        }
+        //  - sorties
+        // default : must be same number
         if cmp::min(dist1, dist2) != cmp::min(dice1, dice2)
             || cmp::max(dist1, dist2) != cmp::max(dice1, dice2)
         {
             return false;
         }
-        // prise de coin par puissance
-        // sorties
         // no rule was broken
         true
+    }
+
+    fn is_move_by_puissance(&self, color: &Color, moves: &(CheckerMove, CheckerMove)) -> bool {
+        let (dice1, dice2) = self.dice.values;
+        let (move1, move2): &(CheckerMove, CheckerMove) = moves.into();
+        let dist1 = (move1.get_to() as i8 - move1.get_from() as i8).abs() as u8;
+        let dist2 = (move2.get_to() as i8 - move2.get_from() as i8).abs() as u8;
+
+        // Both corners must be empty
+        let (count1, _color) = self.board.get_field_checkers(12).unwrap();
+        let (count2, _color2) = self.board.get_field_checkers(13).unwrap();
+        if count1 > 0 || count2 > 0 {
+            return false;
+        }
+
+        move1.get_to() == move2.get_to()
+            && move1.get_to() == self.board.get_color_corner(color)
+            && ((*color == Color::White
+                && cmp::min(dist1, dist2) == cmp::min(dice1, dice2) - 1
+                && cmp::max(dist1, dist2) == cmp::max(dice1, dice2) - 1)
+                || (*color == Color::Black
+                    && cmp::min(dist1, dist2) == cmp::min(dice1, dice2) + 1
+                    && cmp::max(dist1, dist2) == cmp::max(dice1, dice2) + 1))
+    }
+
+    fn can_take_corner_by_effect(&self, color: &Color) -> bool {
+        // return false if corner already taken
+        let corner_field: Field = self.board.get_color_corner(color);
+        let (count, _col) = self.board.get_field_checkers(corner_field).unwrap();
+        if count > 0 {
+            return false;
+        }
+
+        let (dice1, dice2) = self.dice.values;
+        let (field1, field2) = match color {
+            Color::White => (12 - dice1, 12 - dice2),
+            Color::Black => (13 + dice1, 13 + dice2),
+        };
+        let res1 = self.board.get_field_checkers(field1.into());
+        let res2 = self.board.get_field_checkers(field2.into());
+        if res1.is_err() || res2.is_err() {
+            return false;
+        }
+        let (count1, opt_color1) = res1.unwrap();
+        let (count2, opt_color2) = res2.unwrap();
+        count1 > 0 && count2 > 0 && opt_color1 == Some(color) && opt_color2 == Some(color)
     }
 
     fn moves_allowed(&self, color: &Color, moves: &(CheckerMove, CheckerMove)) -> bool {
@@ -325,9 +375,13 @@ impl GameState {
             return false;
         }
 
-        // the lat 2 checkers of a corner must leave at the same time
+        // the last 2 checkers of a corner must leave at the same time
         if (from0 == corner_field || from1 == corner_field) && (from0 != from1) && corner_count == 2
         {
+            return false;
+        }
+
+        if self.is_move_by_puissance(color, moves) && self.can_take_corner_by_effect(color) {
             return false;
         }
 
@@ -578,5 +632,85 @@ mod tests {
             CheckerMove::new((1 + dice.0).into(), (1 + dice.0 + dice.1).into()).unwrap(),
         );
         assert!(!state.moves_follows_dices(&Color::White, &badmoves));
+    }
+
+    #[test]
+    fn test_can_take_corner_by_effect() {
+        let mut state = GameState::default();
+        let player1 = Player::new("player1".into(), Color::White);
+        let player_id = 1;
+        state.add_player(player_id, player1);
+        state.add_player(2, Player::new("player2".into(), Color::Black));
+        state.consume(&GameEvent::BeginGame {
+            goes_first: player_id,
+        });
+        state.consume(&GameEvent::Roll { player_id });
+
+        state.board.set_positions([
+            10, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -15,
+        ]);
+        state.dice.values = (4, 4);
+        assert!(state.can_take_corner_by_effect(&Color::White));
+
+        state.dice.values = (5, 5);
+        assert!(!state.can_take_corner_by_effect(&Color::White));
+
+        state.board.set_positions([
+            10, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -15,
+        ]);
+        state.dice.values = (4, 4);
+        assert!(!state.can_take_corner_by_effect(&Color::White));
+
+        state.board.set_positions([
+            10, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, -2, 0, 0, 0, 0, 0, 0, 0, 0, 0, -13,
+        ]);
+        state.dice.values = (1, 1);
+        assert!(state.can_take_corner_by_effect(&Color::Black));
+    }
+
+    #[test]
+    fn test_prise_en_puissance() {
+        let mut state = GameState::default();
+        let player1 = Player::new("player1".into(), Color::White);
+        let player_id = 1;
+        state.add_player(player_id, player1);
+        state.add_player(2, Player::new("player2".into(), Color::Black));
+        state.consume(&GameEvent::BeginGame {
+            goes_first: player_id,
+        });
+        state.consume(&GameEvent::Roll { player_id });
+
+        // prise par puissance ok
+        state.board.set_positions([
+            10, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -15,
+        ]);
+        state.dice.values = (5, 5);
+        let moves = (
+            CheckerMove::new(8, 12).unwrap(),
+            CheckerMove::new(8, 12).unwrap(),
+        );
+        assert!(state.is_move_by_puissance(&Color::White, &moves));
+        assert!(state.moves_follows_dices(&Color::White, &moves));
+        assert!(state.moves_allowed(&Color::White, &moves));
+
+        // opponent corner must be empty
+        state.board.set_positions([
+            10, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, -2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -13,
+        ]);
+        assert!(!state.is_move_by_puissance(&Color::White, &moves));
+        assert!(!state.moves_follows_dices(&Color::White, &moves));
+
+        // Si on a la possibilité de prendre son coin à la fois par effet, c'est à dire naturellement, et aussi par puissance, on doit le prendre par effet
+        state.board.set_positions([
+            5, 0, 0, 0, 0, 0, 5, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -15,
+        ]);
+        assert!(!state.moves_allowed(&Color::White, &moves));
+
+        // on a déjà pris son coin : on ne peux plus y deplacer des dames par puissance
+        state.board.set_positions([
+            8, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -15,
+        ]);
+        assert!(!state.is_move_by_puissance(&Color::White, &moves));
+        assert!(!state.moves_follows_dices(&Color::White, &moves));
     }
 }

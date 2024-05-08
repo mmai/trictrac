@@ -10,6 +10,15 @@ pub enum Color {
     Black,
 }
 
+impl Color {
+    pub fn opponent_color(&self) -> Self {
+        match self {
+            Self::White => Self::Black,
+            Self::Black => Self::White,
+        }
+    }
+}
+
 /// Struct for storing player related data.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Player {

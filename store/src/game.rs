@@ -1,11 +1,9 @@
 //! # Play a TricTrac Game
-use crate::board::{Board, CheckerMove, Field};
-use crate::dice::{Dice, DiceRoller, Roll};
+use crate::board::{Board, CheckerMove, Field, EMPTY_MOVE};
+use crate::dice::Dice;
 use crate::player::{Color, Player, PlayerId};
-use crate::Error;
-use log::{error, info};
+use log::error;
 use std::cmp;
-use std::fmt::Display;
 
 // use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -199,15 +197,14 @@ impl GameState {
                     return false;
                 }
             }
-            EndGame { reason } => match reason {
-                EndGameReason::PlayerWon { winner: _ } => {
+            EndGame { reason } => {
+                if let EndGameReason::PlayerWon { winner: _ } = reason {
                     // Check that the game has started before someone wins it
                     if self.stage != Stage::InGame {
                         return false;
                     }
                 }
-                _ => {}
-            },
+            }
             PlayerJoined { player_id, name: _ } => {
                 // Check that there isn't another player with the same id
                 if self.players.contains_key(player_id) {
@@ -230,7 +227,10 @@ impl GameState {
                     return false;
                 }
             }
-            Mark { player_id, points } => {
+            Mark {
+                player_id,
+                points: _,
+            } => {
                 // Check player exists
                 if !self.players.contains_key(player_id) {
                     return false;
@@ -281,9 +281,8 @@ impl GameState {
         }
 
         // Chained_move : "Tout d'une"
-        let chained_move = moves.0.chain(moves.1);
-        if chained_move.is_ok() {
-            if !self.board.move_possible(color, &chained_move.unwrap()) {
+        if let Ok(chained_move) = moves.0.chain(moves.1) {
+            if !self.board.move_possible(color, &chained_move) {
                 return false;
             }
         } else if !self.board.move_possible(color, &moves.1) {
@@ -292,33 +291,261 @@ impl GameState {
         true
     }
 
-    fn moves_follows_dices(&self, color: &Color, moves: &(CheckerMove, CheckerMove)) -> bool {
+    fn get_move_compatible_dices(&self, color: &Color, cmove: &CheckerMove) -> Vec<u8> {
         let (dice1, dice2) = self.dice.values;
-        let (move1, move2): &(CheckerMove, CheckerMove) = moves;
-        let dist1 = (move1.get_to() as i8 - move1.get_from() as i8).abs() as u8;
-        let dist2 = (move2.get_to() as i8 - move2.get_from() as i8).abs() as u8;
-        // print!("{}, {}, {}, {}", dist1, dist2, dice1, dice2);
-        // exceptions
-        //  - prise de coin par puissance
+
+        let mut move_dices = Vec::new();
+        if cmove.get_to() == 0 {
+            // handle empty move (0, 0) only one checker left, exiting with the first die.
+            if cmove.get_from() == 0 {
+                move_dices.push(dice1);
+                move_dices.push(dice2);
+                return move_dices;
+            }
+
+            // Exits
+            let min_dist = match color {
+                Color::White => 25 - cmove.get_from(),
+                Color::Black => cmove.get_from(),
+            };
+            if dice1 as usize >= min_dist {
+                move_dices.push(dice1);
+            }
+            if dice2 as usize >= min_dist {
+                move_dices.push(dice2);
+            }
+        } else {
+            let dist = (cmove.get_to() as i8 - cmove.get_from() as i8).unsigned_abs();
+            if dice1 == dist {
+                move_dices.push(dice1);
+            }
+            if dice2 == dist {
+                move_dices.push(dice2);
+            }
+        }
+        move_dices
+    }
+
+    fn moves_follows_dices(&self, color: &Color, moves: &(CheckerMove, CheckerMove)) -> bool {
+        // Prise de coin par puissance
         if self.is_move_by_puissance(color, moves) {
             return true;
         }
-        //  - sorties
-        // default : must be same number
-        if cmp::min(dist1, dist2) != cmp::min(dice1, dice2)
-            || cmp::max(dist1, dist2) != cmp::max(dice1, dice2)
+
+        let (dice1, dice2) = self.dice.values;
+        let (move1, move2): &(CheckerMove, CheckerMove) = moves;
+
+        let move1_dices = self.get_move_compatible_dices(color, move1);
+        if move1_dices.is_empty() {
+            return false;
+        }
+        let move2_dices = self.get_move_compatible_dices(color, move2);
+        if move2_dices.is_empty() {
+            return false;
+        }
+        if move1_dices.len() == 1
+            && move2_dices.len() == 1
+            && move1_dices[0] == move2_dices[0]
+            && dice1 != dice2
         {
             return false;
         }
+
         // no rule was broken
         true
     }
 
+    fn moves_allowed(&self, color: &Color, moves: &(CheckerMove, CheckerMove)) -> bool {
+        // ------- corner rules ----------
+        let corner_field: Field = self.board.get_color_corner(color);
+        let (corner_count, _color) = self.board.get_field_checkers(corner_field).unwrap();
+        let (from0, to0, from1, to1) = (
+            moves.0.get_from(),
+            moves.0.get_to(),
+            moves.1.get_from(),
+            moves.1.get_to(),
+        );
+        // 2 checkers must go at the same time on an empty corner
+        if (to0 == corner_field || to1 == corner_field) && (to0 != to1) && corner_count == 0 {
+            return false;
+        }
+
+        // the last 2 checkers of a corner must leave at the same time
+        if (from0 == corner_field || from1 == corner_field) && (from0 != from1) && corner_count == 2
+        {
+            return false;
+        }
+
+        if self.is_move_by_puissance(color, moves) && self.can_take_corner_by_effect(color) {
+            return false;
+        }
+
+        // check exit rules
+        if moves.0.get_to() == 0 || moves.1.get_to() == 0 {
+            // toutes les dames doivent être dans le jan de retour
+            let has_outsiders = !self
+                .board
+                .get_color_fields(*color)
+                .iter()
+                .filter(|(field, _count)| {
+                    (*color == Color::White && *field < 19)
+                        || (*color == Color::Black && *field > 6)
+                })
+                .collect::<Vec<&(usize, i8)>>()
+                .is_empty();
+            if has_outsiders {
+                return false;
+            }
+
+            // toutes les sorties directes sont autorisées, ainsi que les nombre défaillants
+            let possible_moves_sequences = self.get_possible_moves_sequences(color);
+            if !possible_moves_sequences.contains(moves) {
+                // À ce stade au moins un des déplacements concerne un nombre en excédant
+                // - si d'autres séquences de mouvements sans nombre en excédant étaient possibles, on
+                // refuse cette séquence
+                if !possible_moves_sequences.is_empty() {
+                    return false;
+                }
+
+                // - la dame choisie doit être la plus éloignée de la sortie
+                let mut checkers = self.board.get_color_fields(*color);
+                checkers.sort_by(|a, b| {
+                    if *color == Color::White {
+                        b.0.cmp(&a.0)
+                    } else {
+                        a.0.cmp(&b.0)
+                    }
+                });
+                let mut farthest = if *color == Color::White { 24 } else { 1 };
+                let mut next_farthest = if *color == Color::White { 24 } else { 1 };
+                let mut has_two_checkers = false;
+                if let Some((field, count)) = checkers.first() {
+                    farthest = *field;
+                    if *count > 1 {
+                        next_farthest = *field;
+                        has_two_checkers = true;
+                    } else if let Some((field, _count)) = checkers.get(1) {
+                        next_farthest = *field;
+                        has_two_checkers = true;
+                    }
+                }
+
+                // s'il reste au moins deux dames, on vérifie que les plus éloignées soint choisies
+                if has_two_checkers {
+                    if moves.0.get_to() == 0 && moves.1.get_to() == 0 {
+                        // Deux coups sortants en excédant
+                        if *color == Color::White {
+                            if cmp::max(moves.0.get_from(), moves.1.get_from()) > next_farthest {
+                                return false;
+                            }
+                        } else if cmp::min(moves.0.get_from(), moves.1.get_from()) < next_farthest {
+                            return false;
+                        }
+                    } else {
+                        // Un seul coup sortant en excédant le coup sortant doit concerner la plus éloignée du bord
+                        let exit_move_field = if moves.0.get_to() == 0 {
+                            moves.0.get_from()
+                        } else {
+                            moves.1.get_from()
+                        };
+                        if exit_move_field != farthest {
+                            return false;
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- remplir cadran si possible ----
+        // --- conserver cadran rempli si possible ----
+        // --- interdit de jouer dans cadran que l'adversaire peut encore remplir ----
+        // no rule was broken
+        true
+    }
+
+    fn get_possible_moves_sequences(&self, color: &Color) -> Vec<(CheckerMove, CheckerMove)> {
+        let (dice1, dice2) = self.dice.values;
+        let mut moves_seqs = self.get_possible_moves_sequences_by_dices(color, dice1, dice2);
+        let mut moves_seqs_order2 = self.get_possible_moves_sequences_by_dices(color, dice1, dice2);
+        moves_seqs.append(&mut moves_seqs_order2);
+        moves_seqs
+    }
+
+    fn get_possible_moves_sequences_by_dices(
+        &self,
+        color: &Color,
+        dice1: u8,
+        dice2: u8,
+    ) -> Vec<(CheckerMove, CheckerMove)> {
+        let mut moves_seqs = Vec::new();
+        for first_move in self.board.get_possible_moves(*color, dice1, false) {
+            let mut board2 = self.board.clone();
+            if board2.move_checker(color, first_move).is_err() {
+                println!("err move");
+                continue;
+            }
+            if board2.get_color_fields(*color).is_empty() {
+                // no checkers left : empty move
+                println!("empty move");
+                moves_seqs.push((first_move, EMPTY_MOVE));
+            } else {
+                for second_move in board2.get_possible_moves(*color, dice2, false) {
+                    moves_seqs.push((first_move, second_move));
+                }
+            }
+        }
+        moves_seqs
+    }
+
+    fn get_direct_exit_moves(&self, color: &Color) -> Vec<CheckerMove> {
+        let mut moves = Vec::new();
+        let (dice1, dice2) = self.dice.values;
+
+        // sorties directes simples
+        let (field1_candidate, field2_candidate) = if color == &Color::White {
+            (25 - dice1 as usize, 25 - dice2 as usize)
+        } else {
+            (dice1 as usize, dice2 as usize)
+        };
+        let (count1, col1) = self.board.get_field_checkers(field1_candidate).unwrap();
+        let (count2, col2) = self.board.get_field_checkers(field2_candidate).unwrap();
+        if count1 > 0 {
+            moves.push(CheckerMove::new(field1_candidate, 0).unwrap());
+        }
+        if dice2 != dice1 {
+            if count2 > 0 {
+                moves.push(CheckerMove::new(field2_candidate, 0).unwrap());
+            }
+        } else if count1 > 1 {
+            // doublet et deux dames disponibles
+            moves.push(CheckerMove::new(field1_candidate, 0).unwrap());
+        }
+
+        // sortie directe tout d'une
+        let fieldall_candidate = if color == &Color::White {
+            25 - dice1 - dice2
+        } else {
+            dice1 + dice2
+        } as usize;
+        let (countall, _col) = self.board.get_field_checkers(fieldall_candidate).unwrap();
+        if countall > 0 {
+            if col1.is_none() || col1 == Some(color) {
+                moves.push(CheckerMove::new(fieldall_candidate, field1_candidate).unwrap());
+                moves.push(CheckerMove::new(field1_candidate, 0).unwrap());
+            }
+            if col2.is_none() || col2 == Some(color) {
+                moves.push(CheckerMove::new(fieldall_candidate, field2_candidate).unwrap());
+                moves.push(CheckerMove::new(field2_candidate, 0).unwrap());
+            }
+        }
+        moves
+    }
+
     fn is_move_by_puissance(&self, color: &Color, moves: &(CheckerMove, CheckerMove)) -> bool {
         let (dice1, dice2) = self.dice.values;
-        let (move1, move2): &(CheckerMove, CheckerMove) = moves.into();
-        let dist1 = (move1.get_to() as i8 - move1.get_from() as i8).abs() as u8;
-        let dist2 = (move2.get_to() as i8 - move2.get_from() as i8).abs() as u8;
+        let (move1, move2): &(CheckerMove, CheckerMove) = moves;
+        let dist1 = (move1.get_to() as i8 - move1.get_from() as i8).unsigned_abs();
+        let dist2 = (move2.get_to() as i8 - move2.get_from() as i8).unsigned_abs();
 
         // Both corners must be empty
         let (count1, _color) = self.board.get_field_checkers(12).unwrap();
@@ -358,46 +585,6 @@ impl GameState {
         let (count1, opt_color1) = res1.unwrap();
         let (count2, opt_color2) = res2.unwrap();
         count1 > 0 && count2 > 0 && opt_color1 == Some(color) && opt_color2 == Some(color)
-    }
-
-    fn moves_allowed(&self, color: &Color, moves: &(CheckerMove, CheckerMove)) -> bool {
-        // ------- corner rules ----------
-        let corner_field: Field = self.board.get_color_corner(color);
-        let (corner_count, _color) = self.board.get_field_checkers(corner_field).unwrap();
-        let (from0, to0, from1, to1) = (
-            moves.0.get_from(),
-            moves.0.get_to(),
-            moves.1.get_from(),
-            moves.1.get_to(),
-        );
-        // 2 checkers must go at the same time on an empty corner
-        if (to0 == corner_field || to1 == corner_field) && (to0 != to1) && corner_count == 0 {
-            return false;
-        }
-
-        // the last 2 checkers of a corner must leave at the same time
-        if (from0 == corner_field || from1 == corner_field) && (from0 != from1) && corner_count == 2
-        {
-            return false;
-        }
-
-        if self.is_move_by_puissance(color, moves) && self.can_take_corner_by_effect(color) {
-            return false;
-        }
-
-        // ------- exit rules ----------
-        // -- toutes les dames doivent être dans le jan de retour
-        // -- si on peut sortir, on doit sortir
-        // -- priorité :
-        //  - dame se trouvant sur la flêche correspondant au dé
-        //  - dame se trouvant plus loin de la sortie que la flêche (point défaillant)
-        //  - dame se trouvant plus près que la flêche (point exédant)
-
-        // --- remplir cadran si possible ----
-        // --- conserver cadran rempli si possible ----
-        // --- interdit de jouer dans cadran que l'adversaire peut encore remplir ----
-        // no rule was broken
-        true
     }
 
     // ----------------------------------------------------------------------------------
@@ -457,7 +644,7 @@ impl GameState {
             }
             EndGame { reason: _ } => self.stage = Stage::Ended,
             PlayerJoined { player_id, name } => {
-                let color = if self.players.len() > 0 {
+                let color = if !self.players.is_empty() {
                     Color::White
                 } else {
                     Color::Black
@@ -494,12 +681,7 @@ impl GameState {
                 let player = self.players.get(player_id).unwrap();
                 self.board.move_checker(&player.color, moves.0).unwrap();
                 self.board.move_checker(&player.color, moves.1).unwrap();
-                self.active_player_id = self
-                    .players
-                    .keys()
-                    .find(|id| *id != player_id)
-                    .unwrap()
-                    .clone();
+                self.active_player_id = *self.players.keys().find(|id| *id != player_id).unwrap();
                 self.turn_stage = TurnStage::RollDice;
             }
         }
@@ -514,7 +696,7 @@ impl GameState {
 
     fn mark_points(&mut self, player_id: PlayerId, points: u8) {
         self.players.get_mut(&player_id).map(|p| {
-            p.points = p.points + points;
+            p.points += points;
             p
         });
     }
@@ -567,7 +749,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_to_string_id() {
+    fn to_string_id() {
         let mut state = GameState::default();
         state.add_player(1, Player::new("player1".into(), Color::White));
         state.add_player(2, Player::new("player2".into(), Color::Black));
@@ -577,7 +759,7 @@ mod tests {
     }
 
     #[test]
-    fn test_moves_possible() {
+    fn moves_possible() {
         let mut state = GameState::default();
         let player1 = Player::new("player1".into(), Color::White);
         let player_id = 1;
@@ -610,7 +792,7 @@ mod tests {
     }
 
     #[test]
-    fn test_moves_follow_dices() {
+    fn moves_follow_dices() {
         let mut state = GameState::default();
         let player1 = Player::new("player1".into(), Color::White);
         let player_id = 1;
@@ -635,7 +817,7 @@ mod tests {
     }
 
     #[test]
-    fn test_can_take_corner_by_effect() {
+    fn can_take_corner_by_effect() {
         let mut state = GameState::default();
         let player1 = Player::new("player1".into(), Color::White);
         let player_id = 1;
@@ -669,7 +851,7 @@ mod tests {
     }
 
     #[test]
-    fn test_prise_en_puissance() {
+    fn prise_en_puissance() {
         let mut state = GameState::default();
         let player1 = Player::new("player1".into(), Color::White);
         let player_id = 1;
@@ -712,5 +894,82 @@ mod tests {
         ]);
         assert!(!state.is_move_by_puissance(&Color::White, &moves));
         assert!(!state.moves_follows_dices(&Color::White, &moves));
+    }
+
+    #[test]
+    fn exit() {
+        let mut state = GameState::default();
+        let player1 = Player::new("player1".into(), Color::White);
+        let player_id = 1;
+        state.add_player(player_id, player1);
+        state.add_player(2, Player::new("player2".into(), Color::Black));
+        state.consume(&GameEvent::BeginGame {
+            goes_first: player_id,
+        });
+        state.consume(&GameEvent::Roll { player_id });
+
+        // exit ok
+        state.board.set_positions([
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0,
+        ]);
+        state.dice.values = (5, 5);
+        let moves = (
+            CheckerMove::new(20, 0).unwrap(),
+            CheckerMove::new(20, 0).unwrap(),
+        );
+        assert!(state.moves_possible(&Color::White, &moves));
+        assert!(state.moves_follows_dices(&Color::White, &moves));
+        assert!(state.moves_allowed(&Color::White, &moves));
+
+        // toutes les dames doivent être dans le jan de retour
+        state.board.set_positions([
+            0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0,
+        ]);
+        state.dice.values = (5, 5);
+        let moves = (
+            CheckerMove::new(20, 0).unwrap(),
+            CheckerMove::new(20, 0).unwrap(),
+        );
+        assert!(!state.moves_allowed(&Color::White, &moves));
+
+        // on ne peut pas sortir une dame avec un nombre excédant si on peut en jouer une avec un nombre défaillant
+        state.board.set_positions([
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 3, 0, 0, 2, 0,
+        ]);
+        state.dice.values = (5, 5);
+        let moves = (
+            CheckerMove::new(20, 0).unwrap(),
+            CheckerMove::new(23, 0).unwrap(),
+        );
+        assert!(!state.moves_allowed(&Color::White, &moves));
+
+        // on doit jouer le nombre excédant le plus éloigné
+        state.board.set_positions([
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 1, 0,
+        ]);
+        state.dice.values = (5, 5);
+        let moves = (
+            CheckerMove::new(20, 0).unwrap(),
+            CheckerMove::new(23, 0).unwrap(),
+        );
+        assert!(!state.moves_allowed(&Color::White, &moves));
+        let moves = (
+            CheckerMove::new(20, 0).unwrap(),
+            CheckerMove::new(20, 0).unwrap(),
+        );
+        assert!(state.moves_allowed(&Color::White, &moves));
+
+        // Cas de la dernière dame
+        state.board.set_positions([
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0,
+        ]);
+        state.dice.values = (5, 5);
+        let moves = (
+            CheckerMove::new(23, 0).unwrap(),
+            CheckerMove::new(0, 0).unwrap(),
+        );
+        assert!(state.moves_possible(&Color::White, &moves));
+        assert!(state.moves_follows_dices(&Color::White, &moves));
+        assert!(state.moves_allowed(&Color::White, &moves));
     }
 }

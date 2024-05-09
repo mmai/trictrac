@@ -13,6 +13,8 @@ pub struct CheckerMove {
     to: Field,
 }
 
+pub const EMPTY_MOVE: CheckerMove = CheckerMove { from: 0, to: 0 };
+
 fn transpose(matrix: Vec<Vec<String>>) -> Vec<Vec<String>> {
     let num_cols = matrix.first().unwrap().len();
     let mut row_iters: Vec<_> = matrix.into_iter().map(Vec::into_iter).collect();
@@ -31,7 +33,9 @@ impl CheckerMove {
         // println!("from {} to {}", from, to);
         // check if the field is on the board
         // we allow 0 for 'to', which represents the exit of a checker
-        if !(1..25).contains(&from) || 24 < to {
+        // and (0, 0) which represent the absence of a move (when there is only one checker left on the
+        // board)
+        if ((from, to) != (0, 0)) && (!(1..25).contains(&from) || 24 < to) {
             return Err(Error::FieldInvalid);
         }
         // check that the destination is after the origin field
@@ -266,20 +270,8 @@ impl Board {
 
         // the square is blocked on the opponent rest corner or if there are opponent's men on the square
         match color {
-            Color::White => {
-                if field == 13 || self.positions[field - 1] < 0 {
-                    Ok(true)
-                } else {
-                    Ok(false)
-                }
-            }
-            Color::Black => {
-                if field == 12 || self.positions[23 - field] > 1 {
-                    Ok(true)
-                } else {
-                    Ok(false)
-                }
-            }
+            Color::White => Ok(field == 13 || self.positions[field - 1] < 0),
+            Color::Black => Ok(field == 12 || self.positions[23 - field] > 1),
         }
     }
 
@@ -330,6 +322,44 @@ impl Board {
         }
     }
 
+    pub fn get_possible_moves(
+        &self,
+        color: Color,
+        dice: u8,
+        with_excedants: bool,
+    ) -> Vec<CheckerMove> {
+        let mut moves = Vec::new();
+
+        let get_dest = |from| {
+            if color == Color::White {
+                if from + dice as i32 == 25 {
+                    0
+                } else {
+                    from + dice as i32
+                }
+            } else {
+                from - dice as i32
+            }
+        };
+
+        for (field, _count) in self.get_color_fields(color) {
+            let mut dest = get_dest(field as i32);
+            if !(0..25).contains(&dest) {
+                if with_excedants {
+                    dest = 0;
+                } else {
+                    continue;
+                }
+            }
+            if let Ok(cmove) = CheckerMove::new(field, dest.unsigned_abs() as usize) {
+                if let Ok(false) = self.blocked(&color, dest.unsigned_abs() as usize) {
+                    moves.push(cmove);
+                }
+            }
+        }
+        moves
+    }
+
     pub fn move_possible(&self, color: &Color, cmove: &CheckerMove) -> bool {
         let blocked = self.blocked(color, cmove.to).unwrap_or(true);
         // Check if there is a player's checker on the 'from' square
@@ -357,6 +387,11 @@ impl Board {
     }
 
     pub fn add_checker(&mut self, color: &Color, field: Field) -> Result<(), Error> {
+        // Sortie
+        if field == 0 {
+            return Ok(());
+        }
+
         let checker_color = self.get_checkers_color(field)?;
         // error if the case contains the other color
         if checker_color.is_some() && Some(color) != checker_color {

@@ -37,7 +37,7 @@ Si on peut remplir le coin de l'adversaire avec deux dames (ce qui est interdit)
 
 Si on a le choix entre remplir son coin directement ou par puissance, on doit obligatoirement le faire directement.
 
-Tant que l'adversaire à la possibilité de remplir un cadran, on ne peut pas jouer dans ce cadran.
+Tant que l'adversaire à la possibilité de remplir un des deux cadrans de son côté (son jeu "ordinaire", par opposition au jeu "de retour"), on ne peut pas jouer dans ce cadran.
 
 Quand on joue dans ses propres deux cadrans, on dit qu'on joue le jeu ordinaire
 Quand on joue dans les deux cadrans de l'adversaire, on dit qu'on joue le jeu de retour

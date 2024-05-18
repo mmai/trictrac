@@ -103,6 +103,9 @@ impl Board {
     }
 
     pub fn count_checkers(&self, color: Color, from: Field, to: Field) -> u8 {
+        if to == 0 || from == 0 {
+            return 0;
+        }
         self.positions[(from - 1)..to]
             .iter()
             .filter(|count| {
@@ -421,6 +424,9 @@ impl Board {
 
     /// Returns the 6 fields of the quarter containing the `field`
     fn get_quarter_fields(&self, field: Field) -> [Field; 6] {
+        if field == 0 {
+            return [0; 6];
+        }
         let min = 1 + ((field - 1) / 6) * 6;
         core::array::from_fn(|i| i + min)
     }
@@ -548,5 +554,9 @@ mod tests {
         assert!(!board.is_quarter_fillable(Color::Black, 24));
         assert!(!board.is_quarter_fillable(Color::White, 1));
         assert!(board.is_quarter_fillable(Color::White, 12));
+        board.set_positions([
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, -12, 0, 0, 0, 0, 1, 0,
+        ]);
+        assert!(board.is_quarter_fillable(Color::Black, 16));
     }
 }

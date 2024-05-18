@@ -456,9 +456,28 @@ impl GameState {
             }
         }
 
+        // --- interdit de jouer dans cadran que l'adversaire peut encore remplir ----
+        let farthest = if *color == Color::White {
+            cmp::max(moves.0.get_to(), moves.1.get_to())
+        } else {
+            cmp::min(moves.0.get_to(), moves.1.get_to())
+        };
+        let in_opponent_side = if *color == Color::White {
+            farthest > 12
+        } else {
+            farthest < 13
+        };
+
+        if in_opponent_side
+            && self
+                .board
+                .is_quarter_fillable(color.opponent_color(), farthest)
+        {
+            return false;
+        }
+
         // --- remplir cadran si possible ----
         // --- conserver cadran rempli si possible ----
-        // --- interdit de jouer dans cadran que l'adversaire peut encore remplir ----
         // no rule was broken
         true
     }
@@ -971,5 +990,29 @@ mod tests {
         assert!(state.moves_possible(&Color::White, &moves));
         assert!(state.moves_follows_dices(&Color::White, &moves));
         assert!(state.moves_allowed(&Color::White, &moves));
+    }
+
+    #[test]
+    fn move_check_fillable_quarter() {
+        let mut state = GameState::default();
+        state.board.set_positions([
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1, 0,
+        ]);
+        state.dice.values = (5, 5);
+        let moves = (
+            CheckerMove::new(11, 16).unwrap(),
+            CheckerMove::new(11, 16).unwrap(),
+        );
+        assert!(state.moves_allowed(&Color::White, &moves));
+
+        state.board.set_positions([
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, -12, 0, 0, 0, 0, 1, 0,
+        ]);
+        state.dice.values = (5, 5);
+        let moves = (
+            CheckerMove::new(11, 16).unwrap(),
+            CheckerMove::new(11, 16).unwrap(),
+        );
+        assert!(!state.moves_allowed(&Color::White, &moves));
     }
 }

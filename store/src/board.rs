@@ -102,6 +102,20 @@ impl Board {
         self.positions = positions;
     }
 
+    pub fn count_checkers(&self, color: Color, from: Field, to: Field) -> u8 {
+        self.positions[(from - 1)..to]
+            .iter()
+            .filter(|count| {
+                if color == Color::White {
+                    **count > 0 as i8
+                } else {
+                    **count < 0 as i8
+                }
+            })
+            .sum::<i8>()
+            .unsigned_abs()
+    }
+
     // maybe todo : operate on bits (cf. https://github.com/bungogood/bkgm/blob/a2fb3f395243bcb0bc9f146df73413f73f5ea1e0/src/position.rs#L217)
     pub fn to_gnupg_pos_id(&self) -> String {
         // Pieces placement -> 77bits (24 + 23 + 30 max)
@@ -367,6 +381,50 @@ impl Board {
         has_checker && !blocked
     }
 
+    /// Returns whether the `color` player can still fill the quarter containing the `field`
+    /// * `color` - color of the player
+    /// * `field` - field belonging to the quarter
+    pub fn is_quarter_fillable(&self, color: Color, field: Field) -> bool {
+        let fields = self.get_quarter_fields(field);
+
+        // opponent rest corner
+        if color == Color::White && fields.contains(&13)
+            || color == Color::Black && fields.contains(&12)
+        {
+            return false;
+        }
+
+        // is there a sufficient number of checkers on or before each fields ?
+        for field in fields {
+            // Number of checkers needed before this field (included) :
+            // 2 checkers by field, from the begining of the quarter
+            let mut field_pos = field % 6;
+            if field_pos == 0 {
+                field_pos = 6;
+            }
+            if color == Color::Black {
+                field_pos = 7 - field_pos;
+            }
+            let needed = 2 * field_pos;
+
+            let (from, to) = if color == Color::White {
+                (1, field)
+            } else {
+                (field, 24)
+            };
+            if self.count_checkers(color, from, to) < needed as u8 {
+                return false;
+            }
+        }
+        true
+    }
+
+    /// Returns the 6 fields of the quarter containing the `field`
+    fn get_quarter_fields(&self, field: Field) -> [Field; 6] {
+        let min = 1 + ((field - 1) / 6) * 6;
+        core::array::from_fn(|i| i + min)
+    }
+
     pub fn move_checker(&mut self, color: &Color, cmove: CheckerMove) -> Result<(), Error> {
         self.remove_checker(color, cmove.from)?;
         self.add_checker(color, cmove.to)?;
@@ -467,5 +525,28 @@ mod tests {
         let board = Board::new();
         assert_eq!(board.get_color_fields(Color::White), vec![(1, 15)]);
         assert_eq!(board.get_color_fields(Color::Black), vec![(24, 15)]);
+    }
+
+    #[test]
+    fn is_quarter_fillable() {
+        let mut board = Board::new();
+        board.set_positions([
+            15, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -15,
+        ]);
+        assert!(board.is_quarter_fillable(Color::Black, 1));
+        assert!(!board.is_quarter_fillable(Color::Black, 12));
+        assert!(board.is_quarter_fillable(Color::Black, 13));
+        assert!(board.is_quarter_fillable(Color::Black, 24));
+        assert!(board.is_quarter_fillable(Color::White, 1));
+        assert!(board.is_quarter_fillable(Color::White, 12));
+        assert!(!board.is_quarter_fillable(Color::White, 13));
+        assert!(board.is_quarter_fillable(Color::White, 24));
+        board.set_positions([
+            5, 0, 0, 0, 0, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -8, 0, 0, 0, 0, 0, -5,
+        ]);
+        assert!(board.is_quarter_fillable(Color::Black, 13));
+        assert!(!board.is_quarter_fillable(Color::Black, 24));
+        assert!(!board.is_quarter_fillable(Color::White, 1));
+        assert!(board.is_quarter_fillable(Color::White, 12));
     }
 }

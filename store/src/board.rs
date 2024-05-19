@@ -384,6 +384,25 @@ impl Board {
         has_checker && !blocked
     }
 
+    /// Return if there is a quarter filled by the color
+    pub fn any_quarter_filled(&self, color: Color) -> bool {
+        [1, 7, 13, 19]
+            .iter()
+            .any(|field| self.is_quarter_filled(color, *field))
+    }
+
+    /// Return if the quarter containing `field` is filled by the `color`
+    pub fn is_quarter_filled(&self, color: Color, field: Field) -> bool {
+        let fields = self.get_quarter_fields(field);
+        !fields.iter().any(|field| {
+            if color == Color::White {
+                self.positions[field - 1] < 1
+            } else {
+                self.positions[field - 1] > -1
+            }
+        })
+    }
+
     /// Returns whether the `color` player can still fill the quarter containing the `field`
     /// * `color` - color of the player
     /// * `field` - field belonging to the quarter

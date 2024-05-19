@@ -476,8 +476,11 @@ impl GameState {
             return false;
         }
 
-        // --- remplir cadran si possible ----
-        // --- conserver cadran rempli si possible ----
+        // --- remplir cadran si possible & conserver cadran rempli si possible ----
+        let filling_moves_sequences = self.get_quarter_filling_moves_sequences(color);
+        if !filling_moves_sequences.contains(moves) && !filling_moves_sequences.is_empty() {
+            return false;
+        }
         // no rule was broken
         true
     }
@@ -487,6 +490,22 @@ impl GameState {
         let mut moves_seqs = self.get_possible_moves_sequences_by_dices(color, dice1, dice2);
         let mut moves_seqs_order2 = self.get_possible_moves_sequences_by_dices(color, dice1, dice2);
         moves_seqs.append(&mut moves_seqs_order2);
+        moves_seqs
+    }
+
+    fn get_quarter_filling_moves_sequences(
+        &self,
+        color: &Color,
+    ) -> Vec<(CheckerMove, CheckerMove)> {
+        let mut moves_seqs = Vec::new();
+        for moves in self.get_possible_moves_sequences(color) {
+            let mut board = self.board.clone();
+            board.move_checker(color, moves.0).unwrap();
+            board.move_checker(color, moves.1).unwrap();
+            if board.any_quarter_filled(*color) {
+                moves_seqs.push(moves);
+            }
+        }
         moves_seqs
     }
 
@@ -993,7 +1012,7 @@ mod tests {
     }
 
     #[test]
-    fn move_check_fillable_quarter() {
+    fn move_check_oponnent_fillable_quarter() {
         let mut state = GameState::default();
         state.board.set_positions([
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1, 0,
@@ -1014,5 +1033,39 @@ mod tests {
             CheckerMove::new(11, 16).unwrap(),
         );
         assert!(!state.moves_allowed(&Color::White, &moves));
+    }
+
+    #[test]
+    fn move_check_fillable_quarter() {
+        let mut state = GameState::default();
+        state.board.set_positions([
+            3, 3, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1, 0,
+        ]);
+        state.dice.values = (5, 4);
+        let moves = (
+            CheckerMove::new(1, 6).unwrap(),
+            CheckerMove::new(2, 6).unwrap(),
+        );
+        assert!(state.moves_allowed(&Color::White, &moves));
+        let moves = (
+            CheckerMove::new(1, 5).unwrap(),
+            CheckerMove::new(2, 7).unwrap(),
+        );
+        assert!(!state.moves_allowed(&Color::White, &moves));
+
+        state.board.set_positions([
+            2, 3, 2, 2, 3, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ]);
+        state.dice.values = (2, 3);
+        let moves = (
+            CheckerMove::new(6, 8).unwrap(),
+            CheckerMove::new(6, 9).unwrap(),
+        );
+        assert!(!state.moves_allowed(&Color::White, &moves));
+        let moves = (
+            CheckerMove::new(2, 4).unwrap(),
+            CheckerMove::new(5, 8).unwrap(),
+        );
+        assert!(state.moves_allowed(&Color::White, &moves));
     }
 }

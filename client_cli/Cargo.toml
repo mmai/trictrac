@@ -13,3 +13,4 @@ pretty_assertions = "1.4.0"
 renet = "0.0.13"
 store = { path = "../store" }
 bot = { path = "../bot" }
+itertools = "0.13.0"

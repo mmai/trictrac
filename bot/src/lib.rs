@@ -1,6 +1,8 @@
 mod bot;
 
-use store::{CheckerMove, Color, Dice, GameEvent, GameState, Player, PlayerId, Stage, TurnStage};
+use store::{
+    CheckerMove, Color, Dice, GameEvent, GameState, Player, PlayerId, PointsRules, Stage, TurnStage,
+};
 
 #[derive(Debug)]
 pub struct Bot {
@@ -55,7 +57,7 @@ impl Bot {
                 }),
                 TurnStage::MarkPoints => Some(GameEvent::Mark {
                     player_id: self.player_id,
-                    points: 0,
+                    points: self.calculate_points(),
                 }),
                 TurnStage::Move => Some(GameEvent::Move {
                     player_id: self.player_id,
@@ -65,6 +67,10 @@ impl Bot {
             };
         }
         None
+    }
+
+    fn calculate_points(&self) -> u8 {
+        self.game.get_points().iter().map(|r| r.0).sum()
     }
 
     fn choose_move(&self) -> (CheckerMove, CheckerMove) {

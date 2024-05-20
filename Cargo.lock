@@ -1251,6 +1251,7 @@ dependencies = [
  "anyhow",
  "bincode",
  "bot",
+ "itertools 0.13.0",
  "pico-args",
  "pretty_assertions",
  "renet",
@@ -2128,6 +2129,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "itertools"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
+dependencies = [
+ "either",
+]
+
+[[package]]
 name = "itoa"
 version = "1.0.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2951,7 +2961,7 @@ dependencies = [
  "cassowary",
  "crossterm",
  "indoc",
- "itertools",
+ "itertools 0.11.0",
  "lru",
  "paste",
  "strum",

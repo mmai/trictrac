@@ -1,7 +1,8 @@
 //! # Play a TricTrac Game
-use crate::board::{Board, CheckerMove, Field, EMPTY_MOVE};
+use crate::board::{Board, CheckerMove};
 use crate::dice::Dice;
-use crate::game_rules_moves::{MoveError, MoveRules};
+use crate::game_rules_moves::MoveRules;
+use crate::game_rules_points::PointsRules;
 use crate::player::{Color, Player, PlayerId};
 use log::error;
 
@@ -56,6 +57,15 @@ impl fmt::Display for GameState {
         // s.push_str(&format!("Who plays: {}\n", self.who_plays().map(|player| &player.name ).unwrap_or("")));
         s.push_str(&format!("Board: {:?}\n", self.board));
         write!(f, "{}", s)
+    }
+}
+
+impl PointsRules for GameState {
+    fn board(&self) -> &Board {
+        &self.board
+    }
+    fn dice(&self) -> &Dice {
+        &self.dice
     }
 }
 
@@ -236,16 +246,19 @@ impl GameState {
                     return false;
                 }
             }
-            Mark {
-                player_id,
-                points: _,
-            } => {
+            Mark { player_id, points } => {
                 // Check player exists
                 if !self.players.contains_key(player_id) {
                     return false;
                 }
                 // Check player is currently the one making their move
                 if self.active_player_id != *player_id {
+                    return false;
+                }
+
+                // Check points are correct
+                let rules_points: u8 = self.get_points().iter().map(|r| r.0).sum();
+                if rules_points != *points {
                     return false;
                 }
             }

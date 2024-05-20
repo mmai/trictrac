@@ -1,3 +1,5 @@
+use itertools::Itertools;
+
 use bot::Bot;
 use pretty_assertions::assert_eq;
 use store::{CheckerMove, DiceRoller, GameEvent, GameState, PlayerId, Stage, TurnStage};
@@ -186,7 +188,9 @@ impl App {
         if self.game.state.stage != Stage::PreGame {
             // display players points
             output += format!("\n\n{:<11} :: {:<5} :: {}", "Player", "holes", "points").as_str();
-            for (player_id, player) in self.game.state.players.iter() {
+
+            for player_id in self.game.state.players.keys().sorted() {
+                let player = &self.game.state.players[player_id];
                 output += format!(
                     "\n{}. {:<8} :: {:<5} :: {}",
                     &player_id, &player.name, &player.holes, &player.points

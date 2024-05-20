@@ -1,4 +1,5 @@
 mod game;
+mod game_rules_moves;
 pub use game::{EndGameReason, GameEvent, GameState, Stage, TurnStage};
 
 mod player;

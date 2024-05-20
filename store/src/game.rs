@@ -12,6 +12,27 @@ use std::{fmt, str};
 
 use base64::{engine::general_purpose, Engine as _};
 
+#[derive(std::cmp::PartialEq, Debug)]
+pub enum MoveError {
+    // 2 checkers must go at the same time on an empty corner
+    // & the last 2 checkers of a corner must leave at the same time
+    CornerNeedsTwoCheckers,
+    // Prise de coin de repos par puissance alors qu'il est possible
+    // de le prendre directement (par "effet")
+    CornerByEffectPossible,
+    // toutes les dames doivent être dans le jan de retour
+    ExitNeedsAllCheckersOnLastQuarter,
+    // mouvement avec nombre en exédant alors qu'une séquence de mouvements
+    // sans nombre en excédant est possible
+    ExitByEffectPossible,
+    // Sortie avec nombre en excédant d'une dame qui n'est pas la plus éloignée
+    ExitNotFasthest,
+    // Jeu dans un cadran que l'adversaire peut encore remplir
+    OpponentCanFillQuarter,
+    // remplir cadran si possible & conserver cadran rempli si possible ----
+    MustFillQuarter,
+}
+
 /// The different stages a game can be in. (not to be confused with the entire "GameState")
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Stage {
@@ -264,7 +285,7 @@ impl GameState {
                 }
 
                 // Check move is allowed by the rules (to desactivate when playing with schools)
-                if !self.moves_allowed(color, moves) {
+                if self.moves_allowed(color, moves).is_err() {
                     return false;
                 }
             }
@@ -355,7 +376,11 @@ impl GameState {
         true
     }
 
-    fn moves_allowed(&self, color: &Color, moves: &(CheckerMove, CheckerMove)) -> bool {
+    fn moves_allowed(
+        &self,
+        color: &Color,
+        moves: &(CheckerMove, CheckerMove),
+    ) -> Result<(), MoveError> {
         // ------- corner rules ----------
         let corner_field: Field = self.board.get_color_corner(color);
         let (corner_count, _color) = self.board.get_field_checkers(corner_field).unwrap();
@@ -367,17 +392,17 @@ impl GameState {
         );
         // 2 checkers must go at the same time on an empty corner
         if (to0 == corner_field || to1 == corner_field) && (to0 != to1) && corner_count == 0 {
-            return false;
+            return Err(MoveError::CornerNeedsTwoCheckers);
         }
 
         // the last 2 checkers of a corner must leave at the same time
         if (from0 == corner_field || from1 == corner_field) && (from0 != from1) && corner_count == 2
         {
-            return false;
+            return Err(MoveError::CornerNeedsTwoCheckers);
         }
 
         if self.is_move_by_puissance(color, moves) && self.can_take_corner_by_effect(color) {
-            return false;
+            return Err(MoveError::CornerByEffectPossible);
         }
 
         // check exit rules
@@ -394,7 +419,7 @@ impl GameState {
                 .collect::<Vec<&(usize, i8)>>()
                 .is_empty();
             if has_outsiders {
-                return false;
+                return Err(MoveError::ExitNeedsAllCheckersOnLastQuarter);
             }
 
             // toutes les sorties directes sont autorisées, ainsi que les nombre défaillants
@@ -404,7 +429,7 @@ impl GameState {
                 // - si d'autres séquences de mouvements sans nombre en excédant étaient possibles, on
                 // refuse cette séquence
                 if !possible_moves_sequences.is_empty() {
-                    return false;
+                    return Err(MoveError::ExitByEffectPossible);
                 }
 
                 // - la dame choisie doit être la plus éloignée de la sortie
@@ -436,10 +461,10 @@ impl GameState {
                         // Deux coups sortants en excédant
                         if *color == Color::White {
                             if cmp::max(moves.0.get_from(), moves.1.get_from()) > next_farthest {
-                                return false;
+                                return Err(MoveError::ExitNotFasthest);
                             }
                         } else if cmp::min(moves.0.get_from(), moves.1.get_from()) < next_farthest {
-                            return false;
+                            return Err(MoveError::ExitNotFasthest);
                         }
                     } else {
                         // Un seul coup sortant en excédant le coup sortant doit concerner la plus éloignée du bord
@@ -449,7 +474,7 @@ impl GameState {
                             moves.1.get_from()
                         };
                         if exit_move_field != farthest {
-                            return false;
+                            return Err(MoveError::ExitNotFasthest);
                         }
                     }
                 }
@@ -473,16 +498,16 @@ impl GameState {
                 .board
                 .is_quarter_fillable(color.opponent_color(), farthest)
         {
-            return false;
+            return Err(MoveError::OpponentCanFillQuarter);
         }
 
         // --- remplir cadran si possible & conserver cadran rempli si possible ----
         let filling_moves_sequences = self.get_quarter_filling_moves_sequences(color);
         if !filling_moves_sequences.contains(moves) && !filling_moves_sequences.is_empty() {
-            return false;
+            return Err(MoveError::MustFillQuarter);
         }
         // no rule was broken
-        true
+        Ok(())
     }
 
     fn get_possible_moves_sequences(&self, color: &Color) -> Vec<(CheckerMove, CheckerMove)> {
@@ -911,7 +936,7 @@ mod tests {
         );
         assert!(state.is_move_by_puissance(&Color::White, &moves));
         assert!(state.moves_follows_dices(&Color::White, &moves));
-        assert!(state.moves_allowed(&Color::White, &moves));
+        assert!(state.moves_allowed(&Color::White, &moves).is_ok());
 
         // opponent corner must be empty
         state.board.set_positions([
@@ -924,7 +949,10 @@ mod tests {
         state.board.set_positions([
             5, 0, 0, 0, 0, 0, 5, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -15,
         ]);
-        assert!(!state.moves_allowed(&Color::White, &moves));
+        assert_eq!(
+            Err(MoveError::CornerByEffectPossible),
+            state.moves_allowed(&Color::White, &moves)
+        );
 
         // on a déjà pris son coin : on ne peux plus y deplacer des dames par puissance
         state.board.set_positions([
@@ -957,7 +985,7 @@ mod tests {
         );
         assert!(state.moves_possible(&Color::White, &moves));
         assert!(state.moves_follows_dices(&Color::White, &moves));
-        assert!(state.moves_allowed(&Color::White, &moves));
+        assert!(state.moves_allowed(&Color::White, &moves).is_ok());
 
         // toutes les dames doivent être dans le jan de retour
         state.board.set_positions([
@@ -968,7 +996,10 @@ mod tests {
             CheckerMove::new(20, 0).unwrap(),
             CheckerMove::new(20, 0).unwrap(),
         );
-        assert!(!state.moves_allowed(&Color::White, &moves));
+        assert_eq!(
+            Err(MoveError::ExitNeedsAllCheckersOnLastQuarter),
+            state.moves_allowed(&Color::White, &moves)
+        );
 
         // on ne peut pas sortir une dame avec un nombre excédant si on peut en jouer une avec un nombre défaillant
         state.board.set_positions([
@@ -979,23 +1010,29 @@ mod tests {
             CheckerMove::new(20, 0).unwrap(),
             CheckerMove::new(23, 0).unwrap(),
         );
-        assert!(!state.moves_allowed(&Color::White, &moves));
+        assert_eq!(
+            Err(MoveError::ExitByEffectPossible),
+            state.moves_allowed(&Color::White, &moves)
+        );
 
         // on doit jouer le nombre excédant le plus éloigné
         state.board.set_positions([
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 1, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0,
         ]);
         state.dice.values = (5, 5);
         let moves = (
             CheckerMove::new(20, 0).unwrap(),
             CheckerMove::new(23, 0).unwrap(),
         );
-        assert!(!state.moves_allowed(&Color::White, &moves));
+        assert_eq!(
+            Err(MoveError::ExitNotFasthest),
+            state.moves_allowed(&Color::White, &moves)
+        );
         let moves = (
             CheckerMove::new(20, 0).unwrap(),
             CheckerMove::new(20, 0).unwrap(),
         );
-        assert!(state.moves_allowed(&Color::White, &moves));
+        assert!(state.moves_allowed(&Color::White, &moves).is_ok());
 
         // Cas de la dernière dame
         state.board.set_positions([
@@ -1008,11 +1045,11 @@ mod tests {
         );
         assert!(state.moves_possible(&Color::White, &moves));
         assert!(state.moves_follows_dices(&Color::White, &moves));
-        assert!(state.moves_allowed(&Color::White, &moves));
+        assert!(state.moves_allowed(&Color::White, &moves).is_ok());
     }
 
     #[test]
-    fn move_check_oponnent_fillable_quarter() {
+    fn move_check_opponent_fillable_quarter() {
         let mut state = GameState::default();
         state.board.set_positions([
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1, 0,
@@ -1022,7 +1059,7 @@ mod tests {
             CheckerMove::new(11, 16).unwrap(),
             CheckerMove::new(11, 16).unwrap(),
         );
-        assert!(state.moves_allowed(&Color::White, &moves));
+        assert!(state.moves_allowed(&Color::White, &moves).is_ok());
 
         state.board.set_positions([
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, -12, 0, 0, 0, 0, 1, 0,
@@ -1032,7 +1069,10 @@ mod tests {
             CheckerMove::new(11, 16).unwrap(),
             CheckerMove::new(11, 16).unwrap(),
         );
-        assert!(!state.moves_allowed(&Color::White, &moves));
+        assert_eq!(
+            Err(MoveError::OpponentCanFillQuarter),
+            state.moves_allowed(&Color::White, &moves)
+        );
     }
 
     #[test]
@@ -1046,12 +1086,15 @@ mod tests {
             CheckerMove::new(1, 6).unwrap(),
             CheckerMove::new(2, 6).unwrap(),
         );
-        assert!(state.moves_allowed(&Color::White, &moves));
+        assert!(state.moves_allowed(&Color::White, &moves).is_ok());
         let moves = (
             CheckerMove::new(1, 5).unwrap(),
             CheckerMove::new(2, 7).unwrap(),
         );
-        assert!(!state.moves_allowed(&Color::White, &moves));
+        assert_eq!(
+            Err(MoveError::MustFillQuarter),
+            state.moves_allowed(&Color::White, &moves)
+        );
 
         state.board.set_positions([
             2, 3, 2, 2, 3, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -1061,11 +1104,14 @@ mod tests {
             CheckerMove::new(6, 8).unwrap(),
             CheckerMove::new(6, 9).unwrap(),
         );
-        assert!(!state.moves_allowed(&Color::White, &moves));
+        assert_eq!(
+            Err(MoveError::MustFillQuarter),
+            state.moves_allowed(&Color::White, &moves)
+        );
         let moves = (
             CheckerMove::new(2, 4).unwrap(),
             CheckerMove::new(5, 8).unwrap(),
         );
-        assert!(state.moves_allowed(&Color::White, &moves));
+        assert!(state.moves_allowed(&Color::White, &moves).is_ok());
     }
 }

@@ -24,6 +24,10 @@ pub enum MoveError {
     OpponentCanFillQuarter,
     // remplir cadran si possible & conserver cadran rempli si possible ----
     MustFillQuarter,
+    // On n'a pas le droit de jouer d'une manière qui empêche de jouer les deux dés si on a la possibilité de les jouer.
+    MustPlayAllDice,
+    // Si on ne peut jouer qu'un seul dé, on doit jouer le plus fort si possible.
+    MustPlayStrongerDie,
 }
 
 pub trait MoveRules {
@@ -136,12 +140,24 @@ pub trait MoveRules {
             return Err(MoveError::CornerNeedsTwoCheckers);
         }
 
-        if self.is_move_by_puissance(color, moves) && self.can_take_corner_by_effect(color) {
-            return Err(MoveError::CornerByEffectPossible);
+        if self.is_move_by_puissance(color, moves) {
+            if self.can_take_corner_by_effect(color) {
+                return Err(MoveError::CornerByEffectPossible);
+            } else {
+                // subsequent rules cannot be broken whith a move by puissance
+                return Ok(());
+            }
+        }
+        // Si possible, les deux dés doivent être joués
+        let possible_moves_sequences = self.get_possible_moves_sequences(color, true);
+        if !possible_moves_sequences.contains(moves) && !possible_moves_sequences.is_empty() {
+            println!(">>{:?}<<", moves);
+            println!("{:?}", possible_moves_sequences);
+            return Err(MoveError::MustPlayAllDice);
         }
 
         // check exit rules
-        if moves.0.get_to() == 0 || moves.1.get_to() == 0 {
+        if moves.0.is_exit() || moves.1.is_exit() {
             // toutes les dames doivent être dans le jan de retour
             let has_outsiders = !self
                 .board()
@@ -157,8 +173,8 @@ pub trait MoveRules {
                 return Err(MoveError::ExitNeedsAllCheckersOnLastQuarter);
             }
 
-            // toutes les sorties directes sont autorisées, ainsi que les nombre défaillants
-            let possible_moves_sequences = self.get_possible_moves_sequences(color);
+            // toutes les sorties directes sont autorisées, ainsi que les nombres défaillants
+            let possible_moves_sequences = self.get_possible_moves_sequences(color, false);
             if !possible_moves_sequences.contains(moves) {
                 // À ce stade au moins un des déplacements concerne un nombre en excédant
                 // - si d'autres séquences de mouvements sans nombre en excédant étaient possibles, on
@@ -245,11 +261,23 @@ pub trait MoveRules {
         Ok(())
     }
 
-    fn get_possible_moves_sequences(&self, color: &Color) -> Vec<(CheckerMove, CheckerMove)> {
+    fn get_possible_moves_sequences(
+        &self,
+        color: &Color,
+        with_excedents: bool,
+    ) -> Vec<(CheckerMove, CheckerMove)> {
         let (dice1, dice2) = self.dice().values;
-        let mut moves_seqs = self.get_possible_moves_sequences_by_dices(color, dice1, dice2);
-        let mut moves_seqs_order2 = self.get_possible_moves_sequences_by_dices(color, dice1, dice2);
+        let mut moves_seqs =
+            self.get_possible_moves_sequences_by_dices(color, dice1, dice2, with_excedents);
+        let mut moves_seqs_order2 =
+            self.get_possible_moves_sequences_by_dices(color, dice2, dice1, with_excedents);
         moves_seqs.append(&mut moves_seqs_order2);
+        let empty_removed = moves_seqs
+            .iter()
+            .filter(|(c1, c2)| *c1 != EMPTY_MOVE && *c2 != EMPTY_MOVE);
+        if empty_removed.count() > 0 {
+            moves_seqs.retain(|(c1, c2)| *c1 != EMPTY_MOVE && *c2 != EMPTY_MOVE);
+        }
         moves_seqs
     }
 
@@ -258,7 +286,7 @@ pub trait MoveRules {
         color: &Color,
     ) -> Vec<(CheckerMove, CheckerMove)> {
         let mut moves_seqs = Vec::new();
-        for moves in self.get_possible_moves_sequences(color) {
+        for moves in self.get_possible_moves_sequences(color, true) {
             let mut board = self.board().clone();
             board.move_checker(color, moves.0).unwrap();
             board.move_checker(color, moves.1).unwrap();
@@ -274,23 +302,29 @@ pub trait MoveRules {
         color: &Color,
         dice1: u8,
         dice2: u8,
+        with_excedents: bool,
     ) -> Vec<(CheckerMove, CheckerMove)> {
         let mut moves_seqs = Vec::new();
-        for first_move in self.board().get_possible_moves(*color, dice1, false) {
+        for first_move in self
+            .board()
+            .get_possible_moves(*color, dice1, with_excedents, false)
+        {
             let mut board2 = self.board().clone();
             if board2.move_checker(color, first_move).is_err() {
                 println!("err move");
                 continue;
             }
-            if board2.get_color_fields(*color).is_empty() {
-                // no checkers left : empty move
-                println!("empty move");
-                moves_seqs.push((first_move, EMPTY_MOVE));
-            } else {
-                for second_move in board2.get_possible_moves(*color, dice2, false) {
-                    moves_seqs.push((first_move, second_move));
-                }
+
+            let mut has_second_dice_move = false;
+            for second_move in board2.get_possible_moves(*color, dice2, with_excedents, true) {
+                moves_seqs.push((first_move, second_move));
+                has_second_dice_move = true;
             }
+            if !has_second_dice_move && with_excedents {
+                // empty move
+                moves_seqs.push((first_move, EMPTY_MOVE));
+            }
+            //if board2.get_color_fields(*color).is_empty() {
         }
         moves_seqs
     }
@@ -513,7 +547,7 @@ mod tests {
         );
         let moves = (
             CheckerMove::new(20, 0).unwrap(),
-            CheckerMove::new(20, 0).unwrap(),
+            CheckerMove::new(21, 0).unwrap(),
         );
         assert!(state.moves_allowed(&Color::White, &moves).is_ok());
 
@@ -593,6 +627,71 @@ mod tests {
         let moves = (
             CheckerMove::new(2, 4).unwrap(),
             CheckerMove::new(5, 8).unwrap(),
+        );
+        assert!(state.moves_allowed(&Color::White, &moves).is_ok());
+    }
+
+    #[test]
+    fn move_play_all_dice() {
+        let mut state = GameState::default();
+        state.board.set_positions([
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0,
+        ]);
+        state.dice.values = (1, 3);
+        let moves = (
+            CheckerMove::new(22, 0).unwrap(),
+            CheckerMove::new(0, 0).unwrap(),
+        );
+
+        assert_eq!(
+            Err(MoveError::MustPlayAllDice),
+            state.moves_allowed(&Color::White, &moves)
+        );
+        let moves = (
+            CheckerMove::new(22, 23).unwrap(),
+            CheckerMove::new(23, 0).unwrap(),
+        );
+        let res = state.moves_allowed(&Color::White, &moves);
+        assert!(state.moves_allowed(&Color::White, &moves).is_ok());
+    }
+
+    #[test]
+    fn move_rest_corner_exit() {
+        let mut state = GameState::default();
+        state.board.set_positions([
+            1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, -1, -1, 0, 0, 0, 0, 0, 0,
+        ]);
+        state.dice.values = (2, 3);
+        let moves = (
+            CheckerMove::new(12, 14).unwrap(),
+            CheckerMove::new(1, 4).unwrap(),
+        );
+        assert_eq!(
+            Err(MoveError::CornerNeedsTwoCheckers),
+            state.moves_allowed(&Color::White, &moves)
+        );
+    }
+
+    #[test]
+    fn move_play_stronger_dice() {
+        let mut state = GameState::default();
+        state.board.set_positions([
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, -1, -1, -1, 0, 0, 0, 0, 0, 0,
+        ]);
+        state.dice.values = (2, 3);
+        let moves = (
+            CheckerMove::new(12, 14).unwrap(),
+            CheckerMove::new(0, 0).unwrap(),
+        );
+        let poss = state.get_possible_moves_sequences(&Color::White, true);
+        println!("{:?}", poss);
+        assert_eq!(
+            Err(MoveError::MustPlayStrongerDie),
+            state.moves_allowed(&Color::White, &moves)
+        );
+        let moves = (
+            CheckerMove::new(12, 15).unwrap(),
+            CheckerMove::new(0, 0).unwrap(),
         );
         assert!(state.moves_allowed(&Color::White, &moves).is_ok());
     }

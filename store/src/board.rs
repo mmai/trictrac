@@ -64,6 +64,10 @@ impl CheckerMove {
     pub fn get_to(&self) -> Field {
         self.to
     }
+
+    pub fn is_exit(&self) -> bool {
+        self.to == 0 && self != &EMPTY_MOVE
+    }
 }
 
 /// Represents the Tric Trac board
@@ -344,6 +348,7 @@ impl Board {
         color: Color,
         dice: u8,
         with_excedants: bool,
+        check_rest_corner_exit: bool,
     ) -> Vec<CheckerMove> {
         let mut moves = Vec::new();
 
@@ -359,7 +364,11 @@ impl Board {
             }
         };
 
-        for (field, _count) in self.get_color_fields(color) {
+        for (field, count) in self.get_color_fields(color) {
+            // check rest corner exit
+            if field == self.get_color_corner(&color) && count == 2 && check_rest_corner_exit {
+                continue;
+            }
             let mut dest = get_dest(field as i32);
             if !(0..25).contains(&dest) {
                 if with_excedants {
@@ -457,6 +466,9 @@ impl Board {
     }
 
     pub fn remove_checker(&mut self, color: &Color, field: Field) -> Result<(), Error> {
+        if field == 0 {
+            return Ok(());
+        }
         let checker_color = self.get_checkers_color(field)?;
         if Some(color) != checker_color {
             return Err(Error::FieldInvalid);

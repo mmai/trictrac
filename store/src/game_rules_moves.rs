@@ -120,25 +120,7 @@ pub trait MoveRules {
         color: &Color,
         moves: &(CheckerMove, CheckerMove),
     ) -> Result<(), MoveError> {
-        // ------- corner rules ----------
-        let corner_field: Field = self.board().get_color_corner(color);
-        let (corner_count, _color) = self.board().get_field_checkers(corner_field).unwrap();
-        let (from0, to0, from1, to1) = (
-            moves.0.get_from(),
-            moves.0.get_to(),
-            moves.1.get_from(),
-            moves.1.get_to(),
-        );
-        // 2 checkers must go at the same time on an empty corner
-        if (to0 == corner_field || to1 == corner_field) && (to0 != to1) && corner_count == 0 {
-            return Err(MoveError::CornerNeedsTwoCheckers);
-        }
-
-        // the last 2 checkers of a corner must leave at the same time
-        if (from0 == corner_field || from1 == corner_field) && (from0 != from1) && corner_count == 2
-        {
-            return Err(MoveError::CornerNeedsTwoCheckers);
-        }
+        self.check_corner_rules(color, moves)?;
 
         if self.is_move_by_puissance(color, moves) {
             if self.can_take_corner_by_effect(color) {
@@ -150,9 +132,10 @@ pub trait MoveRules {
         }
         // Si possible, les deux dés doivent être joués
         let possible_moves_sequences = self.get_possible_moves_sequences(color, true);
+        // TODO : exclure de ces possibilités celles qui devraient provoquer des CornerNeedsTwoCheckers & ExitNeedsAllCheckersOnLastQuarter...
         if !possible_moves_sequences.contains(moves) && !possible_moves_sequences.is_empty() {
-            // println!(">>{:?}<<", moves);
-            // println!("{:?}", possible_moves_sequences);
+            println!(">>{:?}<<", moves);
+            println!("{:?}", possible_moves_sequences);
             let empty_removed = possible_moves_sequences
                 .iter()
                 .filter(|(c1, c2)| *c1 != EMPTY_MOVE && *c2 != EMPTY_MOVE);
@@ -267,20 +250,61 @@ pub trait MoveRules {
         Ok(())
     }
 
+    fn check_corner_rules(
+        &self,
+        color: &Color,
+        moves: &(CheckerMove, CheckerMove),
+    ) -> Result<(), MoveError> {
+        // ------- corner rules ----------
+        let corner_field: Field = self.board().get_color_corner(color);
+        let (corner_count, _color) = self.board().get_field_checkers(corner_field).unwrap();
+        let (from0, to0, from1, to1) = (
+            moves.0.get_from(),
+            moves.0.get_to(),
+            moves.1.get_from(),
+            moves.1.get_to(),
+        );
+        // 2 checkers must go at the same time on an empty corner
+        if (to0 == corner_field || to1 == corner_field) && (to0 != to1) && corner_count == 0 {
+            return Err(MoveError::CornerNeedsTwoCheckers);
+        }
+
+        // the last 2 checkers of a corner must leave at the same time
+        if (from0 == corner_field || from1 == corner_field) && (from0 != from1) && corner_count == 2
+        {
+            return Err(MoveError::CornerNeedsTwoCheckers);
+        }
+        Ok(())
+    }
+
     fn get_possible_moves_sequences(
         &self,
         color: &Color,
         with_excedents: bool,
     ) -> Vec<(CheckerMove, CheckerMove)> {
         let (dice1, dice2) = self.dice().values;
-        let (diceMax, diceMin) = if dice1 > dice2 { (dice1, dice2) } else { (dice2, dice1) };
-        let mut moves_seqs =
-            self.get_possible_moves_sequences_by_dices(color, diceMax, diceMin, with_excedents, false);
+        let (dice_max, dice_min) = if dice1 > dice2 {
+            (dice1, dice2)
+        } else {
+            (dice2, dice1)
+        };
+        let mut moves_seqs = self.get_possible_moves_sequences_by_dices(
+            color,
+            dice_max,
+            dice_min,
+            with_excedents,
+            false,
+        );
         // if we got valid sequences whith the highest die, we don't accept sequences using only the
         // lowest die
         let ignore_empty = !moves_seqs.is_empty();
-        let mut moves_seqs_order2 =
-            self.get_possible_moves_sequences_by_dices(color, diceMin, diceMax, with_excedents, ignore_empty);
+        let mut moves_seqs_order2 = self.get_possible_moves_sequences_by_dices(
+            color,
+            dice_min,
+            dice_max,
+            with_excedents,
+            ignore_empty,
+        );
         moves_seqs.append(&mut moves_seqs_order2);
         let empty_removed = moves_seqs
             .iter()
@@ -328,12 +352,22 @@ pub trait MoveRules {
 
             let mut has_second_dice_move = false;
             for second_move in board2.get_possible_moves(*color, dice2, with_excedents, true) {
-                moves_seqs.push((first_move, second_move));
-                has_second_dice_move = true;
+                if self
+                    .check_corner_rules(color, &(first_move, second_move))
+                    .is_ok()
+                {
+                    moves_seqs.push((first_move, second_move));
+                    has_second_dice_move = true;
+                }
             }
             if !has_second_dice_move && with_excedents && !ignore_empty {
-                // empty move
-                moves_seqs.push((first_move, EMPTY_MOVE));
+                if self
+                    .check_corner_rules(color, &(first_move, EMPTY_MOVE))
+                    .is_ok()
+                {
+                    // empty move
+                    moves_seqs.push((first_move, EMPTY_MOVE));
+                }
             }
             //if board2.get_color_fields(*color).is_empty() {
         }
@@ -662,8 +696,69 @@ mod tests {
             CheckerMove::new(22, 23).unwrap(),
             CheckerMove::new(23, 0).unwrap(),
         );
-        let res = state.moves_allowed(&Color::White, &moves);
         assert!(state.moves_allowed(&Color::White, &moves).is_ok());
+    }
+
+    #[test]
+    fn move_rest_corner_enter() {
+        // direct
+        let mut state = GameState::default();
+        state.board.set_positions([
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ]);
+        state.dice.values = (2, 1);
+        let moves = (
+            CheckerMove::new(10, 12).unwrap(),
+            CheckerMove::new(11, 12).unwrap(),
+        );
+        assert!(state.moves_follows_dices(&Color::White, &moves));
+        assert!(state.moves_allowed(&Color::White, &moves).is_ok());
+
+        // par puissance
+        state.dice.values = (3, 2);
+        let moves = (
+            CheckerMove::new(10, 12).unwrap(),
+            CheckerMove::new(11, 12).unwrap(),
+        );
+        assert!(state.moves_follows_dices(&Color::White, &moves));
+        assert!(state.moves_allowed(&Color::White, &moves).is_ok());
+    }
+
+    #[test]
+    fn move_rest_corner_blocked() {
+        let mut state = GameState::default();
+        state.board.set_positions([
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ]);
+        state.dice.values = (2, 1);
+        let moves = (
+            CheckerMove::new(0, 0).unwrap(),
+            CheckerMove::new(0, 0).unwrap(),
+        );
+        assert!(state.moves_follows_dices(&Color::White, &moves));
+        assert!(state.moves_allowed(&Color::White, &moves).is_ok());
+
+        state.board.set_positions([
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0,
+        ]);
+        state.dice.values = (2, 1);
+        let moves = (
+            CheckerMove::new(23, 24).unwrap(),
+            CheckerMove::new(0, 0).unwrap(),
+        );
+        assert!(state.moves_follows_dices(&Color::White, &moves));
+        let res = state.moves_allowed(&Color::White, &moves);
+        println!("{:?}", res);
+        assert!(state.moves_allowed(&Color::White, &moves).is_ok());
+
+        let moves = (
+            CheckerMove::new(0, 0).unwrap(),
+            CheckerMove::new(0, 0).unwrap(),
+        );
+        assert_eq!(
+            Err(MoveError::MustPlayAllDice),
+            state.moves_allowed(&Color::White, &moves)
+        );
     }
 
     #[test]

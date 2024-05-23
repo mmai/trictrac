@@ -151,9 +151,15 @@ pub trait MoveRules {
         // Si possible, les deux dés doivent être joués
         let possible_moves_sequences = self.get_possible_moves_sequences(color, true);
         if !possible_moves_sequences.contains(moves) && !possible_moves_sequences.is_empty() {
-            println!(">>{:?}<<", moves);
-            println!("{:?}", possible_moves_sequences);
-            return Err(MoveError::MustPlayAllDice);
+            // println!(">>{:?}<<", moves);
+            // println!("{:?}", possible_moves_sequences);
+            let empty_removed = possible_moves_sequences
+                .iter()
+                .filter(|(c1, c2)| *c1 != EMPTY_MOVE && *c2 != EMPTY_MOVE);
+            if empty_removed.count() > 0 {
+                return Err(MoveError::MustPlayAllDice);
+            }
+            return Err(MoveError::MustPlayStrongerDie);
         }
 
         // check exit rules
@@ -267,10 +273,14 @@ pub trait MoveRules {
         with_excedents: bool,
     ) -> Vec<(CheckerMove, CheckerMove)> {
         let (dice1, dice2) = self.dice().values;
+        let (diceMax, diceMin) = if dice1 > dice2 { (dice1, dice2) } else { (dice2, dice1) };
         let mut moves_seqs =
-            self.get_possible_moves_sequences_by_dices(color, dice1, dice2, with_excedents);
+            self.get_possible_moves_sequences_by_dices(color, diceMax, diceMin, with_excedents, false);
+        // if we got valid sequences whith the highest die, we don't accept sequences using only the
+        // lowest die
+        let ignore_empty = !moves_seqs.is_empty();
         let mut moves_seqs_order2 =
-            self.get_possible_moves_sequences_by_dices(color, dice2, dice1, with_excedents);
+            self.get_possible_moves_sequences_by_dices(color, diceMin, diceMax, with_excedents, ignore_empty);
         moves_seqs.append(&mut moves_seqs_order2);
         let empty_removed = moves_seqs
             .iter()
@@ -303,6 +313,7 @@ pub trait MoveRules {
         dice1: u8,
         dice2: u8,
         with_excedents: bool,
+        ignore_empty: bool,
     ) -> Vec<(CheckerMove, CheckerMove)> {
         let mut moves_seqs = Vec::new();
         for first_move in self
@@ -320,7 +331,7 @@ pub trait MoveRules {
                 moves_seqs.push((first_move, second_move));
                 has_second_dice_move = true;
             }
-            if !has_second_dice_move && with_excedents {
+            if !has_second_dice_move && with_excedents && !ignore_empty {
                 // empty move
                 moves_seqs.push((first_move, EMPTY_MOVE));
             }
@@ -683,8 +694,8 @@ mod tests {
             CheckerMove::new(12, 14).unwrap(),
             CheckerMove::new(0, 0).unwrap(),
         );
-        let poss = state.get_possible_moves_sequences(&Color::White, true);
-        println!("{:?}", poss);
+        // let poss = state.get_possible_moves_sequences(&Color::White, true);
+        // println!("{:?}", poss);
         assert_eq!(
             Err(MoveError::MustPlayStrongerDie),
             state.moves_allowed(&Color::White, &moves)

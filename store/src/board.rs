@@ -28,6 +28,12 @@ fn transpose(matrix: Vec<Vec<String>>) -> Vec<Vec<String>> {
     out
 }
 
+impl Default for CheckerMove {
+    fn default() -> Self {
+        EMPTY_MOVE
+    }
+}
+
 impl CheckerMove {
     pub fn new(from: Field, to: Field) -> Result<Self, Error> {
         // println!("from {} to {}", from, to);
@@ -44,6 +50,13 @@ impl CheckerMove {
         //     return Err(Error::MoveInvalid);
         // }
         Ok(Self { from, to })
+    }
+
+    /// Get the mirrord CheckerMove (ie change colors)
+    pub fn mirror(&self) -> Self {
+        let from = if self.from == 0 { 0 } else { 25 - self.from };
+        let to = if self.to == 0 { 0 } else { 25 - self.to };
+        Self { from, to }
     }
 
     // Construct the move resulting of two successive moves
@@ -99,6 +112,13 @@ impl Board {
     /// Create a new board
     pub fn new() -> Self {
         Board::default()
+    }
+
+    /// Get the mirrord board (ie change colors)
+    pub fn mirror(&self) -> Self {
+        let mut positions = self.positions.map(|c| 0 - c);
+        positions.reverse();
+        Board { positions }
     }
 
     /// Globally set pieces on board ( for tests )

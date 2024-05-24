@@ -69,15 +69,6 @@ impl PointsRules for GameState {
     }
 }
 
-impl MoveRules for GameState {
-    fn board(&self) -> &Board {
-        &self.board
-    }
-    fn dice(&self) -> &Dice {
-        &self.dice
-    }
-}
-
 impl Default for GameState {
     fn default() -> Self {
         Self {
@@ -275,18 +266,8 @@ impl GameState {
                 }
                 let color = &self.players[player_id].color;
 
-                // Check moves possibles on the board
-                if !self.moves_possible(color, moves) {
-                    return false;
-                }
-
-                // Check moves conforms to the dice
-                if !self.moves_follows_dices(color, moves) {
-                    return false;
-                }
-
-                // Check move is allowed by the rules (to desactivate when playing with schools)
-                if self.moves_allowed(color, moves).is_err() {
+                let rules = MoveRules::new(color, &self.board, self.dice, moves);
+                if !rules.moves_follow_rules() {
                     return false;
                 }
             }

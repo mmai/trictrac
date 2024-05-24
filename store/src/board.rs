@@ -290,10 +290,8 @@ impl Board {
         }
 
         // the square is blocked on the opponent rest corner or if there are opponent's men on the square
-        match color {
-            Color::White => Ok(field == 13 || self.positions[field - 1] < 0),
-            Color::Black => Ok(field == 12 || self.positions[23 - field] > 1),
-        }
+        let opp_corner_field = if color == &Color::White { 13 } else { 12 };
+        Ok(field == opp_corner_field || self.positions[field - 1] < 0)
     }
 
     pub fn get_field_checkers(&self, field: Field) -> Result<(u8, Option<&Color>), Error> {

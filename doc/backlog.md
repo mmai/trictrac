@@ -4,15 +4,12 @@ position dans tutoriel :
 
 ## DONE
 
-### Epic : jeu simple
-
-Store
-- gestion des évènements 
-  - déplacement de dames
-  - jet des dés
-- déplacements physiques possibles 
-
 ## TODO
+
+### Doc
+
+Cheatsheet : arbre des situations et priorité des règles
+
 
 ### Epic : jeu simple
 

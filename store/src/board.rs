@@ -367,6 +367,7 @@ impl Board {
         dice: u8,
         with_excedants: bool,
         check_rest_corner_exit: bool,
+        forbid_exits: bool,
     ) -> Vec<CheckerMove> {
         let mut moves = Vec::new();
 
@@ -388,8 +389,11 @@ impl Board {
                 continue;
             }
             let mut dest = get_dest(field as i32);
+            if dest == 0 && forbid_exits {
+                continue;
+            }
             if !(0..25).contains(&dest) {
-                if with_excedants {
+                if with_excedants && !forbid_exits {
                     dest = 0;
                 } else {
                     continue;

@@ -57,20 +57,9 @@ impl MoveRules {
 
     pub fn moves_follow_rules(&self) -> bool {
         // Check moves possibles on the board
-        if !self.moves_possible() {
-            return false;
-        }
-
         // Check moves conforms to the dice
-        if !self.moves_follows_dices() {
-            return false;
-        }
-
         // Check move is allowed by the rules (to desactivate when playing with schools)
-        if self.moves_allowed().is_err() {
-            return false;
-        }
-        true
+        self.moves_possible() && self.moves_follows_dices() && self.moves_allowed().is_ok()
     }
 
     /// ---- moves_possibles : First of three checks for moves
@@ -158,7 +147,6 @@ impl MoveRules {
     fn moves_allowed(&self) -> Result<(), MoveError> {
         self.check_corner_rules(&self.moves)?;
 
-        let color = &Color::White;
         if self.is_move_by_puissance() {
             if self.can_take_corner_by_effect() {
                 return Err(MoveError::CornerByEffectPossible);
@@ -167,85 +155,33 @@ impl MoveRules {
                 return Ok(());
             }
         }
+
         // Si possible, les deux dés doivent être joués
-        let possible_moves_sequences = self.get_possible_moves_sequences(true);
-        // TODO : exclure de ces possibilités celles qui devraient provoquer des CornerNeedsTwoCheckers & ExitNeedsAllCheckersOnLastQuarter...
-        if !possible_moves_sequences.contains(&self.moves) && !possible_moves_sequences.is_empty() {
-            println!(">>{:?}<<", self.moves);
+        let (m1, m2) = self.moves;
+        if m1.get_from() == 0 || m2.get_from() == 0 {
+            let mut possible_moves_sequences = self.get_possible_moves_sequences(true);
             println!("{:?}", possible_moves_sequences);
-            let empty_removed = possible_moves_sequences
-                .iter()
-                .filter(|(c1, c2)| *c1 != EMPTY_MOVE && *c2 != EMPTY_MOVE);
-            if empty_removed.count() > 0 {
-                return Err(MoveError::MustPlayAllDice);
+            possible_moves_sequences.retain(|moves| self.check_exit_rules(moves).is_ok());
+            // possible_moves_sequences.retain(|moves| self.check_corner_rules(moves).is_ok());
+            // TODO : exclure de ces possibilités celles qui devraient provoquer des CornerNeedsTwoCheckers & ExitNeedsAllCheckersOnLastQuarter...
+            if !possible_moves_sequences.contains(&self.moves)
+                && !possible_moves_sequences.is_empty()
+            {
+                if self.moves == (EMPTY_MOVE, EMPTY_MOVE) {
+                    return Err(MoveError::MustPlayAllDice);
+                }
+                let empty_removed = possible_moves_sequences
+                    .iter()
+                    .filter(|(c1, c2)| *c1 != EMPTY_MOVE && *c2 != EMPTY_MOVE);
+                if empty_removed.count() > 0 {
+                    return Err(MoveError::MustPlayAllDice);
+                }
+                return Err(MoveError::MustPlayStrongerDie);
             }
-            return Err(MoveError::MustPlayStrongerDie);
         }
 
         // check exit rules
-        if self.moves.0.is_exit() || self.moves.1.is_exit() {
-            // toutes les dames doivent être dans le jan de retour
-            let has_outsiders = !self
-                .board
-                .get_color_fields(*color)
-                .iter()
-                .filter(|(field, _count)| *field < 19)
-                .collect::<Vec<&(usize, i8)>>()
-                .is_empty();
-            if has_outsiders {
-                return Err(MoveError::ExitNeedsAllCheckersOnLastQuarter);
-            }
-
-            // toutes les sorties directes sont autorisées, ainsi que les nombres défaillants
-            let possible_moves_sequences = self.get_possible_moves_sequences(false);
-            if !possible_moves_sequences.contains(&self.moves) {
-                // À ce stade au moins un des déplacements concerne un nombre en excédant
-                // - si d'autres séquences de mouvements sans nombre en excédant étaient possibles, on
-                // refuse cette séquence
-                if !possible_moves_sequences.is_empty() {
-                    return Err(MoveError::ExitByEffectPossible);
-                }
-
-                // - la dame choisie doit être la plus éloignée de la sortie
-                let mut checkers = self.board.get_color_fields(*color);
-                checkers.sort_by(|a, b| b.0.cmp(&a.0));
-                let mut farthest = 24;
-                let mut next_farthest = 24;
-                let mut has_two_checkers = false;
-                if let Some((field, count)) = checkers.first() {
-                    farthest = *field;
-                    if *count > 1 {
-                        next_farthest = *field;
-                        has_two_checkers = true;
-                    } else if let Some((field, _count)) = checkers.get(1) {
-                        next_farthest = *field;
-                        has_two_checkers = true;
-                    }
-                }
-
-                // s'il reste au moins deux dames, on vérifie que les plus éloignées soint choisies
-                if has_two_checkers {
-                    if self.moves.0.get_to() == 0 && self.moves.1.get_to() == 0 {
-                        // Deux coups sortants en excédant
-                        if cmp::max(self.moves.0.get_from(), self.moves.1.get_from())
-                            > next_farthest
-                        {
-                            return Err(MoveError::ExitNotFasthest);
-                        }
-                    } else {
-                        // Un seul coup sortant en excédant le coup sortant doit concerner la plus éloignée du bord
-                        let exit_move_field = if self.moves.0.get_to() == 0 {
-                            self.moves.0.get_from()
-                        } else {
-                            self.moves.1.get_from()
-                        };
-                        if exit_move_field != farthest {
-                            return Err(MoveError::ExitNotFasthest);
-                        }
-                    }
-                }
-            }
-        }
+        self.check_exit_rules(&self.moves)?;
 
         // --- interdit de jouer dans cadran que l'adversaire peut encore remplir ----
         let farthest = cmp::max(self.moves.0.get_to(), self.moves.1.get_to());
@@ -281,6 +217,75 @@ impl MoveRules {
         if (from0 == corner_field || from1 == corner_field) && (from0 != from1) && corner_count == 2
         {
             return Err(MoveError::CornerNeedsTwoCheckers);
+        }
+        Ok(())
+    }
+
+    fn has_checkers_outside_last_quarter(&self) -> bool {
+        !self
+            .board
+            .get_color_fields(Color::White)
+            .iter()
+            .filter(|(field, _count)| *field < 19)
+            .collect::<Vec<&(usize, i8)>>()
+            .is_empty()
+    }
+
+    fn check_exit_rules(&self, moves: &(CheckerMove, CheckerMove)) -> Result<(), MoveError> {
+        if !moves.0.is_exit() && !moves.1.is_exit() {
+            return Ok(());
+        }
+        // toutes les dames doivent être dans le jan de retour
+        if self.has_checkers_outside_last_quarter() {
+            return Err(MoveError::ExitNeedsAllCheckersOnLastQuarter);
+        }
+
+        // toutes les sorties directes sont autorisées, ainsi que les nombres défaillants
+        let possible_moves_sequences = self.get_possible_moves_sequences(false);
+        if !possible_moves_sequences.contains(moves) {
+            // À ce stade au moins un des déplacements concerne un nombre en excédant
+            // - si d'autres séquences de mouvements sans nombre en excédant étaient possibles, on
+            // refuse cette séquence
+            if !possible_moves_sequences.is_empty() {
+                return Err(MoveError::ExitByEffectPossible);
+            }
+
+            // - la dame choisie doit être la plus éloignée de la sortie
+            let mut checkers = self.board.get_color_fields(Color::White);
+            checkers.sort_by(|a, b| b.0.cmp(&a.0));
+            let mut farthest = 24;
+            let mut next_farthest = 24;
+            let mut has_two_checkers = false;
+            if let Some((field, count)) = checkers.first() {
+                farthest = *field;
+                if *count > 1 {
+                    next_farthest = *field;
+                    has_two_checkers = true;
+                } else if let Some((field, _count)) = checkers.get(1) {
+                    next_farthest = *field;
+                    has_two_checkers = true;
+                }
+            }
+
+            // s'il reste au moins deux dames, on vérifie que les plus éloignées soint choisies
+            if has_two_checkers {
+                if moves.0.get_to() == 0 && moves.1.get_to() == 0 {
+                    // Deux coups sortants en excédant
+                    if cmp::max(moves.0.get_from(), moves.1.get_from()) > next_farthest {
+                        return Err(MoveError::ExitNotFasthest);
+                    }
+                } else {
+                    // Un seul coup sortant en excédant le coup sortant doit concerner la plus éloignée du bord
+                    let exit_move_field = if moves.0.get_to() == 0 {
+                        moves.0.get_from()
+                    } else {
+                        moves.1.get_from()
+                    };
+                    if exit_move_field != farthest {
+                        return Err(MoveError::ExitNotFasthest);
+                    }
+                }
+            }
         }
         Ok(())
     }
@@ -339,9 +344,10 @@ impl MoveRules {
     ) -> Vec<(CheckerMove, CheckerMove)> {
         let mut moves_seqs = Vec::new();
         let color = &Color::White;
-        for first_move in self
-            .board
-            .get_possible_moves(*color, dice1, with_excedents, false)
+        let forbid_exits = self.has_checkers_outside_last_quarter();
+        for first_move in
+            self.board
+                .get_possible_moves(*color, dice1, with_excedents, false, forbid_exits)
         {
             let mut board2 = self.board.clone();
             if board2.move_checker(color, first_move).is_err() {
@@ -350,7 +356,9 @@ impl MoveRules {
             }
 
             let mut has_second_dice_move = false;
-            for second_move in board2.get_possible_moves(*color, dice2, with_excedents, true) {
+            for second_move in
+                board2.get_possible_moves(*color, dice2, with_excedents, true, forbid_exits)
+            {
                 if self.check_corner_rules(&(first_move, second_move)).is_ok() {
                     moves_seqs.push((first_move, second_move));
                     has_second_dice_move = true;
@@ -709,8 +717,8 @@ mod tests {
             CheckerMove::new(0, 0).unwrap(),
         );
         assert!(state.moves_follows_dices());
-        let res = state.moves_allowed();
-        println!("{:?}", res);
+        // let res = state.moves_allowed();
+        // println!("{:?}", res);
         assert!(state.moves_allowed().is_ok());
 
         state.moves = (

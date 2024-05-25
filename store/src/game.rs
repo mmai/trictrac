@@ -60,15 +60,6 @@ impl fmt::Display for GameState {
     }
 }
 
-impl PointsRules for GameState {
-    fn board(&self) -> &Board {
-        &self.board
-    }
-    fn dice(&self) -> &Dice {
-        &self.dice
-    }
-}
-
 impl Default for GameState {
     fn default() -> Self {
         Self {
@@ -248,10 +239,15 @@ impl GameState {
                 }
 
                 // Check points are correct
-                let rules_points: u8 = self.get_points().iter().map(|r| r.0).sum();
-                if rules_points != *points {
-                    return false;
-                }
+                // let (board, moves) = if *color == Color::Black {
+                //     (board.mirror(), (moves.0.mirror(), moves.1.mirror()))
+                // } else {
+                //     (board.clone(), *moves)
+                // };
+                // let rules_points: u8 = self.get_points().iter().map(|r| r.0).sum();
+                // if rules_points != *points {
+                //     return false;
+                // }
             }
             Move { player_id, moves } => {
                 // Check player exists
@@ -266,8 +262,13 @@ impl GameState {
                 }
                 let color = &self.players[player_id].color;
 
-                let rules = MoveRules::new(color, &self.board, self.dice, moves);
-                if !rules.moves_follow_rules() {
+                let rules = MoveRules::new(color, &self.board, self.dice);
+                let moves = if *color == Color::Black {
+                    (moves.0.mirror(), moves.1.mirror())
+                } else {
+                    *moves
+                };
+                if !rules.moves_follow_rules(&moves) {
                     return false;
                 }
             }

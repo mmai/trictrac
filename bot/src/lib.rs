@@ -70,7 +70,8 @@ impl Bot {
     }
 
     fn calculate_points(&self) -> u8 {
-        self.game.get_points().iter().map(|r| r.0).sum()
+        // self.game.get_points().iter().map(|r| r.0).sum()
+        0
     }
 
     fn choose_move(&self) -> (CheckerMove, CheckerMove) {

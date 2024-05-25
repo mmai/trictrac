@@ -509,10 +509,15 @@ impl Board {
             return Ok(());
         }
 
-        let checker_color = self.get_checkers_color(field)?;
+        // let checker_color = self.get_checkers_color(field)?;
+        let (count, checker_color) = self.get_field_checkers(field)?;
         // error if the case contains the other color
         if checker_color.is_some() && Some(color) != checker_color {
-            return Err(Error::FieldInvalid);
+            return if count > 1 {
+                Err(Error::FieldBlocked)
+            } else {
+                Err(Error::FieldBlockedByOne)
+            };
         }
         let unit = match color {
             Color::White => 1,

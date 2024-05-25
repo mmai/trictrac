@@ -1,9 +1,13 @@
 use crate::board::Board;
 use crate::dice::Dice;
+use crate::game_rules_moves::MoveRules;
+use crate::player::Color;
+use crate::CheckerMove;
+use crate::Error;
 
 #[derive(std::cmp::PartialEq, Debug)]
-pub enum PointsRule {
-    FilledQuarter,
+enum Jan {
+    FilledQuarter { points: u8 },
     // jans de récompense :
     //  - battre une dame seule (par autant de façons de le faire, y compris
     // utilisant une dame du coin de repos)
@@ -15,11 +19,111 @@ pub enum PointsRule {
     //  - si on ne peut pas jouer ses deux dés
 }
 
-pub trait PointsRules {
-    fn board(&self) -> &Board;
-    fn dice(&self) -> &Dice;
+#[derive(Debug)]
+struct PossibleJan {
+    pub jan: Jan,
+    pub ways: Vec<(CheckerMove, CheckerMove)>,
+}
 
-    fn get_points(&self) -> Vec<(u8, PointsRule)> {
-        Vec::new()
+/// PointsRules always consider that the current player is White
+/// You must use 'mirror' function on board if player is Black
+#[derive(Default)]
+pub struct PointsRules {
+    pub board: Board,
+    pub dice: Dice,
+    pub move_rules: MoveRules,
+}
+
+impl PointsRules {
+    /// Revert board if color is black
+    pub fn new(color: &Color, board: &Board, dice: Dice) -> Self {
+        let board = if *color == Color::Black {
+            board.mirror()
+        } else {
+            board.clone()
+        };
+        let move_rules = MoveRules::new(color, &board, dice);
+
+        // let move_rules = MoveRules::new(color, &self.board, dice, moves);
+        Self {
+            board,
+            dice,
+            move_rules,
+        }
+    }
+
+    fn get_jans(&self, board: &Board, dices: &Vec<u8>) -> Vec<PossibleJan> {
+        let mut jans = Vec::new();
+        if dices.is_empty() {
+            return jans;
+        }
+        let color = Color::White;
+        let mut dices = dices.clone();
+        let mut board = board.clone();
+        let fields = board.get_color_fields(color);
+        if let Some(dice) = dices.pop() {
+            for (from, _) in fields {
+                let to = if from + dice as usize > 24 {
+                    0
+                } else {
+                    from + dice as usize
+                };
+                if let Ok(cmove) = CheckerMove::new(from, to) {
+                    match board.move_checker(&color, cmove) {
+                        Err(Error::FieldBlockedByOne) => {
+                            // TODO : prise en puissance
+                        }
+                        Err(_) => {}
+                        Ok(()) => {
+                            // TODO : check if it's a jan
+                            let next_dice_jan = self.get_jans(&board, &dices);
+                            // TODO : merge jans du dé courant et du prochain dé
+                        }
+                    }
+                }
+            }
+        }
+        // TODO : mouvement en puissance ?
+        // TODO : tout d'une (sans doublons avec 1 + 1) ?
+        jans
+    }
+
+    pub fn get_points(&self) -> usize {
+        let mut points = 0;
+
+        let jans = self.get_jans(&self.board, &vec![self.dice.values.0, self.dice.values.1]);
+
+        // Jans de remplissage
+        let filling_moves_sequences = self.move_rules.get_quarter_filling_moves_sequences();
+        points += 4 * filling_moves_sequences.len();
+        //  	Points par simple par moyen 	Points par doublet par moyen 	Nombre de moyens possibles 	Bénéficiaire
+        // « JAN RARE »
+        // Jan de six tables 	4 	n/a 	1 	Joueur
+        // Jan de deux tables 	4 	6 	1 	Joueur
+        // Jan de mézéas 	4 	6 	1 	Joueur
+        // Contre jan de deux tables 	4 	6 	1 	Adversaire
+        // Contre jan de mézéas 	4 	6 	1 	Adversaire
+        // « JAN DE RÉCOMPENSE »
+        // Battre à vrai une dame
+        // située dans la table des grands jans 	2 		1, 2 ou 3 	Joueur
+        // 	4 	1 ou 2 	Joueur
+        // Battre à vrai une dame
+        // située dans la table des petits jans 	4 		1, 2 ou 3 	Joueur
+        // 	6 	1 ou 2 	Joueur
+        // Battre le coin adverse 	4 	6 	1 	Joueur
+        // « JAN QUI NE PEUT »
+        // Battre à faux une dame
+        // située dans la table des grands jans 	2 	4 	1 	Adversaire
+        // Battre à faux une dame
+        // située dans la table des petits jans 	4 	6 	1 	Adversaire
+        // Pour chaque dé non jouable (dame impuissante) 	2 	2 	n/a 	Adversaire
+        // « JAN DE REMPLISSAGE »
+        // Faire un petit jan, un grand jan ou un jan de retour 	4 		1, 2, ou 3 	Joueur
+        // 	6 	1 ou 2 	Joueur
+        // Conserver un petit jan, un grand jan ou un jan de retour 	4 	6 	1 	Joueur
+        // « AUTRE »
+        // Sortir le premier toutes ses dames 	4 	6 	n/a 	Joueur
+
+        points
     }
 }

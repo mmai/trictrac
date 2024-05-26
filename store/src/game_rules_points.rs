@@ -1,4 +1,4 @@
-use crate::board::Board;
+use crate::board::{Board, EMPTY_MOVE};
 use crate::dice::Dice;
 use crate::game_rules_moves::MoveRules;
 use crate::player::Color;
@@ -7,7 +7,8 @@ use crate::Error;
 
 #[derive(std::cmp::PartialEq, Debug)]
 enum Jan {
-    FilledQuarter { points: u8 },
+    FilledQuarter,
+    TrueHit,
     // jans de récompense :
     //  - battre une dame seule (par autant de façons de le faire, y compris
     // utilisant une dame du coin de repos)
@@ -71,6 +72,10 @@ impl PointsRules {
                 if let Ok(cmove) = CheckerMove::new(from, to) {
                     match board.move_checker(&color, cmove) {
                         Err(Error::FieldBlockedByOne) => {
+                            jans.push(PossibleJan {
+                                jan: Jan::TrueHit,
+                                ways: vec![(cmove, EMPTY_MOVE)],
+                            });
                             // TODO : prise en puissance
                         }
                         Err(_) => {}

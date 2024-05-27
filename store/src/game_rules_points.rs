@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::board::{Board, EMPTY_MOVE};
 use crate::dice::Dice;
 use crate::game_rules_moves::MoveRules;
@@ -5,7 +7,7 @@ use crate::player::Color;
 use crate::CheckerMove;
 use crate::Error;
 
-#[derive(std::cmp::PartialEq, Debug)]
+#[derive(PartialEq, Eq, Hash, Clone, Debug)]
 enum Jan {
     FilledQuarter,
     TrueHit,
@@ -20,10 +22,25 @@ enum Jan {
     //  - si on ne peut pas jouer ses deux dés
 }
 
-#[derive(Debug)]
-struct PossibleJan {
-    pub jan: Jan,
-    pub ways: Vec<(CheckerMove, CheckerMove)>,
+// #[derive(Debug)]
+// struct PossibleJan {
+//     pub jan: Jan,
+//     pub ways: Vec<(CheckerMove, CheckerMove)>,
+// }
+
+#[derive(Default)]
+struct PossibleJans(HashMap<Jan, Vec<(CheckerMove, CheckerMove)>>);
+
+impl PossibleJans {
+    pub fn push(&mut self, jan: Jan, cmoves: (CheckerMove, CheckerMove)) {
+        if let Some(ways) = self.0.get_mut(&jan) {
+            if !ways.contains(&cmoves) {
+                ways.push(cmoves);
+            }
+        } else {
+            self.0.insert(jan, [cmoves].into());
+        }
+    }
 }
 
 /// PointsRules always consider that the current player is White
@@ -53,8 +70,8 @@ impl PointsRules {
         }
     }
 
-    fn get_jans(&self, board: &Board, dices: &Vec<u8>) -> Vec<PossibleJan> {
-        let mut jans = Vec::new();
+    fn get_jans(&self, board: &Board, dices: &Vec<u8>) -> PossibleJans {
+        let mut jans = PossibleJans::default();
         if dices.is_empty() {
             return jans;
         }
@@ -72,13 +89,13 @@ impl PointsRules {
                 if let Ok(cmove) = CheckerMove::new(from, to) {
                     match board.move_checker(&color, cmove) {
                         Err(Error::FieldBlockedByOne) => {
-                            jans.push(PossibleJan {
-                                jan: Jan::TrueHit,
-                                ways: vec![(cmove, EMPTY_MOVE)],
-                            });
-                            // TODO : prise en puissance
+                            jans.push(Jan::TrueHit, (cmove, EMPTY_MOVE));
                         }
-                        Err(_) => {}
+                        Err(_) => {
+                            // let next_dice_jan = self.get_jans(&board, &dices);
+                            // jans possibles en tout d'une après un battage à vrai :
+                            // truehit
+                        }
                         Ok(()) => {
                             // TODO : check if it's a jan
                             let next_dice_jan = self.get_jans(&board, &dices);
@@ -88,7 +105,10 @@ impl PointsRules {
                 }
             }
         }
-        // TODO : mouvement en puissance ?
+        // TODO : mouvements en tout d'une asdf
+        // - faire un dé d1+d2 et regarder si hit
+        // - si hit : regarder s'il existe le truehit intermédiaire
+        // - regarder les TrueHit qui nécessitent deux mouvemments non nuls
         // TODO : tout d'une (sans doublons avec 1 + 1) ?
         jans
     }

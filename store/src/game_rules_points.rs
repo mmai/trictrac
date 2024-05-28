@@ -22,23 +22,29 @@ enum Jan {
     //  - si on ne peut pas jouer ses deux dés
 }
 
-// #[derive(Debug)]
-// struct PossibleJan {
-//     pub jan: Jan,
-//     pub ways: Vec<(CheckerMove, CheckerMove)>,
-// }
+type PossibleJans = HashMap<Jan, Vec<(CheckerMove, CheckerMove)>>;
 
-#[derive(Default)]
-struct PossibleJans(HashMap<Jan, Vec<(CheckerMove, CheckerMove)>>);
+trait PossibleJansMethods {
+    fn push(&mut self, jan: Jan, cmoves: (CheckerMove, CheckerMove));
+    fn merge(&mut self, other: Self);
+}
 
-impl PossibleJans {
-    pub fn push(&mut self, jan: Jan, cmoves: (CheckerMove, CheckerMove)) {
-        if let Some(ways) = self.0.get_mut(&jan) {
+impl PossibleJansMethods for PossibleJans {
+    fn push(&mut self, jan: Jan, cmoves: (CheckerMove, CheckerMove)) {
+        if let Some(ways) = self.get_mut(&jan) {
             if !ways.contains(&cmoves) {
                 ways.push(cmoves);
             }
         } else {
-            self.0.insert(jan, [cmoves].into());
+            self.insert(jan, [cmoves].into());
+        }
+    }
+
+    fn merge(&mut self, other: Self) {
+        for (jan, cmoves_list) in other {
+            for cmoves in cmoves_list {
+                self.push(jan.clone(), cmoves);
+            }
         }
     }
 }
@@ -72,15 +78,11 @@ impl PointsRules {
 
     fn get_jans(&self, board: &Board, dices: &Vec<u8>) -> PossibleJans {
         let mut jans = PossibleJans::default();
-        if dices.is_empty() {
-            return jans;
-        }
-        let color = Color::White;
         let mut dices = dices.clone();
-        let mut board = board.clone();
-        let fields = board.get_color_fields(color);
         if let Some(dice) = dices.pop() {
-            for (from, _) in fields {
+            let color = Color::White;
+            let mut board = board.clone();
+            for (from, _) in board.get_color_fields(color) {
                 let to = if from + dice as usize > 24 {
                     0
                 } else {
@@ -98,13 +100,15 @@ impl PointsRules {
                         }
                         Ok(()) => {
                             // TODO : check if it's a jan
-                            let next_dice_jan = self.get_jans(&board, &dices);
                             // TODO : merge jans du dé courant et du prochain dé
                         }
                     }
+                    let next_dice_jan = self.get_jans(&board, &dices);
+                    jans.merge(next_dice_jan);
                 }
             }
         }
+
         // TODO : mouvements en tout d'une asdf
         // - faire un dé d1+d2 et regarder si hit
         // - si hit : regarder s'il existe le truehit intermédiaire
@@ -121,7 +125,8 @@ impl PointsRules {
         // Jans de remplissage
         let filling_moves_sequences = self.move_rules.get_quarter_filling_moves_sequences();
         points += 4 * filling_moves_sequences.len();
-        //  	Points par simple par moyen 	Points par doublet par moyen 	Nombre de moyens possibles 	Bénéficiaire
+        // cf. https://fr.wikipedia.org/wiki/Trictrac
+        //  	Points par simple par moyen | Points par doublet par moyen 	Nombre de moyens possibles 	Bénéficiaire
         // « JAN RARE »
         // Jan de six tables 	4 	n/a 	1 	Joueur
         // Jan de deux tables 	4 	6 	1 	Joueur
@@ -129,12 +134,8 @@ impl PointsRules {
         // Contre jan de deux tables 	4 	6 	1 	Adversaire
         // Contre jan de mézéas 	4 	6 	1 	Adversaire
         // « JAN DE RÉCOMPENSE »
-        // Battre à vrai une dame
-        // située dans la table des grands jans 	2 		1, 2 ou 3 	Joueur
-        // 	4 	1 ou 2 	Joueur
-        // Battre à vrai une dame
-        // située dans la table des petits jans 	4 		1, 2 ou 3 	Joueur
-        // 	6 	1 ou 2 	Joueur
+        // Battre à vrai une dame située dans la table des grands jans 	2 | 4 	1, 2 ou 3 (sauf doublet) 	Joueur
+        // Battre à vrai une dame située dans la table des petits jans 	4 | 6 	1, 2 ou 3 	Joueur
         // Battre le coin adverse 	4 	6 	1 	Joueur
         // « JAN QUI NE PEUT »
         // Battre à faux une dame
@@ -150,5 +151,57 @@ impl PointsRules {
         // Sortir le premier toutes ses dames 	4 	6 	n/a 	Joueur
 
         points
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn get_jans() {
+        let mut rules = PointsRules::default();
+        rules.board.set_positions([
+            2, 0, -1, -1, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ]);
+
+        let jans = rules.get_jans(&rules.board, &vec![2, 3]);
+        assert_eq!(1, jans.len());
+        assert_eq!(2, jans.get(&Jan::TrueHit).unwrap().len());
+
+        let jans = rules.get_jans(&rules.board, &vec![2, 2]);
+        assert_eq!(1, jans.len());
+        assert_eq!(1, jans.get(&Jan::TrueHit).unwrap().len());
+
+        rules.board.set_positions([
+            2, 0, -1, -1, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ]);
+
+        let jans = rules.get_jans(&rules.board, &vec![2, 3]);
+        assert_eq!(1, jans.len());
+        assert_eq!(2, jans.get(&Jan::TrueHit).unwrap().len());
+
+        rules.board.set_positions([
+            2, 0, -1, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ]);
+
+        let jans = rules.get_jans(&rules.board, &vec![2, 3]);
+        assert_eq!(1, jans.len());
+        assert_eq!(2, jans.get(&Jan::TrueHit).unwrap().len());
+
+        rules.board.set_positions([
+            2, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ]);
+
+        let jans = rules.get_jans(&rules.board, &vec![2, 3]);
+        assert_eq!(1, jans.len());
+        assert_eq!(1, jans.get(&Jan::TrueHit).unwrap().len());
+
+        rules.board.set_positions([
+            2, 0, 1, 1, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ]);
+
+        let jans = rules.get_jans(&rules.board, &vec![2, 3]);
+        assert_eq!(1, jans.len());
+        assert_eq!(3, jans.get(&Jan::TrueHit).unwrap().len());
     }
 }

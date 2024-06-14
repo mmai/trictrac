@@ -140,7 +140,7 @@ impl MoveRules {
     }
 
     /// ---- moves_allowed : Third of three checks for moves
-    fn moves_allowed(&self, moves: &(CheckerMove, CheckerMove)) -> Result<(), MoveError> {
+    pub fn moves_allowed(&self, moves: &(CheckerMove, CheckerMove)) -> Result<(), MoveError> {
         self.check_corner_rules(&moves)?;
 
         if self.is_move_by_puissance(moves) {

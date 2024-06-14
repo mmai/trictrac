@@ -91,10 +91,19 @@ impl PointsRules {
                     from + dice as usize
                 };
                 if let Ok(cmove) = CheckerMove::new(from, to) {
-                    // On vérifie qu'on ne va pas sur le coin de l'adversaire ni sur son
-                    // propre coin de repos avec une seule dame
+                    // let res = state.moves_allowed(&moves);
+                    // if res.is_ok() {
+                    //     println!("dice : {:?}, res : {:?}", dice, res);
+                    // On vérifie que le mouvement n'est pas interdit par les règles des coins de
+                    // repos :
+                    // - on ne va pas sur le coin de l'adversaire
+                    // - ni sur son propre coin de repos avec une seule dame
+                    // - on ne sort pas de son coin de repos s'il ni reste que deux dames
                     let (corner_count, _color) = board.get_field_checkers(corner_field).unwrap();
-                    if to != adv_corner_field && (to != corner_field || corner_count > 1) {
+                    if to != adv_corner_field
+                        && (to != corner_field || corner_count > 1)
+                        && (from != corner_field || corner_count > 2)
+                    {
                         // println!(
                         //     "dice : {}, adv_corn_field : {:?}, from : {}, to : {}, corner_count : {}",
                         //     dice, adv_corner_field, from, to, corner_count
@@ -236,6 +245,13 @@ mod tests {
         // println!("jans (dés bloqués) : {:?}", jans.get(&Jan::TrueHit));
         assert_eq!(0, jans.len());
 
+        // dé bloqué dans son coin de repos
+        rules.board.set_positions([
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ]);
+        let mut jans = rules.get_jans(&rules.board, &vec![3, 3]);
+        assert_eq!(0, jans.len());
+
         // premier dé bloqué, mais tout d'une possible en commençant par le second
         rules.board.set_positions([
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -246,6 +262,6 @@ mod tests {
 
         jans.merge(jans_revert_dices);
         assert_eq!(1, jans.len());
-        print!("jans (2) : {:?}", jans.get(&Jan::TrueHit));
+        // print!("jans (2) : {:?}", jans.get(&Jan::TrueHit));
     }
 }

@@ -331,6 +331,10 @@ impl Board {
         self.get_field_checkers(field).map(|(_ount, color)| color)
     }
 
+    pub fn is_field_in_small_jan(field: Field) -> bool {
+        field < 7 || field > 18
+    }
+
     /// returns the list of Fields containing Checkers of the Color
     pub fn get_color_fields(&self, color: Color) -> Vec<(usize, i8)> {
         match color {

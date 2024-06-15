@@ -10,7 +10,8 @@ use crate::Error;
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
 enum Jan {
     FilledQuarter,
-    TrueHit,
+    TrueHitSmallJan,
+    TrueHitBigJan,
     // jans de récompense :
     //  - battre une dame seule (par autant de façons de le faire, y compris
     // utilisant une dame du coin de repos)
@@ -22,11 +23,38 @@ enum Jan {
     //  - si on ne peut pas jouer ses deux dés
 }
 
+impl Jan {
+    pub fn get_points(&self, is_double: bool) -> i8 {
+        match self {
+            Self::TrueHitBigJan => {
+                if is_double {
+                    4
+                } else {
+                    2
+                }
+            }
+            _ => {
+                if is_double {
+                    6
+                } else {
+                    4
+                }
+            }
+        }
+    }
+
+    // « JAN DE RÉCOMPENSE »
+    // Battre à vrai une dame située dans la table des grands jans 	2 | 4 	1, 2 ou 3 (sauf doublet) 	Joueur
+    // Battre à vrai une dame située dans la table des petits jans 	4 | 6 	1, 2 ou 3 	Joueur
+    // Battre le coin adverse 	4 	6 	1 	Joueur
+}
+
 type PossibleJans = HashMap<Jan, Vec<(CheckerMove, CheckerMove)>>;
 
 trait PossibleJansMethods {
     fn push(&mut self, jan: Jan, cmoves: (CheckerMove, CheckerMove));
     fn merge(&mut self, other: Self);
+    // fn get_points(&self) -> u8;
 }
 
 impl PossibleJansMethods for PossibleJans {
@@ -98,35 +126,40 @@ impl PointsRules {
                     // repos :
                     // - on ne va pas sur le coin de l'adversaire
                     // - ni sur son propre coin de repos avec une seule dame
-                    // - on ne sort pas de son coin de repos s'il ni reste que deux dames
+                    // - règle non prise en compte pour le battage des dames : on ne sort pas de son coin de repos s'il ni reste que deux dames
                     let (corner_count, _color) = board.get_field_checkers(corner_field).unwrap();
-                    if to != adv_corner_field
-                        && (to != corner_field || corner_count > 1)
-                        && (from != corner_field || corner_count > 2)
+                    if to != adv_corner_field && (to != corner_field || corner_count > 1)
+                    // && (from != corner_field || corner_count > 2)
                     {
                         // println!(
                         //     "dice : {}, adv_corn_field : {:?}, from : {}, to : {}, corner_count : {}",
                         //     dice, adv_corner_field, from, to, corner_count
                         // );
+                        let mut can_try_toutdune = true;
                         match board.move_checker(&color, cmove) {
                             Err(Error::FieldBlockedByOne) => {
-                                jans.push(Jan::TrueHit, (cmove, EMPTY_MOVE));
+                                let jan = if Board::is_field_in_small_jan(to) {
+                                    Jan::TrueHitSmallJan
+                                } else {
+                                    Jan::TrueHitBigJan
+                                };
+                                jans.push(jan, (cmove, EMPTY_MOVE));
                             }
                             Err(_) => {
+                                can_try_toutdune = false;
                                 // let next_dice_jan = self.get_jans(&board, &dices);
                                 // jans possibles en tout d'une après un battage à vrai :
                                 // truehit
                             }
-                            Ok(()) => {
-                                // Try tout d'une :
-                                // - use original board before first die move
-                                // - use a virtual dice by adding current dice to remaining dice
-                                let next_dice_jan = self.get_jans(
-                                    &board_ini,
-                                    &dices.iter().map(|d| d + dice).collect(),
-                                );
-                                jans.merge(next_dice_jan);
-                            }
+                            Ok(()) => {}
+                        }
+                        if can_try_toutdune {
+                            // Try tout d'une :
+                            // - use original board before first die move
+                            // - use a virtual dice by adding current dice to remaining dice
+                            let next_dice_jan = self
+                                .get_jans(&board_ini, &dices.iter().map(|d| d + dice).collect());
+                            jans.merge(next_dice_jan);
                         }
                     }
                     // Second die
@@ -144,17 +177,20 @@ impl PointsRules {
         jans
     }
 
-    pub fn get_points(&self) -> usize {
-        let mut points = 0;
+    pub fn get_points(&self) -> i8 {
+        let mut points: i8 = 0;
 
         let mut jans = self.get_jans(&self.board, &vec![self.dice.values.0, self.dice.values.1]);
         let jans_revert_dices =
             self.get_jans(&self.board, &vec![self.dice.values.1, self.dice.values.0]);
         jans.merge(jans_revert_dices);
+        points += jans.into_iter().fold(0, |acc: i8, (jan, moves)| {
+            acc + jan.get_points(self.dice.is_double()) * (moves.len() as i8)
+        });
 
         // Jans de remplissage
         let filling_moves_sequences = self.move_rules.get_quarter_filling_moves_sequences();
-        points += 4 * filling_moves_sequences.len();
+        points += 4 * filling_moves_sequences.len() as i8;
         // cf. https://fr.wikipedia.org/wiki/Trictrac
         //  	Points par simple par moyen | Points par doublet par moyen 	Nombre de moyens possibles 	Bénéficiaire
         // « JAN RARE »
@@ -196,19 +232,24 @@ mod tests {
 
         let jans = rules.get_jans(&rules.board, &vec![2, 3]);
         assert_eq!(1, jans.len());
-        assert_eq!(2, jans.get(&Jan::TrueHit).unwrap().len());
+        assert_eq!(3, jans.get(&Jan::TrueHitSmallJan).unwrap().len());
 
         let jans = rules.get_jans(&rules.board, &vec![2, 2]);
         assert_eq!(1, jans.len());
-        assert_eq!(1, jans.get(&Jan::TrueHit).unwrap().len());
+        assert_eq!(1, jans.get(&Jan::TrueHitSmallJan).unwrap().len());
 
+        // On peut passer par un une dame battue pour battre une autre dame
+        // mais pas par une case remplie par l'adversaire
         rules.board.set_positions([
-            2, 0, -1, -1, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            2, 0, -1, -2, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         ]);
 
-        let jans = rules.get_jans(&rules.board, &vec![2, 3]);
+        let mut jans = rules.get_jans(&rules.board, &vec![2, 3]);
+        let jans_revert_dices = rules.get_jans(&rules.board, &vec![3, 2]);
         assert_eq!(1, jans.len());
-        assert_eq!(2, jans.get(&Jan::TrueHit).unwrap().len());
+        assert_eq!(1, jans_revert_dices.len());
+        jans.merge(jans_revert_dices);
+        assert_eq!(2, jans.get(&Jan::TrueHitSmallJan).unwrap().len());
 
         rules.board.set_positions([
             2, 0, -1, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -216,7 +257,7 @@ mod tests {
 
         let jans = rules.get_jans(&rules.board, &vec![2, 3]);
         assert_eq!(1, jans.len());
-        assert_eq!(2, jans.get(&Jan::TrueHit).unwrap().len());
+        assert_eq!(2, jans.get(&Jan::TrueHitSmallJan).unwrap().len());
 
         rules.board.set_positions([
             2, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -224,7 +265,7 @@ mod tests {
 
         let jans = rules.get_jans(&rules.board, &vec![2, 3]);
         assert_eq!(1, jans.len());
-        assert_eq!(1, jans.get(&Jan::TrueHit).unwrap().len());
+        assert_eq!(1, jans.get(&Jan::TrueHitSmallJan).unwrap().len());
 
         rules.board.set_positions([
             2, 0, 1, 1, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -232,7 +273,7 @@ mod tests {
 
         let jans = rules.get_jans(&rules.board, &vec![2, 3]);
         assert_eq!(1, jans.len());
-        assert_eq!(3, jans.get(&Jan::TrueHit).unwrap().len());
+        assert_eq!(3, jans.get(&Jan::TrueHitSmallJan).unwrap().len());
 
         // corners handling
 
@@ -245,12 +286,12 @@ mod tests {
         // println!("jans (dés bloqués) : {:?}", jans.get(&Jan::TrueHit));
         assert_eq!(0, jans.len());
 
-        // dé bloqué dans son coin de repos
+        // dé dans son coin de repos : peut tout de même battre à vrai
         rules.board.set_positions([
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         ]);
         let mut jans = rules.get_jans(&rules.board, &vec![3, 3]);
-        assert_eq!(0, jans.len());
+        assert_eq!(1, jans.len());
 
         // premier dé bloqué, mais tout d'une possible en commençant par le second
         rules.board.set_positions([
@@ -263,5 +304,15 @@ mod tests {
         jans.merge(jans_revert_dices);
         assert_eq!(1, jans.len());
         // print!("jans (2) : {:?}", jans.get(&Jan::TrueHit));
+    }
+
+    #[test]
+    fn get_points() {
+        let mut rules = PointsRules::default();
+        rules.board.set_positions([
+            2, 0, -1, -1, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ]);
+        rules.dice = Dice { values: (2, 3) };
+        assert_eq!(12, rules.get_points());
     }
 }

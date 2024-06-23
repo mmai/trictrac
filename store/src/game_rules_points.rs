@@ -304,6 +304,9 @@ mod tests {
         jans.merge(jans_revert_dices);
         assert_eq!(1, jans.len());
         // print!("jans (2) : {:?}", jans.get(&Jan::TrueHit));
+
+        // battage à faux : ne pas prendre en compte si en inversant l'ordre des dés il y a battage
+        // à vrai
     }
 
     #[test]

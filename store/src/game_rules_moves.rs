@@ -61,17 +61,17 @@ impl MoveRules {
     /// ---- moves_possibles : First of three checks for moves
     fn moves_possible(&self, moves: &(CheckerMove, CheckerMove)) -> bool {
         let color = &Color::White;
-        // Check move is physically possible
-        if !self.board.move_possible(color, &moves.0) {
-            return false;
-        }
-
-        // Chained_move : "Tout d'une"
         if let Ok(chained_move) = moves.0.chain(moves.1) {
-            if !self.board.move_possible(color, &chained_move) {
+            // Check intermediary move and chained_move : "Tout d'une"
+            if !self.board.passage_possible(color, &moves.0)
+                || !self.board.move_possible(color, &chained_move)
+            {
                 return false;
             }
-        } else if !self.board.move_possible(color, &moves.1) {
+        } else if !self.board.move_possible(color, &moves.0)
+            || !self.board.move_possible(color, &moves.1)
+        {
+            // Move is not physically possible
             return false;
         }
         true
@@ -737,6 +737,28 @@ mod tests {
             Err(MoveError::CornerNeedsTwoCheckers),
             state.moves_allowed(&moves)
         );
+    }
+
+    #[test]
+    fn move_rest_corner_toutdune() {
+        let mut state = MoveRules::default();
+        // We can't go to the occupied rest corner as an intermediary step
+        state.board.set_positions([
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, -2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ]);
+        state.dice.values = (2, 1);
+        let moves = (
+            CheckerMove::new(11, 13).unwrap(),
+            CheckerMove::new(13, 14).unwrap(),
+        );
+        assert!(!state.moves_possible(&moves));
+
+        // We can use the empty rest corner as an intermediary step
+        state.board.set_positions([
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ]);
+        assert!(state.moves_possible(&moves));
+        assert!(state.moves_allowed(&moves).is_ok());
     }
 
     #[test]

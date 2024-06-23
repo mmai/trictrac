@@ -300,6 +300,13 @@ impl Board {
 
     /// Check if a field is blocked for a player
     pub fn blocked(&self, color: &Color, field: Field) -> Result<bool, Error> {
+        // the square is blocked on the opponent rest corner
+        let opp_corner_field = if color == &Color::White { 13 } else { 12 };
+        self.passage_blocked(color, field)
+            .map(|blocked| blocked || opp_corner_field == field)
+    }
+
+    pub fn passage_blocked(&self, color: &Color, field: Field) -> Result<bool, Error> {
         if 24 < field {
             return Err(Error::FieldInvalid);
         }
@@ -309,9 +316,13 @@ impl Board {
             return Ok(false);
         }
 
-        // the square is blocked on the opponent rest corner or if there are opponent's men on the square
-        let opp_corner_field = if color == &Color::White { 13 } else { 12 };
-        Ok(field == opp_corner_field || self.positions[field - 1] < 0)
+        // the square is blocked if there are opponent's men on the square
+        let blocked = if color == &Color::White {
+            self.positions[field - 1] < 0
+        } else {
+            self.positions[field - 1] > 0
+        };
+        Ok(blocked)
     }
 
     pub fn get_field_checkers(&self, field: Field) -> Result<(u8, Option<&Color>), Error> {
@@ -410,6 +421,10 @@ impl Board {
             }
         }
         moves
+    }
+
+    pub fn passage_possible(&self, color: &Color, cmove: &CheckerMove) -> bool {
+        !self.passage_blocked(color, cmove.to).unwrap_or(true)
     }
 
     pub fn move_possible(&self, color: &Color, cmove: &CheckerMove) -> bool {

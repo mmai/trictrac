@@ -85,7 +85,7 @@ impl MoveRules {
         }
 
         let (dice1, dice2) = self.dice.values;
-        let (move1, move2): &(CheckerMove, CheckerMove) = &moves;
+        let (move1, move2): &(CheckerMove, CheckerMove) = moves;
 
         let move1_dices = self.get_move_compatible_dices(move1);
         if move1_dices.is_empty() {

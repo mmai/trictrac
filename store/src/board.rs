@@ -446,11 +446,49 @@ impl Board {
         let fields = self.get_quarter_fields(field);
         !fields.iter().any(|field| {
             if color == Color::White {
-                self.positions[field - 1] < 1
+                self.positions[field - 1] < 2
             } else {
-                self.positions[field - 1] > -1
+                self.positions[field - 1] > -2
             }
         })
+    }
+
+    pub fn get_quarter_filling_candidate(&self, color: Color) -> Vec<Field> {
+        let mut missing = vec![];
+        // first quarter
+        for quarter in [1..7, 7..13, 13..19, 19..25] {
+            missing = vec![];
+            for field in quarter {
+                let field_count = if color == Color::Black {
+                    0 - self.positions[field - 1]
+                } else {
+                    self.positions[field - 1]
+                };
+                if field_count < 0 {
+                    // opponent checker found : this quarter cannot be filled
+                    missing = vec![];
+                    continue;
+                }
+                if field_count == 0 {
+                    missing.push(field);
+                    missing.push(field);
+                } else if field_count == 1 {
+                    missing.push(field);
+                }
+            }
+            if missing.len() < 3 {
+                // fillable quarter found (no more than two missing checkers)
+                if let Some(field) = missing.first() {
+                    // We check that there are sufficient checkers left to fill the quarter
+                    if !self.is_quarter_fillable(color, *field) {
+                        missing = vec![];
+                    }
+                }
+                // there will be no other fillable quarter
+                break;
+            }
+        }
+        missing
     }
 
     /// Returns whether the `color` player can still fill the quarter containing the `field`
@@ -635,5 +673,14 @@ mod tests {
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, -12, 0, 0, 0, 0, 1, 0,
         ]);
         assert!(board.is_quarter_fillable(Color::Black, 16));
+    }
+
+    #[test]
+    fn get_quarter_filling_candidate() {
+        let mut board = Board::new();
+        board.set_positions([
+            3, 1, 2, 2, 3, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ]);
+        assert_eq!(vec![2], board.get_quarter_filling_candidate(Color::White));
     }
 }

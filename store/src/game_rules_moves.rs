@@ -41,12 +41,22 @@ pub struct MoveRules {
 impl MoveRules {
     /// Revert board if color is black
     pub fn new(color: &Color, board: &Board, dice: Dice) -> Self {
-        let board = if *color == Color::Black {
+        Self {
+            board: Self::get_board_from_color(color, board),
+            dice,
+        }
+    }
+
+    pub fn set_board(&mut self, color: &Color, board: &Board) {
+        self.board = Self::get_board_from_color(color, board);
+    }
+
+    fn get_board_from_color(color: &Color, board: &Board) -> Board {
+        if *color == Color::Black {
             board.mirror()
         } else {
             board.clone()
-        };
-        Self { board, dice }
+        }
     }
 
     pub fn moves_follow_rules(&self, moves: &(CheckerMove, CheckerMove)) -> bool {
@@ -155,7 +165,6 @@ impl MoveRules {
         // Si possible, les deux dés doivent être joués
         if moves.0.get_from() == 0 || moves.1.get_from() == 0 {
             let mut possible_moves_sequences = self.get_possible_moves_sequences(true);
-            println!("{:?}", possible_moves_sequences);
             possible_moves_sequences.retain(|moves| self.check_exit_rules(moves).is_ok());
             // possible_moves_sequences.retain(|moves| self.check_corner_rules(moves).is_ok());
             if !possible_moves_sequences.contains(&moves) && !possible_moves_sequences.is_empty() {
@@ -313,14 +322,66 @@ impl MoveRules {
         moves_seqs
     }
 
+    pub fn get_scoring_quarter_filling_moves_sequences(&self) -> Vec<(CheckerMove, CheckerMove)> {
+        let all_seqs = self.get_quarter_filling_moves_sequences();
+        if all_seqs.len() == 0 {
+            return vec![];
+        }
+        let missing_fields = self.board.get_quarter_filling_candidate(Color::White);
+        match missing_fields.len() {
+            // preserve an already filled quarter : return one sequence
+            0 => vec![*all_seqs.last().unwrap()],
+            // two fields, two dices : all_seqs should already contain only one possibility
+            2 => all_seqs,
+            1 => {
+                let dest_field = missing_fields.first().unwrap();
+                let mut filling_moves_origins = vec![];
+                all_seqs.iter().fold(vec![], |mut acc, seq| {
+                    let origins = self.get_sequence_origin_from_destination(*seq, *dest_field);
+                    for origin in origins {
+                        if !filling_moves_origins.contains(&origin) {
+                            filling_moves_origins.push(origin);
+                            acc.push(*seq);
+                        }
+                    }
+                    acc
+                })
+            }
+            _ => vec![], // cannot be
+        }
+    }
+
+    fn get_sequence_origin_from_destination(
+        &self,
+        sequence: (CheckerMove, CheckerMove),
+        destination: Field,
+    ) -> Vec<Field> {
+        let mut origin = vec![];
+        if sequence.0.get_to() == destination {
+            origin.push(sequence.0.get_from());
+        }
+        if sequence.1.get_to() == destination {
+            if sequence.0.get_to() == sequence.1.get_from() {
+                // tout d'une
+                origin.push(sequence.0.get_from());
+            } else {
+                origin.push(sequence.1.get_from());
+            }
+        }
+        origin
+    }
+
+    // Get all moves filling a quarter or preserving a filled quarter
     pub fn get_quarter_filling_moves_sequences(&self) -> Vec<(CheckerMove, CheckerMove)> {
         let mut moves_seqs = Vec::new();
         let color = &Color::White;
+        let all_moves_seqs = self.get_possible_moves_sequences(true);
         for moves in self.get_possible_moves_sequences(true) {
             let mut board = self.board.clone();
             board.move_checker(color, moves.0).unwrap();
             board.move_checker(color, moves.1).unwrap();
-            if board.any_quarter_filled(*color) {
+            // println!("get_quarter_filling_moves_sequences board : {:?}", board);
+            if board.any_quarter_filled(*color) && !moves_seqs.contains(&moves) {
                 moves_seqs.push(moves);
             }
         }
@@ -810,5 +871,58 @@ mod tests {
             CheckerMove::new(20, 19).unwrap().mirror(),
         );
         assert!(state.moves_possible(&moves));
+    }
+
+    #[test]
+    fn filling_moves_sequences() {
+        let mut state = MoveRules::default();
+        state.board.set_positions([
+            3, 3, 1, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ]);
+        state.dice.values = (2, 1);
+        let filling_moves_sequences = state.get_quarter_filling_moves_sequences();
+        // println!(
+        //     "test filling_moves_sequences : {:?}",
+        //     filling_moves_sequences
+        // );
+        assert_eq!(2, filling_moves_sequences.len());
+
+        state.board.set_positions([
+            3, 2, 3, 2, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ]);
+        state.dice.values = (2, 2);
+        let filling_moves_sequences = state.get_quarter_filling_moves_sequences();
+        // println!("{:?}", filling_moves_sequences);
+        assert_eq!(2, filling_moves_sequences.len());
+
+        state.board.set_positions([
+            3, 1, 2, 2, 3, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ]);
+        state.dice.values = (2, 1);
+        let filling_moves_sequences = state.get_quarter_filling_moves_sequences();
+        // println!(
+        //     "test filling_moves_sequences 2 : {:?}",
+        //     filling_moves_sequences
+        // );
+        assert_eq!(2, filling_moves_sequences.len());
+    }
+
+    #[test]
+    fn scoring_filling_moves_sequences() {
+        let mut state = MoveRules::default();
+
+        state.board.set_positions([
+            3, 1, 2, 2, 3, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ]);
+        state.dice.values = (2, 1);
+        assert_eq!(1, state.get_scoring_quarter_filling_moves_sequences().len());
+
+        state.board.set_positions([
+            2, 3, 3, 3, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ]);
+        state.dice.values = (2, 1);
+        let filling_moves_sequences = state.get_scoring_quarter_filling_moves_sequences();
+        // println!("{:?}", filling_moves_sequences);
+        assert_eq!(3, filling_moves_sequences.len());
     }
 }

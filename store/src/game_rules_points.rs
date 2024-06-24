@@ -104,13 +104,36 @@ impl PointsRules {
         }
     }
 
-    fn get_jans(&self, board_ini: &Board, dices: &Vec<u8>) -> PossibleJans {
-        let mut dices_reversed = dices.clone();
-        dices_reversed.reverse();
+    pub fn set_dice(&mut self, dice: Dice) {
+        self.dice = dice;
+        self.move_rules.dice = dice;
+    }
 
+    pub fn update_positions(&mut self, positions: [i8; 24]) {
+        self.board.set_positions(positions);
+        self.move_rules.board.set_positions(positions);
+    }
+
+    fn get_jans(&self, board_ini: &Board) -> PossibleJans {
+        let dices = &vec![self.dice.values.0, self.dice.values.1];
+        let dices_reversed = &vec![self.dice.values.1, self.dice.values.0];
+
+        // « JAN DE RÉCOMPENSE »
+        // Battre à vrai une dame située dans la table des grands jans
+        // Battre à vrai une dame située dans la table des petits jans
         let mut jans = self.get_jans_by_dice_order(board_ini, dices);
-        let jans_revert_dices = self.get_jans_by_dice_order(board_ini, &dices_reversed);
+        let jans_revert_dices = self.get_jans_by_dice_order(board_ini, dices_reversed);
         jans.merge(jans_revert_dices);
+
+        // « JAN DE REMPLISSAGE »
+        // Faire un petit jan, un grand jan ou un jan de retour
+        let filling_moves_sequences = self
+            .move_rules
+            .get_scoring_quarter_filling_moves_sequences();
+        if !filling_moves_sequences.is_empty() {
+            jans.insert(Jan::FilledQuarter, filling_moves_sequences);
+        }
+
         jans
     }
 
@@ -192,14 +215,20 @@ impl PointsRules {
     pub fn get_points(&self) -> i8 {
         let mut points: i8 = 0;
 
-        let jans = self.get_jans(&self.board, &vec![self.dice.values.0, self.dice.values.1]);
+        // « JAN DE RÉCOMPENSE »
+        // Battre à vrai une dame située dans la table des grands jans
+        // Battre à vrai une dame située dans la table des petits jans
+        // TODO : Battre le coin adverse
+        let jans = self.get_jans(&self.board);
         points += jans.into_iter().fold(0, |acc: i8, (jan, moves)| {
             acc + jan.get_points(self.dice.is_double()) * (moves.len() as i8)
         });
 
-        // Jans de remplissage
-        let filling_moves_sequences = self.move_rules.get_quarter_filling_moves_sequences();
-        points += 4 * filling_moves_sequences.len() as i8;
+        // « JAN DE REMPLISSAGE »
+        // Faire un petit jan, un grand jan ou un jan de retour
+        // let filling_moves_sequences = self.move_rules.get_quarter_filling_moves_sequences();
+        // points += 4 * filling_moves_sequences.len() as i8;
+
         // cf. https://fr.wikipedia.org/wiki/Trictrac
         //  	Points par simple par moyen | Points par doublet par moyen 	Nombre de moyens possibles 	Bénéficiaire
         // « JAN RARE »
@@ -208,19 +237,12 @@ impl PointsRules {
         // Jan de mézéas 	4 	6 	1 	Joueur
         // Contre jan de deux tables 	4 	6 	1 	Adversaire
         // Contre jan de mézéas 	4 	6 	1 	Adversaire
-        // « JAN DE RÉCOMPENSE »
-        // Battre à vrai une dame située dans la table des grands jans 	2 | 4 	1, 2 ou 3 (sauf doublet) 	Joueur
-        // Battre à vrai une dame située dans la table des petits jans 	4 | 6 	1, 2 ou 3 	Joueur
-        // Battre le coin adverse 	4 	6 	1 	Joueur
         // « JAN QUI NE PEUT »
         // Battre à faux une dame
         // située dans la table des grands jans 	2 	4 	1 	Adversaire
         // Battre à faux une dame
         // située dans la table des petits jans 	4 	6 	1 	Adversaire
         // Pour chaque dé non jouable (dame impuissante) 	2 	2 	n/a 	Adversaire
-        // « JAN DE REMPLISSAGE »
-        // Faire un petit jan, un grand jan ou un jan de retour 	4 		1, 2, ou 3 	Joueur
-        // 	6 	1 ou 2 	Joueur
         // Conserver un petit jan, un grand jan ou un jan de retour 	4 	6 	1 	Joueur
         // « AUTRE »
         // Sortir le premier toutes ses dames 	4 	6 	n/a 	Joueur
@@ -320,11 +342,39 @@ mod tests {
 
     #[test]
     fn get_points() {
+        // ----- Jan de récompense
         let mut rules = PointsRules::default();
-        rules.board.set_positions([
+        rules.update_positions([
             2, 0, -1, -1, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         ]);
-        rules.dice = Dice { values: (2, 3) };
+        rules.set_dice(Dice { values: (2, 3) });
         assert_eq!(12, rules.get_points());
+
+        // ---- Jan de remplissage
+        rules.update_positions([
+            3, 1, 2, 2, 3, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ]);
+        rules.set_dice(Dice { values: (2, 1) });
+        assert_eq!(1, rules.get_jans(&rules.board).len());
+        assert_eq!(4, rules.get_points());
+
+        rules.update_positions([
+            2, 3, 1, 2, 2, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ]);
+        rules.set_dice(Dice { values: (1, 1) });
+        assert_eq!(6, rules.get_points());
+
+        rules.update_positions([
+            3, 3, 1, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ]);
+        rules.set_dice(Dice { values: (1, 1) });
+        assert_eq!(12, rules.get_points());
+
+        // conservation jan rempli
+        rules.update_positions([
+            3, 3, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ]);
+        rules.set_dice(Dice { values: (1, 1) });
+        assert_eq!(6, rules.get_points());
     }
 }

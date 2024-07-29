@@ -925,4 +925,45 @@ mod tests {
         // println!("{:?}", filling_moves_sequences);
         assert_eq!(3, filling_moves_sequences.len());
     }
+
+    // prise de coin par puissance et conservation de jan #18
+    // https://www.youtube.com/watch?v=5Bkxvd7MSps
+    #[test]
+    fn corner_by_effect_and_filled_corner() {
+        let mut state = MoveRules::default();
+
+        state.board.set_positions([
+            2, 2, 2, 2, 2, 2, 2, 1, 0, 0, 0, 0, 0, -2, 0, 0, 0, -2, 0, -2, -2, -2, -2, -3,
+        ]);
+        state.dice.values = (6, 5);
+
+        let moves = (
+            CheckerMove::new(7, 12).unwrap(),
+            CheckerMove::new(8, 12).unwrap(),
+        );
+        assert_eq!(
+            Err(MoveError::CornerByEffectPossible),
+            state.moves_allowed(&moves)
+        );
+
+        // on ne peut pas rompre car il y a un autre mouvement possible
+        let moves = (
+            CheckerMove::new(6, 12).unwrap(),
+            CheckerMove::new(7, 12).unwrap(),
+        );
+        assert_eq!(
+            Err(MoveError::MustFillQuarter),
+            state.moves_allowed(&moves)
+        );
+
+        // seul mouvement possible
+        let moves = (
+            CheckerMove::new(7, 13).unwrap(),
+            CheckerMove::new(13, 19).unwrap(),
+        );
+        assert!( state.moves_allowed(&moves).is_ok());
+
+
+        // s'il n'y a pas d'autre solution, on peut rompre
+    }
 }

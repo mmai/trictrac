@@ -7,6 +7,8 @@ use std::cmp;
 
 #[derive(std::cmp::PartialEq, Debug)]
 pub enum MoveError {
+    // Opponent corner is forbidden
+    OpponentCorner,
     // 2 checkers must go at the same time on an empty corner
     // & the last 2 checkers of a corner must leave at the same time
     CornerNeedsTwoCheckers,
@@ -184,7 +186,7 @@ impl MoveRules {
         // check exit rules
         self.check_exit_rules(moves)?;
 
-        // --- interdit de jouer dans cadran que l'adversaire peut encore remplir ----
+        // --- interdit de jouer dans un cadran que l'adversaire peut encore remplir ----
         let farthest = cmp::max(moves.0.get_to(), moves.1.get_to());
         let in_opponent_side = farthest > 12;
         if in_opponent_side && self.board.is_quarter_fillable(Color::Black, farthest) {
@@ -201,14 +203,17 @@ impl MoveRules {
     }
 
     fn check_corner_rules(&self, moves: &(CheckerMove, CheckerMove)) -> Result<(), MoveError> {
-        let corner_field: Field = self.board.get_color_corner(&Color::White);
-        let (corner_count, _color) = self.board.get_field_checkers(corner_field).unwrap();
         let (from0, to0, from1, to1) = (
             moves.0.get_from(),
             moves.0.get_to(),
             moves.1.get_from(),
             moves.1.get_to(),
         );
+
+        // Player corner
+        let corner_field: Field = self.board.get_color_corner(&Color::White);
+        let (corner_count, _color) = self.board.get_field_checkers(corner_field).unwrap();
+
         // 2 checkers must go at the same time on an empty corner
         if (to0 == corner_field || to1 == corner_field) && (to0 != to1) && corner_count == 0 {
             return Err(MoveError::CornerNeedsTwoCheckers);
@@ -219,6 +224,13 @@ impl MoveRules {
         {
             return Err(MoveError::CornerNeedsTwoCheckers);
         }
+
+        // Oponnent corner
+        let corner_field: Field = self.board.get_color_corner(&Color::Black);
+        if to1 == corner_field || ( to0 == corner_field && to0 != from1 ) {
+            return Err(MoveError::OpponentCorner);
+        }
+
         Ok(())
     }
 
@@ -375,7 +387,6 @@ impl MoveRules {
     pub fn get_quarter_filling_moves_sequences(&self) -> Vec<(CheckerMove, CheckerMove)> {
         let mut moves_seqs = Vec::new();
         let color = &Color::White;
-        let all_moves_seqs = self.get_possible_moves_sequences(true);
         for moves in self.get_possible_moves_sequences(true) {
             let mut board = self.board.clone();
             board.move_checker(color, moves.0).unwrap();
@@ -725,6 +736,36 @@ mod tests {
     }
 
     #[test]
+    fn move_opponent_rest_corner_rules() {
+        // fill with 2 checkers : forbidden
+        let mut state = MoveRules::default();
+        state.board.set_positions([
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ]);
+        state.dice.values = (1, 1);
+        let moves = (
+            CheckerMove::new(12, 13).unwrap(),
+            CheckerMove::new(12, 13).unwrap(),
+        );
+        assert!(state.moves_follows_dices(&moves));
+        assert!(state.moves_allowed(&moves).is_err());
+
+        // repos lors d'un déplacement tout d'une
+        let moves = (
+            CheckerMove::new(12, 13).unwrap(),
+            CheckerMove::new(13, 14).unwrap(),
+        );
+        assert!(state.moves_allowed(&moves).is_ok());
+
+        // one checker : forbidden
+        let moves = (
+            CheckerMove::new(12, 13).unwrap(),
+            CheckerMove::new(11, 12).unwrap(),
+        );
+        assert!(state.moves_allowed(&moves).is_err());
+    }
+
+    #[test]
     fn move_rest_corner_enter() {
         // direct
         let mut state = MoveRules::default();
@@ -816,8 +857,14 @@ mod tests {
 
         // We can use the empty rest corner as an intermediary step
         state.board.set_positions([
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            2, 2, 2, 2, 2, 2, 2, 1, 0, 0, 0, 0, 0, -2, 0, 0, 0, -2, 0, -2, -2, -2, -2, -3,
         ]);
+        state.dice.values = (6, 5);
+        let moves = (
+            CheckerMove::new(8, 13).unwrap(),
+            CheckerMove::new(13, 19).unwrap(),
+        );
+
         assert!(state.moves_possible(&moves));
         assert!(state.moves_allowed(&moves).is_ok());
     }
@@ -905,6 +952,14 @@ mod tests {
         //     filling_moves_sequences
         // );
         assert_eq!(2, filling_moves_sequences.len());
+
+        // positions 
+        state.board.set_positions([
+            2, 2, 2, 2, 2, 2, 2, 1, 0, 0, 0, 0, 0, -2, 0, 0, 0, -2, 0, -2, -2, -2, -2, -3,
+        ]);
+        state.dice.values = (6, 5);
+        let filling_moves_sequences = state.get_quarter_filling_moves_sequences();
+        assert_eq!(1, filling_moves_sequences.len());
     }
 
     #[test]
@@ -946,7 +1001,7 @@ mod tests {
             state.moves_allowed(&moves)
         );
 
-        // on ne peut pas rompre car il y a un autre mouvement possible
+        // on ne peut pas rompre le plein car il y a un autre mouvement possible
         let moves = (
             CheckerMove::new(6, 12).unwrap(),
             CheckerMove::new(7, 12).unwrap(),
@@ -958,9 +1013,10 @@ mod tests {
 
         // seul mouvement possible
         let moves = (
-            CheckerMove::new(7, 13).unwrap(),
+            CheckerMove::new(8, 13).unwrap(),
             CheckerMove::new(13, 19).unwrap(),
         );
+        println!("{:?}", state.moves_allowed(&moves));
         assert!( state.moves_allowed(&moves).is_ok());
 
 

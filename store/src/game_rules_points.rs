@@ -1,3 +1,4 @@
+use std::cmp;
 use std::collections::HashMap;
 
 use crate::board::{Board, EMPTY_MOVE};
@@ -13,6 +14,7 @@ enum Jan {
     TrueHitSmallJan,
     TrueHitBigJan,
     TrueHitOpponentCorner,
+    FirstPlayerToExit,
     // jans de récompense :
     //  - battre une dame seule (par autant de façons de le faire, y compris
     // utilisant une dame du coin de repos)
@@ -167,6 +169,39 @@ impl PointsRules {
             .get_scoring_quarter_filling_moves_sequences();
         if !filling_moves_sequences.is_empty() {
             jans.insert(Jan::FilledQuarter, filling_moves_sequences);
+        }
+
+        // « AUTRE »
+        // sortir le premier toutes ses dames
+        let mut checkers = board_ini.get_color_fields(Color::White);
+        checkers.sort_by(|a, b| b.0.cmp(&a.0));
+        let checkers_count = checkers.iter().fold(0, |acc, (_f, count)| acc + count);
+        if checkers_count < 3 {
+            let mut farthest = 24;
+            let mut next_farthest = 24;
+            if let Some((field, count)) = checkers.first() {
+                farthest = *field;
+                if *count > 1 {
+                    next_farthest = *field;
+                } else if let Some((field, _count)) = checkers.get(1) {
+                    next_farthest = *field;
+                }
+            }
+
+            if farthest + cmp::max(self.dice.values.0, self.dice.values.1) as usize > 23
+                && next_farthest + cmp::min(self.dice.values.0, self.dice.values.1) as usize > 23
+            {
+                let exit_moves = vec![(
+                    CheckerMove::new(farthest, 0).unwrap(),
+                    if checkers_count > 1 {
+                        CheckerMove::new(next_farthest, 0).unwrap()
+                    } else {
+                        CheckerMove::new(0, 0).unwrap()
+                    },
+                )];
+
+                jans.insert(Jan::FirstPlayerToExit, exit_moves);
+            }
         }
 
         jans
@@ -432,6 +467,20 @@ mod tests {
             3, 3, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         ]);
         rules.set_dice(Dice { values: (1, 1) });
+        assert_eq!(6, rules.get_points());
+
+        // Sortir toutes ses dames avant l'adversaire (simple)
+        rules.update_positions([
+            0, 0, -2, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,
+        ]);
+        rules.set_dice(Dice { values: (3, 1) });
+        assert_eq!(4, rules.get_points());
+
+        // Sortir toutes ses dames avant l'adversaire (doublet)
+        rules.update_positions([
+            0, 0, -2, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0,
+        ]);
+        rules.set_dice(Dice { values: (2, 2) });
         assert_eq!(6, rules.get_points());
     }
 }

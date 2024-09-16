@@ -15,15 +15,7 @@ enum Jan {
     TrueHitBigJan,
     TrueHitOpponentCorner,
     FirstPlayerToExit,
-    // jans de récompense :
-    //  - battre une dame seule (par autant de façons de le faire, y compris
-    // utilisant une dame du coin de repos)
-    //  - battre le coin adverse : si deux dames (hormis les deux dernière de son propre coin de
-    // repos) peuvent battre le coin vide adverse
-    // jans qui ne peut (pts pour l'adversaire) :
-    //  - battre à faux :  si on passe par une case pleine pour atteindre la
-    // case que l'on peut battre
-    //  - si on ne peut pas jouer ses deux dés
+    SixTables,
 }
 
 impl Jan {
@@ -45,15 +37,6 @@ impl Jan {
             }
         }
     }
-
-    // « JAN DE RÉCOMPENSE »
-    // Battre à vrai une dame située dans la table des grands jans (2 par simple, 4 par double)
-    // Battre à vrai une dame située dans la table des petits jans (4 par simple, 6 par double)
-    // Battre le coin adverse (4 par simple, 6 par double)
-
-    // « JAN DE REMPLISSAGE »
-    // Faire un petit jan, un grand jan ou un jan de retour     (4 par simple, 6 par double)
-    // Conserver un petit jan, un grand jan ou un jan de retour (4 par simple, 6 par double)
 }
 
 type PossibleJans = HashMap<Jan, Vec<(CheckerMove, CheckerMove)>>;
@@ -201,6 +184,35 @@ impl PointsRules {
                 )];
 
                 jans.insert(Jan::FirstPlayerToExit, exit_moves);
+            }
+        }
+
+        // « JANS RARES »
+        // Jan de 6 tables
+        //   on devrait avoir 5 cases occupées : le talon et 4 cases parmi les cases 2 à 7
+        if checkers.len() == 5 {
+            let checkers_fields: Vec<usize> = checkers.iter().map(|(f, c)| *f).collect();
+            let mut missing_for_6tables: Vec<usize> = Vec::from([2, 3, 4, 5, 6, 7])
+                .into_iter()
+                .filter(|f| !checkers_fields.contains(f))
+                .collect();
+            if missing_for_6tables.len() == 2 {
+                println!("--j6  missing==2");
+                // Les dés doivent permettre le mouvement de deux dames du talon vers les 2 cases
+                // vides
+                let mut dice_to: Vec<usize> = vec![
+                    1 + self.dice.values.0 as usize,
+                    1 + self.dice.values.1 as usize,
+                ];
+                missing_for_6tables.sort();
+                dice_to.sort();
+                if dice_to == missing_for_6tables {
+                    let moves = vec![(
+                        CheckerMove::new(1, missing_for_6tables[0]).unwrap(),
+                        CheckerMove::new(1, missing_for_6tables[1]).unwrap(),
+                    )];
+                    jans.insert(Jan::SixTables, moves);
+                }
             }
         }
 
@@ -469,6 +481,7 @@ mod tests {
         rules.set_dice(Dice { values: (1, 1) });
         assert_eq!(6, rules.get_points());
 
+        // ----  Sorties
         // Sortir toutes ses dames avant l'adversaire (simple)
         rules.update_positions([
             0, 0, -2, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,
@@ -482,5 +495,22 @@ mod tests {
         ]);
         rules.set_dice(Dice { values: (2, 2) });
         assert_eq!(6, rules.get_points());
+
+        // ---- JANS  RARES
+        // Jan de six tables
+        rules.update_positions([
+            10, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0,
+        ]);
+        rules.set_dice(Dice { values: (2, 3) });
+        assert_eq!(4, rules.get_points());
+        // Jan de deux tables
+        // Jan de mézéas
+        // Contre jan de deux tables
+        // Contre jan de mézéas
+
+        // ---- JANS QUI NE PEUT
+        // Battre à faux une dame située dans la table des grands jans
+        // Battre à faux une dame située dans la table des petits jans
+        // Pour chaque dé non jouable (dame impuissante)
     }
 }

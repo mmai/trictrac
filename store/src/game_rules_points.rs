@@ -189,15 +189,16 @@ impl PointsRules {
 
         // « JANS RARES »
         // Jan de 6 tables
-        //   on devrait avoir 5 cases occupées : le talon et 4 cases parmi les cases 2 à 7
-        if checkers.len() == 5 {
+        //   on devrait avoir 4 cases occupées par une dame chacune
+        let fields_with_single: Vec<&(usize, i8)> =
+            checkers.iter().filter(|(f, c)| c == &1).collect();
+        if fields_with_single.len() == 4 {
             let checkers_fields: Vec<usize> = checkers.iter().map(|(f, c)| *f).collect();
             let mut missing_for_6tables: Vec<usize> = Vec::from([2, 3, 4, 5, 6, 7])
                 .into_iter()
                 .filter(|f| !checkers_fields.contains(f))
                 .collect();
             if missing_for_6tables.len() == 2 {
-                println!("--j6  missing==2");
                 // Les dés doivent permettre le mouvement de deux dames du talon vers les 2 cases
                 // vides
                 let mut dice_to: Vec<usize> = vec![
@@ -503,6 +504,16 @@ mod tests {
         ]);
         rules.set_dice(Dice { values: (2, 3) });
         assert_eq!(4, rules.get_points());
+        rules.update_positions([
+            10, 1, 0, 0, 1, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0,
+        ]);
+        rules.set_dice(Dice { values: (2, 3) });
+        assert_eq!(0, rules.get_points());
+        rules.update_positions([
+            10, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0,
+        ]);
+        rules.set_dice(Dice { values: (2, 3) });
+        assert_eq!(0, rules.get_points());
         // Jan de deux tables
         // Jan de mézéas
         // Contre jan de deux tables

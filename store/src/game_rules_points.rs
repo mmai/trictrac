@@ -1,7 +1,7 @@
 use std::cmp;
 use std::collections::HashMap;
 
-use crate::board::{Board, EMPTY_MOVE};
+use crate::board::{Board, Field, EMPTY_MOVE};
 use crate::dice::Dice;
 use crate::game_rules_moves::MoveRules;
 use crate::player::Color;
@@ -16,6 +16,7 @@ enum Jan {
     TrueHitOpponentCorner,
     FirstPlayerToExit,
     SixTables,
+    TwoTables,
 }
 
 impl Jan {
@@ -132,7 +133,7 @@ impl PointsRules {
 
             if from0 == from1 {
                 // doublet
-                if from0_count > if from0 == corner_field { 3 } else { 0 } {
+                if from0_count > if from0 == corner_field { 3 } else { 1 } {
                     jans.insert(Jan::TrueHitOpponentCorner, hit_moves);
                 }
             } else {
@@ -215,6 +216,42 @@ impl PointsRules {
                     jans.insert(Jan::SixTables, moves);
                 }
             }
+        }
+
+        // Jans nécessitant que deux dames uniquement soient sorties du talon
+        let (talon, candidates): (Vec<(usize, i8)>, Vec<(usize, i8)>) =
+            checkers.iter().partition(|(field, count)| field == &1);
+        let candidates_fields = candidates.iter().fold(vec![], |mut acc, (f, c)| {
+            acc.extend_from_slice(&vec![*f; *c as usize]);
+            acc
+        });
+        if !talon.is_empty() && talon[0].1 == 13 && candidates_fields.len() == 2 {
+            let field1 = candidates_fields[0];
+            let field2 = candidates_fields[1];
+            let dice1 = self.dice.values.0 as usize;
+            let dice2 = self.dice.values.1 as usize;
+            // Jan de 2 tables
+            if (field1 + dice1 == 12 && field2 + dice2 == 13)
+                || (field1 + dice2 == 12 && field2 + dice1 == 13)
+            {
+                let moves = vec![(
+                    CheckerMove::new(field1, 12).unwrap(),
+                    CheckerMove::new(field2, 13).unwrap(),
+                )];
+                jans.insert(Jan::TwoTables, moves);
+            } else if (field1 + dice1 == 13 && field2 + dice2 == 12)
+                || (field1 + dice2 == 13 && field2 + dice1 == 12)
+            {
+                let moves = vec![(
+                    CheckerMove::new(field1, 13).unwrap(),
+                    CheckerMove::new(field2, 12).unwrap(),
+                )];
+                jans.insert(Jan::TwoTables, moves);
+            }
+
+            // Jan de Mezeas
+            // Contre jan de 2 tables
+            // Contre jan de Mezeas
         }
 
         jans
@@ -514,7 +551,19 @@ mod tests {
         ]);
         rules.set_dice(Dice { values: (2, 3) });
         assert_eq!(0, rules.get_points());
+
         // Jan de deux tables
+        rules.update_positions([
+            13, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0,
+        ]);
+        rules.set_dice(Dice { values: (2, 2) });
+        assert_eq!(6, rules.get_points());
+        rules.update_positions([
+            12, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0,
+        ]);
+        rules.set_dice(Dice { values: (2, 2) });
+        assert_eq!(0, rules.get_points());
+
         // Jan de mézéas
         // Contre jan de deux tables
         // Contre jan de mézéas

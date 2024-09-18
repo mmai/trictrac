@@ -17,11 +17,32 @@ enum Jan {
     FirstPlayerToExit,
     SixTables,
     TwoTables,
+    Mezeas,
+
+    FalseHitSmallJan,
+    FalseHitBigJan,
+    ContreTwoTables,
+    ContreMezeas,
+    HelplessMan,
 }
 
 impl Jan {
     pub fn get_points(&self, is_double: bool) -> i8 {
         match self {
+            Self::FalseHitSmallJan | Self::ContreTwoTables | Self::ContreMezeas => {
+                if is_double {
+                    -6
+                } else {
+                    -4
+                }
+            }
+            Self::FalseHitBigJan | Self::HelplessMan => {
+                if is_double {
+                    -4
+                } else {
+                    -2
+                }
+            }
             Self::TrueHitBigJan => {
                 if is_double {
                     4
@@ -230,7 +251,13 @@ impl PointsRules {
             let field2 = candidates_fields[1];
             let dice1 = self.dice.values.0 as usize;
             let dice2 = self.dice.values.1 as usize;
-            // Jan de 2 tables
+
+            // Jan de 2 tables et contre jan de 2 tables
+            let jan = if adv_corner_count == 0 {
+                Jan::TwoTables
+            } else {
+                Jan::ContreTwoTables
+            };
             if (field1 + dice1 == 12 && field2 + dice2 == 13)
                 || (field1 + dice2 == 12 && field2 + dice1 == 13)
             {
@@ -238,7 +265,7 @@ impl PointsRules {
                     CheckerMove::new(field1, 12).unwrap(),
                     CheckerMove::new(field2, 13).unwrap(),
                 )];
-                jans.insert(Jan::TwoTables, moves);
+                jans.insert(jan, moves);
             } else if (field1 + dice1 == 13 && field2 + dice2 == 12)
                 || (field1 + dice2 == 13 && field2 + dice1 == 12)
             {
@@ -246,12 +273,22 @@ impl PointsRules {
                     CheckerMove::new(field1, 13).unwrap(),
                     CheckerMove::new(field2, 12).unwrap(),
                 )];
-                jans.insert(Jan::TwoTables, moves);
+                jans.insert(jan, moves);
             }
 
-            // Jan de Mezeas
-            // Contre jan de 2 tables
-            // Contre jan de Mezeas
+            // Jan de Mezeas et contre jan de Mezeas
+            let jan = if adv_corner_count == 0 {
+                Jan::Mezeas
+            } else {
+                Jan::ContreMezeas
+            };
+            if field1 == 12 && field2 == 12 && (dice1 == 1 || dice2 == 1) {
+                let moves = vec![(
+                    CheckerMove::new(field1, field1 + dice1).unwrap(),
+                    CheckerMove::new(field2, field2 + dice2).unwrap(),
+                )];
+                jans.insert(jan, moves);
+            }
         }
 
         jans
@@ -327,43 +364,21 @@ impl PointsRules {
         jans
     }
 
-    pub fn get_points(&self) -> i8 {
-        let mut points: i8 = 0;
-
-        // « JAN DE RÉCOMPENSE »
-        // Battre à vrai une dame située dans la table des grands jans
-        // Battre à vrai une dame située dans la table des petits jans
-        // Battre le coin adverse
+    pub fn get_points(&self) -> (i8, i8) {
         let jans = self.get_jans(&self.board);
-        points += jans.into_iter().fold(0, |acc: i8, (jan, moves)| {
-            println!("get_points : {:?}", jan);
-            acc + jan.get_points(self.dice.is_double()) * (moves.len() as i8)
-        });
+        let (points, adv_points) = jans
+            .into_iter()
+            .fold((0, 0), |acc: (i8, i8), (jan, moves)| {
+                println!("get_points : {:?}", jan);
+                let points = jan.get_points(self.dice.is_double()) * (moves.len() as i8);
+                if points < 0 {
+                    (acc.0, acc.1 - points)
+                } else {
+                    (acc.0 + points, acc.1)
+                }
+            });
 
-        // « JAN DE REMPLISSAGE »
-        // Faire un petit jan, un grand jan ou un jan de retour
-        // let filling_moves_sequences = self.move_rules.get_quarter_filling_moves_sequences();
-        // points += 4 * filling_moves_sequences.len() as i8;
-
-        // cf. https://fr.wikipedia.org/wiki/Trictrac
-        //  	Points par simple par moyen | Points par doublet par moyen 	Nombre de moyens possibles 	Bénéficiaire
-        // « JAN RARE »
-        // Jan de six tables 	4 	n/a 	1 	Joueur
-        // Jan de deux tables 	4 	6 	1 	Joueur
-        // Jan de mézéas 	4 	6 	1 	Joueur
-        // Contre jan de deux tables 	4 	6 	1 	Adversaire
-        // Contre jan de mézéas 	4 	6 	1 	Adversaire
-        // « JAN QUI NE PEUT »
-        // Battre à faux une dame
-        // située dans la table des grands jans 	2 	4 	1 	Adversaire
-        // Battre à faux une dame
-        // située dans la table des petits jans 	4 	6 	1 	Adversaire
-        // Pour chaque dé non jouable (dame impuissante) 	2 	2 	n/a 	Adversaire
-        // Conserver un petit jan, un grand jan ou un jan de retour 	4 	6 	1 	Joueur
-        // « AUTRE »
-        // Sortir le premier toutes ses dames 	4 	6 	n/a 	Joueur
-
-        points
+        (points, adv_points)
     }
 }
 
@@ -465,7 +480,7 @@ mod tests {
             2, 0, -1, -1, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         ]);
         rules.set_dice(Dice { values: (2, 3) });
-        assert_eq!(12, rules.get_points());
+        assert_eq!(12, rules.get_points().0);
 
         //  Battre à vrai une dame située dans la table des grands jans : 2 + 2 = 4
         let mut rules = PointsRules::default();
@@ -473,21 +488,21 @@ mod tests {
             2, 0, 0, -1, 2, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         ]);
         rules.set_dice(Dice { values: (2, 4) });
-        assert_eq!(4, rules.get_points());
+        assert_eq!(4, rules.get_points().0);
 
         //  Battre à vrai le coin adverse par doublet : 6
         rules.update_positions([
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         ]);
         rules.set_dice(Dice { values: (2, 2) });
-        assert_eq!(6, rules.get_points());
+        assert_eq!(6, rules.get_points().0);
 
         //  Cas de battage du coin de repos adverse impossible
         rules.update_positions([
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         ]);
         rules.set_dice(Dice { values: (1, 1) });
-        assert_eq!(0, rules.get_points());
+        assert_eq!(0, rules.get_points().0);
 
         // ---- Jan de remplissage
         // Faire un petit jan : 4
@@ -496,28 +511,28 @@ mod tests {
         ]);
         rules.set_dice(Dice { values: (2, 1) });
         assert_eq!(1, rules.get_jans(&rules.board).len());
-        assert_eq!(4, rules.get_points());
+        assert_eq!(4, rules.get_points().0);
 
         // Faire un petit jan avec un doublet : 6
         rules.update_positions([
             2, 3, 1, 2, 2, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         ]);
         rules.set_dice(Dice { values: (1, 1) });
-        assert_eq!(6, rules.get_points());
+        assert_eq!(6, rules.get_points().0);
 
         // Faire un petit jan avec 2 moyens : 6 + 6 = 12
         rules.update_positions([
             3, 3, 1, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         ]);
         rules.set_dice(Dice { values: (1, 1) });
-        assert_eq!(12, rules.get_points());
+        assert_eq!(12, rules.get_points().0);
 
         // Conserver un jan avec un doublet : 6
         rules.update_positions([
             3, 3, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         ]);
         rules.set_dice(Dice { values: (1, 1) });
-        assert_eq!(6, rules.get_points());
+        assert_eq!(6, rules.get_points().0);
 
         // ----  Sorties
         // Sortir toutes ses dames avant l'adversaire (simple)
@@ -525,14 +540,14 @@ mod tests {
             0, 0, -2, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,
         ]);
         rules.set_dice(Dice { values: (3, 1) });
-        assert_eq!(4, rules.get_points());
+        assert_eq!(4, rules.get_points().0);
 
         // Sortir toutes ses dames avant l'adversaire (doublet)
         rules.update_positions([
             0, 0, -2, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0,
         ]);
         rules.set_dice(Dice { values: (2, 2) });
-        assert_eq!(6, rules.get_points());
+        assert_eq!(6, rules.get_points().0);
 
         // ---- JANS  RARES
         // Jan de six tables
@@ -540,33 +555,55 @@ mod tests {
             10, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0,
         ]);
         rules.set_dice(Dice { values: (2, 3) });
-        assert_eq!(4, rules.get_points());
+        assert_eq!(4, rules.get_points().0);
         rules.update_positions([
             10, 1, 0, 0, 1, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0,
         ]);
         rules.set_dice(Dice { values: (2, 3) });
-        assert_eq!(0, rules.get_points());
+        assert_eq!(0, rules.get_points().0);
         rules.update_positions([
             10, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0,
         ]);
         rules.set_dice(Dice { values: (2, 3) });
-        assert_eq!(0, rules.get_points());
+        assert_eq!(0, rules.get_points().0);
 
         // Jan de deux tables
         rules.update_positions([
             13, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0,
         ]);
         rules.set_dice(Dice { values: (2, 2) });
-        assert_eq!(6, rules.get_points());
+        assert_eq!(6, rules.get_points().0);
         rules.update_positions([
             12, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0,
         ]);
         rules.set_dice(Dice { values: (2, 2) });
-        assert_eq!(0, rules.get_points());
+        assert_eq!(0, rules.get_points().0);
+
+        // Contre jan de deux tables
+        rules.update_positions([
+            13, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, -2, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0,
+        ]);
+        rules.set_dice(Dice { values: (2, 2) });
+        assert_eq!((0, 6), rules.get_points());
 
         // Jan de mézéas
-        // Contre jan de deux tables
+        rules.update_positions([
+            13, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0,
+        ]);
+        rules.set_dice(Dice { values: (1, 1) });
+        assert_eq!(6, rules.get_points().0);
+        rules.update_positions([
+            13, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0,
+        ]);
+        rules.set_dice(Dice { values: (1, 2) });
+        assert_eq!(4, rules.get_points().0);
+
         // Contre jan de mézéas
+        rules.update_positions([
+            13, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, -2, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0,
+        ]);
+        rules.set_dice(Dice { values: (1, 1) });
+        assert_eq!((0, 6), rules.get_points());
 
         // ---- JANS QUI NE PEUT
         // Battre à faux une dame située dans la table des grands jans

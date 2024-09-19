@@ -81,6 +81,11 @@ impl CheckerMove {
     pub fn is_exit(&self) -> bool {
         self.to == 0 && self != &EMPTY_MOVE
     }
+
+    pub fn doable_with_dice(&self, dice: usize) -> bool {
+        (self.to == 0 && 25 - self.from <= dice)
+            || (self.from < self.to && self.to - self.from == dice)
+    }
 }
 
 /// Represents the Tric Trac board
@@ -303,7 +308,7 @@ impl Board {
         // the square is blocked on the opponent rest corner
         let opp_corner_field = if color == &Color::White { 13 } else { 12 };
         self.passage_blocked(color, field)
-            // .map(|blocked| blocked || opp_corner_field == field)
+        // .map(|blocked| blocked || opp_corner_field == field)
     }
 
     pub fn passage_blocked(&self, color: &Color, field: Field) -> Result<bool, Error> {

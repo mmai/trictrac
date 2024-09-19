@@ -227,7 +227,7 @@ impl MoveRules {
 
         // Oponnent corner
         let corner_field: Field = self.board.get_color_corner(&Color::Black);
-        if to1 == corner_field || ( to0 == corner_field && to0 != from1 ) {
+        if to1 == corner_field || (to0 == corner_field && to0 != from1) {
             return Err(MoveError::OpponentCorner);
         }
 
@@ -315,7 +315,7 @@ impl MoveRules {
         };
         let mut moves_seqs =
             self.get_possible_moves_sequences_by_dices(dice_max, dice_min, with_excedents, false);
-        // if we got valid sequences whith the highest die, we don't accept sequences using only the
+        // if we got valid sequences with the highest die, we don't accept sequences using only the
         // lowest die
         let ignore_empty = !moves_seqs.is_empty();
         let mut moves_seqs_order2 = self.get_possible_moves_sequences_by_dices(
@@ -679,6 +679,29 @@ mod tests {
             Err(MoveError::OpponentCanFillQuarter),
             state.moves_allowed(&moves)
         );
+
+        state.board.set_positions([
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, -12, 0, 0, 0, 0, 1, 0,
+        ]);
+        state.dice.values = (5, 5);
+        let moves = (
+            CheckerMove::new(11, 16).unwrap(),
+            CheckerMove::new(16, 21).unwrap(),
+        );
+        assert!(state.moves_allowed(&moves).is_ok());
+
+        state.board.set_positions([
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1, -12,
+        ]);
+        state.dice.values = (5, 5);
+        let moves = (
+            CheckerMove::new(11, 16).unwrap(),
+            CheckerMove::new(16, 21).unwrap(),
+        );
+        assert_eq!(
+            Err(MoveError::OpponentCanFillQuarter),
+            state.moves_allowed(&moves)
+        );
     }
 
     #[test]
@@ -953,7 +976,7 @@ mod tests {
         // );
         assert_eq!(2, filling_moves_sequences.len());
 
-        // positions 
+        // positions
         state.board.set_positions([
             2, 2, 2, 2, 2, 2, 2, 1, 0, 0, 0, 0, 0, -2, 0, 0, 0, -2, 0, -2, -2, -2, -2, -3,
         ]);
@@ -1006,10 +1029,7 @@ mod tests {
             CheckerMove::new(6, 12).unwrap(),
             CheckerMove::new(7, 12).unwrap(),
         );
-        assert_eq!(
-            Err(MoveError::MustFillQuarter),
-            state.moves_allowed(&moves)
-        );
+        assert_eq!(Err(MoveError::MustFillQuarter), state.moves_allowed(&moves));
 
         // seul mouvement possible
         let moves = (
@@ -1017,9 +1037,23 @@ mod tests {
             CheckerMove::new(13, 19).unwrap(),
         );
         println!("{:?}", state.moves_allowed(&moves));
-        assert!( state.moves_allowed(&moves).is_ok());
-
+        assert!(state.moves_allowed(&moves).is_ok());
 
         // s'il n'y a pas d'autre solution, on peut rompre
+    }
+
+    #[test]
+    fn get_possible_moves_sequences() {
+        let mut state = MoveRules::default();
+
+        state.board.set_positions([
+            2, 0, -2, -2, 0, -1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ]);
+        state.dice.values = (2, 3);
+        let moves = (
+            CheckerMove::new(9, 11).unwrap(),
+            CheckerMove::new(11, 14).unwrap(),
+        );
+        assert_eq!(vec![moves], state.get_possible_moves_sequences(true));
     }
 }

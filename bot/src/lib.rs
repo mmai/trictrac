@@ -52,6 +52,10 @@ impl Bot {
         // println!("bot player_id {:?}", self.player_id);
         if self.game.active_player_id == self.player_id {
             return match self.game.turn_stage {
+                TurnStage::MarkAdvPoints => Some(GameEvent::Mark {
+                    player_id: self.player_id,
+                    points: self.calculate_adv_points(),
+                }),
                 TurnStage::RollDice => Some(GameEvent::Roll {
                     player_id: self.player_id,
                 }),
@@ -70,8 +74,13 @@ impl Bot {
     }
 
     fn calculate_points(&self) -> u8 {
-        // self.game.get_points().iter().map(|r| r.0).sum()
-        0
+        let points_rules = PointsRules::new(&Color::White, &self.game.board, self.game.dice);
+        points_rules.get_points().0
+    }
+
+    fn calculate_adv_points(&self) -> u8 {
+        let points_rules = PointsRules::new(&Color::White, &self.game.board, self.game.dice);
+        points_rules.get_points().1
     }
 
     fn choose_move(&self) -> (CheckerMove, CheckerMove) {

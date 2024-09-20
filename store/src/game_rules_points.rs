@@ -441,7 +441,7 @@ impl PointsRules {
         jans
     }
 
-    pub fn get_points(&self) -> (i8, i8) {
+    pub fn get_points(&self) -> (u8, u8) {
         let jans = self.get_jans(&self.board);
         let (points, adv_points) = jans
             .into_iter()
@@ -460,7 +460,7 @@ impl PointsRules {
                 }
             });
 
-        (points, adv_points)
+        (points as u8, adv_points as u8)
     }
 }
 

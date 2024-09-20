@@ -28,6 +28,7 @@ pub enum TurnStage {
     RollWaiting,
     MarkPoints,
     Move,
+    MarkAdvPoints,
 }
 
 /// Represents a TricTrac game
@@ -105,12 +106,13 @@ impl GameState {
                 .unwrap_or('0'), // White by default
         );
 
-        // step  -> 2 bits
+        // step  -> 3 bits
         let step_bits = match self.turn_stage {
-            TurnStage::RollWaiting => "00",
-            TurnStage::RollDice => "01",
-            TurnStage::MarkPoints => "10",
-            TurnStage::Move => "11",
+            TurnStage::RollWaiting => "000",
+            TurnStage::RollDice => "001",
+            TurnStage::MarkPoints => "010",
+            TurnStage::Move => "011",
+            TurnStage::MarkAdvPoints => "100",
         };
         pos_bits.push_str(step_bits);
 
@@ -365,7 +367,11 @@ impl GameState {
             Mark { player_id, points } => {
                 self.mark_points(*player_id, *points);
                 if self.stage != Stage::Ended {
-                    self.turn_stage = TurnStage::Move;
+                    self.turn_stage = if self.turn_stage == TurnStage::MarkAdvPoints {
+                        TurnStage::RollDice
+                    } else {
+                        TurnStage::Move
+                    };
                 }
             }
             Move { player_id, moves } => {
@@ -373,7 +379,7 @@ impl GameState {
                 self.board.move_checker(&player.color, moves.0).unwrap();
                 self.board.move_checker(&player.color, moves.1).unwrap();
                 self.active_player_id = *self.players.keys().find(|id| *id != player_id).unwrap();
-                self.turn_stage = TurnStage::RollDice;
+                self.turn_stage = TurnStage::MarkAdvPoints;
             }
         }
 
@@ -446,6 +452,6 @@ mod tests {
         state.add_player(2, Player::new("player2".into(), Color::Black));
         let string_id = state.to_string_id();
         // println!("string_id : {}", string_id);
-        assert!(string_id == "Dz8+AAAAAT8/MAAAAAQAADAD");
+        assert!(string_id == "Hz88AAAAAz8/IAAAAAQAADAD");
     }
 }

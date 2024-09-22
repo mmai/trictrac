@@ -2,7 +2,9 @@ use itertools::Itertools;
 
 use bot::Bot;
 use pretty_assertions::assert_eq;
-use store::{CheckerMove, DiceRoller, GameEvent, GameState, PlayerId, Stage, TurnStage};
+use store::{
+    CheckerMove, DiceRoller, GameEvent, GameState, PlayerId, PointsRules, Stage, TurnStage,
+};
 
 #[derive(Debug, Default)]
 pub struct AppArgs {
@@ -21,14 +23,14 @@ pub struct Game {
 
 impl Game {
     // Constructs a new instance of [`App`].
-    pub fn new(seed: Option<u64>) -> Self {
-        let mut state = GameState::default();
+    pub fn new(schools_enabled: bool, seed: Option<u64>) -> Self {
+        let mut state = GameState::new(schools_enabled);
         // local : player
         let player_id: Option<PlayerId> = state.init_player("myself");
         // bot
         let bot_id: PlayerId = state.init_player("bot").unwrap();
         let bot_color = state.player_color_by_id(&bot_id).unwrap();
-        let bot: Bot = Bot::new(bot_color);
+        let bot: Bot = Bot::new(bot_color, schools_enabled);
 
         let mut game = Self {
             state,
@@ -77,20 +79,23 @@ impl Game {
 pub struct App {
     // should the application exit?
     pub should_quit: bool,
+    pub schools_enabled: bool,
     pub game: Game,
 }
 
 impl App {
     // Constructs a new instance of [`App`].
     pub fn new(args: AppArgs) -> Self {
+        let schools_enabled = false;
         Self {
-            game: Game::new(args.seed.map(|s| s as u64)),
+            game: Game::new(schools_enabled, args.seed.map(|s| s as u64)),
             should_quit: false,
+            schools_enabled,
         }
     }
 
     pub fn start(&mut self) {
-        self.game.state = GameState::new();
+        self.game.state = GameState::new(self.schools_enabled);
     }
 
     pub fn input(&mut self, input: &str) {
@@ -130,6 +135,17 @@ impl App {
             return;
         }
         let dice = self.game.dice_roller.roll();
+
+        // get correct points for these board and dice
+        let points_rules = PointsRules::new(
+            &self
+                .game
+                .state
+                .player_color_by_id(&self.game.player_id.unwrap())
+                .unwrap(),
+            &self.game.state.board,
+            dice,
+        );
         self.game.handle_event(&GameEvent::RollResult {
             player_id: self.game.player_id.unwrap(),
             dice,
@@ -247,7 +263,7 @@ Rolled dice : 0 & 0
     #[test]
     fn test_move() {
         let expected = "-------------------------------
-InGame > myself > RollDice
+InGame > myself > MarkAdvPoints
 Rolled dice : 4 & 6
 
 Player      :: holes :: points

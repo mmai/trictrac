@@ -443,10 +443,13 @@ impl PointsRules {
 
     pub fn get_points(&self) -> (u8, u8) {
         let jans = self.get_jans(&self.board);
+        // if !jans.is_empty() {
+        //     println!("get points : {:?}", jans);
+        // }
         let (points, adv_points) = jans
             .into_iter()
             .fold((0, 0), |acc: (i8, i8), (jan, moves)| {
-                println!("get_points : {:?}", jan);
+                // println!("get_points : {:?}", jan);
                 let is_double = if jan == Jan::HelplessMan {
                     moves[0] == (CheckerMove::default(), CheckerMove::default())
                 } else {

@@ -9,6 +9,7 @@ pub struct Bot {
     pub game: GameState,
     pub player_id: PlayerId,
     color: Color,
+    schools_enabled: bool,
 }
 
 impl Default for Bot {
@@ -17,6 +18,7 @@ impl Default for Bot {
             game: GameState::default(),
             player_id: 1,
             color: Color::Black,
+            schools_enabled: false,
         }
     }
 }
@@ -29,7 +31,7 @@ impl Bot {
     /// ```let mut bot = Bot::new(Color::Black);
     ///    assert_eq!(bot.game.stage, Stage::PreGame);
     /// ```
-    pub fn new(color: Color) -> Self {
+    pub fn new(color: Color, schools_enabled: bool) -> Self {
         let mut game = GameState::default();
         game.init_player("p1");
         game.init_player("p2");
@@ -43,6 +45,7 @@ impl Bot {
             game,
             player_id,
             color,
+            schools_enabled: false,
         }
     }
 
@@ -107,13 +110,13 @@ mod tests {
 
     #[test]
     fn test_new() {
-        let bot = Bot::new(Color::Black);
+        let bot = Bot::new(Color::Black, false);
         assert_eq!(bot.game.stage, Stage::PreGame);
     }
 
     #[test]
     fn test_consume() {
-        let mut bot = Bot::new(Color::Black);
+        let mut bot = Bot::new(Color::Black, false);
         let mut event = bot.handle_event(&GameEvent::BeginGame { goes_first: 2 });
         assert_eq!(event, Some(GameEvent::Roll { player_id: 2 }));
 
@@ -124,6 +127,6 @@ mod tests {
             player_id: 2,
             dice: Dice { values: (2, 3) },
         });
-        assert_eq!(bot.game.turn_stage, TurnStage::MarkPoints);
+        assert_eq!(bot.game.turn_stage, TurnStage::Move);
     }
 }

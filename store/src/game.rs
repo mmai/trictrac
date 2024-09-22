@@ -42,8 +42,12 @@ pub struct GameState {
     pub history: Vec<GameEvent>,
     /// last dice pair rolled
     pub dice: Dice,
+    /// players points computed for the last dice pair rolled
+    dice_points: (u8, u8),
     /// true if player needs to roll first
     roll_first: bool,
+    // NOTE: add to a Setting struct if other fields needed
+    pub schools_enabled: bool,
 }
 
 // implement Display trait
@@ -71,15 +75,33 @@ impl Default for GameState {
             players: HashMap::new(),
             history: Vec::new(),
             dice: Dice::default(),
+            dice_points: (0, 0),
             roll_first: true,
+            schools_enabled: false,
         }
     }
 }
 
 impl GameState {
     /// Create a new default game
-    pub fn new() -> Self {
-        GameState::default()
+    pub fn new(schools_enabled: bool) -> Self {
+        let mut gs = GameState::default();
+        gs.set_schools_enabled(schools_enabled);
+        gs
+    }
+
+    fn set_schools_enabled(&mut self, schools_enabled: bool) {
+        self.schools_enabled = schools_enabled;
+    }
+
+    fn get_opponent_id(&self) -> Option<PlayerId> {
+        self.players
+            .keys()
+            .map(|k| *k)
+            .filter(|k| k != &self.active_player_id)
+            .collect::<Vec<PlayerId>>()
+            .first()
+            .copied()
     }
 
     // -------------------------------------------------------------------------
@@ -358,11 +380,30 @@ impl GameState {
                 self.players.remove(player_id);
             }
             Roll { player_id: _ } => {
-                self.turn_stage = TurnStage::RollWaiting;
+                // Opponent has moved, we can mark pending points earned during opponent's turn
+                self.mark_points(self.active_player_id, self.dice_points.1);
+                if self.stage != Stage::Ended {
+                    self.turn_stage = TurnStage::RollWaiting;
+                }
             }
-            RollResult { player_id: _, dice } => {
+            RollResult { player_id, dice } => {
                 self.dice = *dice;
                 self.turn_stage = TurnStage::MarkPoints;
+                // We compute points for the move
+                let points_rules = PointsRules::new(
+                    &self.player_color_by_id(&self.active_player_id).unwrap(),
+                    &self.board,
+                    *dice,
+                );
+                self.dice_points = points_rules.get_points();
+                if !self.schools_enabled {
+                    // Schools are not enabled. We mark points automatically
+                    // the points earned by the opponent will be marked on its turn
+                    self.mark_points(self.active_player_id, self.dice_points.0);
+                    if self.stage != Stage::Ended {
+                        self.turn_stage = TurnStage::Move;
+                    }
+                }
             }
             Mark { player_id, points } => {
                 self.mark_points(*player_id, *points);
@@ -379,7 +420,11 @@ impl GameState {
                 self.board.move_checker(&player.color, moves.0).unwrap();
                 self.board.move_checker(&player.color, moves.1).unwrap();
                 self.active_player_id = *self.players.keys().find(|id| *id != player_id).unwrap();
-                self.turn_stage = TurnStage::MarkAdvPoints;
+                self.turn_stage = if self.schools_enabled {
+                    TurnStage::MarkAdvPoints
+                } else {
+                    TurnStage::RollDice
+                };
             }
         }
 
@@ -393,7 +438,9 @@ impl GameState {
 
     fn mark_points(&mut self, player_id: PlayerId, points: u8) {
         self.players.get_mut(&player_id).map(|p| {
-            p.points += points;
+            let sum_points = p.points + points;
+            p.points = sum_points % 12;
+            p.holes += sum_points / 12;
             p
         });
     }

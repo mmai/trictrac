@@ -28,6 +28,9 @@ pub struct Player {
     pub holes: u8,
     pub can_bredouille: bool,
     pub can_big_bredouille: bool,
+    /// Number of dice rolls since beginning of the current setting (all 15 dames in the talon )
+    /// (used to check jan de 3 coups)
+    pub dice_roll_count: u8,
 }
 
 impl Player {
@@ -39,6 +42,7 @@ impl Player {
             holes: 0,
             can_bredouille: true,
             can_big_bredouille: true,
+            dice_roll_count: 0,
         }
     }
 
@@ -113,6 +117,7 @@ mod tests {
             holes: 3,
             can_bredouille: true,
             can_big_bredouille: false,
+            dice_roll_count: 0,
         };
         println!("{}", player.to_bits_string());
         assert!(player.to_bits_string() == "1011001110");

@@ -209,7 +209,7 @@ impl App {
                 let player = &self.game.state.players[player_id];
                 output += format!(
                     "\n{}. {:<8} :: {:<5} :: {}",
-                    &player_id, &player.name, &player.holes, &player.points
+                    &player_id, &player.name, &player.holes, &player.points,
                 )
                 .as_str();
             }
@@ -263,7 +263,7 @@ Rolled dice : 0 & 0
     #[test]
     fn test_move() {
         let expected = "-------------------------------
-InGame > myself > MarkAdvPoints
+InGame > myself > RollDice
 Rolled dice : 4 & 6
 
 Player      :: holes :: points

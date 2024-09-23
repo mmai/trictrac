@@ -373,6 +373,7 @@ impl GameState {
                         points: 0,
                         can_bredouille: true,
                         can_big_bredouille: true,
+                        dice_roll_count: 0,
                     },
                 );
             }
@@ -388,14 +389,9 @@ impl GameState {
             }
             RollResult { player_id, dice } => {
                 self.dice = *dice;
+                self.inc_roll_count(self.active_player_id);
                 self.turn_stage = TurnStage::MarkPoints;
-                // We compute points for the move
-                let points_rules = PointsRules::new(
-                    &self.player_color_by_id(&self.active_player_id).unwrap(),
-                    &self.board,
-                    *dice,
-                );
-                self.dice_points = points_rules.get_points();
+                self.dice_points = self.get_rollresult_points(dice);
                 if !self.schools_enabled {
                     // Schools are not enabled. We mark points automatically
                     // the points earned by the opponent will be marked on its turn
@@ -431,9 +427,22 @@ impl GameState {
         self.history.push(valid_event.clone());
     }
 
+    fn get_rollresult_points(&self, dice: &Dice) -> (u8, u8) {
+        let player = &self.players.get(&self.active_player_id).unwrap();
+        let points_rules = PointsRules::new(&player.color, &self.board, *dice);
+        points_rules.get_points(player.dice_roll_count)
+    }
+
     /// Determines if someone has won the game
     pub fn determine_winner(&self) -> Option<PlayerId> {
         None
+    }
+
+    fn inc_roll_count(&mut self, player_id: PlayerId) {
+        self.players.get_mut(&player_id).map(|p| {
+            p.dice_roll_count += 1;
+            p
+        });
     }
 
     fn mark_points(&mut self, player_id: PlayerId, points: u8) {

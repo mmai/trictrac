@@ -448,8 +448,14 @@ impl GameState {
     fn mark_points(&mut self, player_id: PlayerId, points: u8) {
         self.players.get_mut(&player_id).map(|p| {
             let sum_points = p.points + points;
+            let jeux = sum_points / 12;
+
             p.points = sum_points % 12;
-            p.holes += sum_points / 12;
+            p.holes += match (jeux, p.can_bredouille) {
+                (0, _) => 0,
+                (_, false) => 2 * jeux - 1,
+                (_, true) => 2 * jeux,
+            };
             p
         });
     }

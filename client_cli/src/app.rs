@@ -105,6 +105,7 @@ impl App {
             "history" => self.show_history(),
             "quit" => self.quit(),
             "roll" => self.roll_dice(),
+            "go" => self.go(),
             _ => self.add_move(input),
         }
         println!("{}", self.display());
@@ -149,6 +150,20 @@ impl App {
         self.game.handle_event(&GameEvent::RollResult {
             player_id: self.game.player_id.unwrap(),
             dice,
+        });
+    }
+
+    fn go(&mut self) {
+        if self.game.player_id.is_none() {
+            println!("player_id not set ");
+            return;
+        }
+        if self.game.state.turn_stage != TurnStage::HoldOrGoChoice {
+            println!("Not in position to go");
+            return;
+        }
+        self.game.handle_event(&GameEvent::Go {
+            player_id: self.game.player_id.unwrap(),
         });
     }
 

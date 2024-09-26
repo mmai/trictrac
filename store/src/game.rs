@@ -27,6 +27,7 @@ pub enum TurnStage {
     RollDice,
     RollWaiting,
     MarkPoints,
+    HoldOrGoChoice,
     Move,
     MarkAdvPoints,
 }
@@ -133,8 +134,9 @@ impl GameState {
             TurnStage::RollWaiting => "000",
             TurnStage::RollDice => "001",
             TurnStage::MarkPoints => "010",
-            TurnStage::Move => "011",
-            TurnStage::MarkAdvPoints => "100",
+            TurnStage::HoldOrGoChoice => "011",
+            TurnStage::Move => "100",
+            TurnStage::MarkAdvPoints => "101",
         };
         pos_bits.push_str(step_bits);
 
@@ -273,6 +275,20 @@ impl GameState {
                 //     return false;
                 // }
             }
+            Go { player_id } => {
+                if !self.players.contains_key(player_id) {
+                    error!("Player {} unknown", player_id);
+                    return false;
+                }
+                // Check player is currently the one making their move
+                if self.active_player_id != *player_id {
+                    return false;
+                }
+                // Check the player can leave (ie the game is in the KeepOrLeaveChoice stage)
+                if self.turn_stage != TurnStage::HoldOrGoChoice {
+                    return false;
+                }
+            }
             Move { player_id, moves } => {
                 // Check player exists
                 if !self.players.contains_key(player_id) {
@@ -282,6 +298,12 @@ impl GameState {
                 // Check player is currently the one making their move
                 if self.active_player_id != *player_id {
                     error!("Player not active : {}", self.active_player_id);
+                    return false;
+                }
+                // Check the turn stage
+                if self.turn_stage != TurnStage::HoldOrGoChoice
+                    || self.turn_stage != TurnStage::Move
+                {
                     return false;
                 }
                 let color = &self.players[player_id].color;
@@ -411,6 +433,7 @@ impl GameState {
                     };
                 }
             }
+            Go { player_id } => self.new_pick_up()
             Move { player_id, moves } => {
                 let player = self.players.get(player_id).unwrap();
                 self.board.move_checker(&player.color, moves.0).unwrap();
@@ -425,6 +448,21 @@ impl GameState {
         }
 
         self.history.push(valid_event.clone());
+    }
+
+    /// Set a new pick up ('relevé') after a player won a hole and choose to 'go',
+    /// or after a player has bore off (took of his men off the board)
+    fn new_pick_up(&mut self) {
+        // réinitialisation dice_roll_count
+        self.players.iter_mut().map(|(id, p)| p.dice_roll_count = 0);
+        // joueur actif = joueur ayant sorti ses dames (donc deux jeux successifs)
+        self.turn_stage = TurnStage::RollDice;
+        
+        // TODO:
+        // - échanger les couleurs
+        // - remettre les dames des deux joueurs aux talons
+        // - jeton bredouille replaçé sur joueur actif (?)
+
     }
 
     fn get_rollresult_points(&self, dice: &Dice) -> (u8, u8) {
@@ -496,6 +534,9 @@ pub enum GameEvent {
     Mark {
         player_id: PlayerId,
         points: u8,
+    },
+    Go {
+        player_id: PlayerId,
     },
     Move {
         player_id: PlayerId,

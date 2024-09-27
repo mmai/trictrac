@@ -301,8 +301,8 @@ impl GameState {
                     return false;
                 }
                 // Check the turn stage
-                if self.turn_stage != TurnStage::HoldOrGoChoice
-                    || self.turn_stage != TurnStage::Move
+                if self.turn_stage != TurnStage::Move
+                    && self.turn_stage != TurnStage::HoldOrGoChoice
                 {
                     return false;
                 }
@@ -453,15 +453,20 @@ impl GameState {
     /// Set a new pick up ('relevé') after a player won a hole and choose to 'go',
     /// or after a player has bore off (took of his men off the board)
     fn new_pick_up(&mut self) {
-        // réinitialisation dice_roll_count
-        self.players.iter_mut().map(|(id, p)| p.dice_roll_count = 0);
-        // joueur actif = joueur ayant sorti ses dames (donc deux jeux successifs)
+        self.players.iter_mut().for_each(|(_id, p)| {
+            // reset points
+            p.points = 0;
+            // reset dice_roll_count
+            p.dice_roll_count = 0;
+            // reset bredouille
+            p.can_bredouille = true;
+            // switch colors
+            p.color = p.color.opponent_color();
+        });
+        // joueur actif = joueur ayant sorti ses dames ou est parti (donc deux jeux successifs)
         self.turn_stage = TurnStage::RollDice;
-
-        // TODO:
-        // - échanger les couleurs
-        // - remettre les dames des deux joueurs aux talons
-        // - jeton bredouille replaçé sur joueur actif (?)
+        // reset board
+        self.board = Board::new();
     }
 
     fn get_rollresult_points(&self, dice: &Dice) -> (u8, u8) {

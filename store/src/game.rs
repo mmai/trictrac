@@ -433,7 +433,7 @@ impl GameState {
                     };
                 }
             }
-            Go { player_id } => self.new_pick_up()
+            Go { player_id } => self.new_pick_up(),
             Move { player_id, moves } => {
                 let player = self.players.get(player_id).unwrap();
                 self.board.move_checker(&player.color, moves.0).unwrap();
@@ -457,12 +457,11 @@ impl GameState {
         self.players.iter_mut().map(|(id, p)| p.dice_roll_count = 0);
         // joueur actif = joueur ayant sorti ses dames (donc deux jeux successifs)
         self.turn_stage = TurnStage::RollDice;
-        
+
         // TODO:
         // - échanger les couleurs
         // - remettre les dames des deux joueurs aux talons
         // - jeton bredouille replaçé sur joueur actif (?)
-
     }
 
     fn get_rollresult_points(&self, dice: &Dice) -> (u8, u8) {
@@ -473,7 +472,12 @@ impl GameState {
 
     /// Determines if someone has won the game
     pub fn determine_winner(&self) -> Option<PlayerId> {
-        None
+        // A player has won if he has got 12 holes
+        self.players
+            .iter()
+            .filter(|(id, p)| p.holes > 11)
+            .map(|(id, p)| *id)
+            .next()
     }
 
     fn inc_roll_count(&mut self, player_id: PlayerId) {

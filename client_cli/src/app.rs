@@ -201,10 +201,23 @@ impl App {
     }
 
     pub fn display(&mut self) -> String {
+        let winner = self
+            .game
+            .state
+            .determine_winner()
+            .and_then(|id| self.game.state.players.get(&id));
+        let str_won: String = winner
+            .map(|p| {
+                let mut name = " winner: ".to_owned();
+                name.push_str(&p.name);
+                name
+            })
+            .unwrap_or("".to_owned());
         let mut output = "-------------------------------".to_owned();
         output += format!(
-            "\n{:?} > {} > {:?}",
+            "\n{:?}{} > {} > {:?}",
             self.game.state.stage,
+            str_won,
             self.game
                 .state
                 .who_plays()

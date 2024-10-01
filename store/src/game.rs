@@ -95,6 +95,10 @@ impl GameState {
         self.schools_enabled = schools_enabled;
     }
 
+    fn get_active_player(&self) -> Option<&Player> {
+        self.players.get(&self.active_player_id)
+    }
+
     fn get_opponent_id(&self) -> Option<PlayerId> {
         self.players
             .keys()
@@ -404,8 +408,10 @@ impl GameState {
             }
             Roll { player_id: _ } => {
                 // Opponent has moved, we can mark pending points earned during opponent's turn
-                self.mark_points(self.active_player_id, self.dice_points.1);
-                if self.stage != Stage::Ended {
+                let new_hole = self.mark_points(self.active_player_id, self.dice_points.1);
+                if new_hole && self.get_active_player().unwrap().holes > 12 {
+                    self.stage = Stage::Ended;
+                } else {
                     self.turn_stage = TurnStage::RollWaiting;
                 }
             }
@@ -417,15 +423,31 @@ impl GameState {
                 if !self.schools_enabled {
                     // Schools are not enabled. We mark points automatically
                     // the points earned by the opponent will be marked on its turn
-                    self.mark_points(self.active_player_id, self.dice_points.0);
-                    if self.stage != Stage::Ended {
+                    let new_hole = self.mark_points(self.active_player_id, self.dice_points.0);
+                    if new_hole {
+                        if self.get_active_player().unwrap().holes > 12 {
+                            self.stage = Stage::Ended;
+                        } else {
+                            self.turn_stage = TurnStage::HoldOrGoChoice;
+                        }
+                    } else {
                         self.turn_stage = TurnStage::Move;
                     }
                 }
             }
             Mark { player_id, points } => {
-                self.mark_points(*player_id, *points);
-                if self.stage != Stage::Ended {
+                let new_hole = self.mark_points(*player_id, *points);
+                if new_hole {
+                    if self.get_active_player().unwrap().holes > 12 {
+                        self.stage = Stage::Ended;
+                    } else {
+                        self.turn_stage = if self.turn_stage == TurnStage::MarkAdvPoints {
+                            TurnStage::RollDice
+                        } else {
+                            TurnStage::HoldOrGoChoice
+                        };
+                    }
+                } else {
                     self.turn_stage = if self.turn_stage == TurnStage::MarkAdvPoints {
                         TurnStage::RollDice
                     } else {
@@ -446,7 +468,6 @@ impl GameState {
                 };
             }
         }
-
         self.history.push(valid_event.clone());
     }
 
@@ -492,19 +513,23 @@ impl GameState {
         });
     }
 
-    fn mark_points(&mut self, player_id: PlayerId, points: u8) {
+    fn mark_points(&mut self, player_id: PlayerId, points: u8) -> bool {
+        let mut new_hole = false;
         self.players.get_mut(&player_id).map(|p| {
             let sum_points = p.points + points;
             let jeux = sum_points / 12;
-
-            p.points = sum_points % 12;
-            p.holes += match (jeux, p.can_bredouille) {
+            let holes = match (jeux, p.can_bredouille) {
                 (0, _) => 0,
                 (_, false) => 2 * jeux - 1,
                 (_, true) => 2 * jeux,
             };
+
+            new_hole = holes > 0;
+            p.points = sum_points % 12;
+            p.holes += holes;
             p
         });
+        new_hole
     }
 }
 
@@ -557,13 +582,46 @@ pub enum GameEvent {
 mod tests {
     use super::*;
 
-    #[test]
-    fn to_string_id() {
+    fn init_test_gamestate(turn: TurnStage) -> GameState {
         let mut state = GameState::default();
         state.add_player(1, Player::new("player1".into(), Color::White));
         state.add_player(2, Player::new("player2".into(), Color::Black));
+        state.active_player_id = 1;
+        state.turn_stage = turn;
+        state
+    }
+
+    #[test]
+    fn to_string_id() {
+        let state = init_test_gamestate(TurnStage::RollDice);
         let string_id = state.to_string_id();
         // println!("string_id : {}", string_id);
-        assert!(string_id == "Hz88AAAAAz8/IAAAAAQAADAD");
+        assert_eq!(string_id, "Hz88AAAAAz8/IAAAAAQAADAD");
+    }
+
+    #[test]
+    fn hold_or_go() {
+        let mut game_state = init_test_gamestate(TurnStage::MarkPoints);
+        let pid = game_state.active_player_id;
+        game_state.consume(
+            &(GameEvent::Mark {
+                player_id: pid,
+                points: 13,
+            }),
+        );
+        let player = game_state.get_active_player().unwrap();
+        assert_eq!(player.points, 1);
+        assert_eq!(player.holes, 2); // because can bredouille
+        assert_eq!(game_state.turn_stage, TurnStage::HoldOrGoChoice);
+
+        game_state.consume(
+            &(GameEvent::Go {
+                player_id: game_state.active_player_id,
+            }),
+        );
+        assert_eq!(game_state.active_player_id, pid);
+        let player = game_state.get_active_player().unwrap();
+        assert_eq!(player.points, 0);
+        assert_eq!(game_state.turn_stage, TurnStage::RollDice);
     }
 }

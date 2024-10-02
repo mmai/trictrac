@@ -2,7 +2,7 @@
 use crate::board::{Board, CheckerMove};
 use crate::dice::Dice;
 use crate::game_rules_moves::MoveRules;
-use crate::game_rules_points::PointsRules;
+use crate::game_rules_points::{PointsRules, PossibleJans};
 use crate::player::{Color, Player, PlayerId};
 use log::error;
 
@@ -45,6 +45,8 @@ pub struct GameState {
     pub dice: Dice,
     /// players points computed for the last dice pair rolled
     dice_points: (u8, u8),
+    pub dice_moves: (CheckerMove, CheckerMove),
+    pub dice_jans: PossibleJans,
     /// true if player needs to roll first
     roll_first: bool,
     // NOTE: add to a Setting struct if other fields needed
@@ -77,6 +79,8 @@ impl Default for GameState {
             history: Vec::new(),
             dice: Dice::default(),
             dice_points: (0, 0),
+            dice_moves: (CheckerMove::default(), CheckerMove::default()),
+            dice_jans: PossibleJans::default(),
             roll_first: true,
             schools_enabled: false,
         }
@@ -339,7 +343,6 @@ impl GameState {
         }
 
         let player_id = self.players.len() + 1;
-        println!("player_id {}", player_id);
         let color = if player_id == 1 {
             Color::White
         } else {
@@ -419,7 +422,7 @@ impl GameState {
                 self.dice = *dice;
                 self.inc_roll_count(self.active_player_id);
                 self.turn_stage = TurnStage::MarkPoints;
-                self.dice_points = self.get_rollresult_points(dice);
+                (self.dice_jans, self.dice_points) = self.get_rollresult_jans(dice);
                 if !self.schools_enabled {
                     // Schools are not enabled. We mark points automatically
                     // the points earned by the opponent will be marked on its turn
@@ -460,6 +463,7 @@ impl GameState {
                 let player = self.players.get(player_id).unwrap();
                 self.board.move_checker(&player.color, moves.0).unwrap();
                 self.board.move_checker(&player.color, moves.1).unwrap();
+                self.dice_moves = *moves;
                 self.active_player_id = *self.players.keys().find(|id| *id != player_id).unwrap();
                 self.turn_stage = if self.schools_enabled {
                     TurnStage::MarkAdvPoints
@@ -490,10 +494,10 @@ impl GameState {
         self.board = Board::new();
     }
 
-    fn get_rollresult_points(&self, dice: &Dice) -> (u8, u8) {
+    fn get_rollresult_jans(&self, dice: &Dice) -> (PossibleJans, (u8, u8)) {
         let player = &self.players.get(&self.active_player_id).unwrap();
         let points_rules = PointsRules::new(&player.color, &self.board, *dice);
-        points_rules.get_points(player.dice_roll_count)
+        points_rules.get_result_jans(player.dice_roll_count)
     }
 
     /// Determines if someone has won the game

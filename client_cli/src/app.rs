@@ -230,6 +230,13 @@ impl App {
         output = output + "\nRolled dice : " + &self.game.state.dice.to_display_string();
 
         if self.game.state.stage != Stage::PreGame {
+            output = output + "\nRolled dice jans : " + &format!("{:?}", self.game.state.dice_jans);
+            output = output
+                + "\nLast move : "
+                + &self.game.state.dice_moves.0.to_display_string()
+                + ", "
+                + &self.game.state.dice_moves.1.to_display_string();
+
             // display players points
             output += format!("\n\n{:<11} :: {:<5} :: {}", "Player", "holes", "points").as_str();
 
@@ -293,6 +300,8 @@ Rolled dice : 0 & 0
         let expected = "-------------------------------
 InGame > myself > RollDice
 Rolled dice : 4 & 6
+Rolled dice jans : {}
+Last move : CheckerMove { from: 24, to: 20 } , CheckerMove { from: 24, to: 18 } 
 
 Player      :: holes :: points
 1. myself   :: 0     :: 0

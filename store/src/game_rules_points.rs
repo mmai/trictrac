@@ -1,14 +1,15 @@
-use std::cmp;
-use std::collections::HashMap;
-
 use crate::board::{Board, Field, EMPTY_MOVE};
-use crate::dice::{self, Dice};
+use crate::dice::Dice;
 use crate::game_rules_moves::MoveRules;
 use crate::player::Color;
 use crate::CheckerMove;
 use crate::Error;
 
-#[derive(PartialEq, Eq, Hash, Clone, Debug)]
+use serde::{Deserialize, Serialize};
+use std::cmp;
+use std::collections::HashMap;
+
+#[derive(PartialEq, Eq, Hash, Clone, Debug, Serialize, Deserialize)]
 pub enum Jan {
     FilledQuarter,
     TrueHitSmallJan,
@@ -61,9 +62,9 @@ impl Jan {
     }
 }
 
-type PossibleJans = HashMap<Jan, Vec<(CheckerMove, CheckerMove)>>;
+pub type PossibleJans = HashMap<Jan, Vec<(CheckerMove, CheckerMove)>>;
 
-trait PossibleJansMethods {
+pub trait PossibleJansMethods {
     fn push(&mut self, jan: Jan, cmoves: (CheckerMove, CheckerMove));
     fn merge(&mut self, other: Self);
     // fn get_points(&self) -> u8;
@@ -467,6 +468,12 @@ impl PointsRules {
     pub fn get_points(&self, dice_rolls_count: u8) -> (u8, u8) {
         let jans = self.get_jans(&self.board, dice_rolls_count);
         self.get_jans_points(jans)
+    }
+
+    pub fn get_result_jans(&self, dice_rolls_count: u8) -> (PossibleJans, (u8, u8)) {
+        let jans = self.get_jans(&self.board, dice_rolls_count);
+        let points_jans = jans.clone();
+        (jans, self.get_jans_points(points_jans))
     }
 }
 

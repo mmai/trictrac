@@ -35,6 +35,10 @@ impl Default for CheckerMove {
 }
 
 impl CheckerMove {
+    pub fn to_display_string(self) -> String {
+        format!("{:?} ", self)
+    }
+
     pub fn new(from: Field, to: Field) -> Result<Self, Error> {
         // println!("from {} to {}", from, to);
         // check if the field is on the board

@@ -514,6 +514,7 @@ impl GameState {
     }
 
     fn mark_points(&mut self, player_id: PlayerId, points: u8) -> bool {
+        // Update player points and holes
         let mut new_hole = false;
         self.players.get_mut(&player_id).map(|p| {
             let sum_points = p.points + points;
@@ -525,10 +526,35 @@ impl GameState {
             };
 
             new_hole = holes > 0;
+            if new_hole {
+                p.can_bredouille = true;
+            }
             p.points = sum_points % 12;
             p.holes += holes;
             p
         });
+
+        // Opponent updates
+        let maybe_op = if player_id == self.active_player_id {
+            self.get_opponent_id()
+        } else {
+            Some(player_id)
+        };
+        if let Some(opp_id) = maybe_op {
+            if points > 0 {
+                self.players.get_mut(&opp_id).map(|opponent| {
+                    // Cancel opponent bredouille
+                    opponent.can_bredouille = false;
+                    // Reset opponent points if the player finished a hole
+                    if new_hole {
+                        opponent.points = 0;
+                        opponent.can_bredouille = true;
+                    }
+                    opponent
+                });
+            }
+        }
+
         new_hole
     }
 }
@@ -614,6 +640,7 @@ mod tests {
         assert_eq!(player.holes, 2); // because can bredouille
         assert_eq!(game_state.turn_stage, TurnStage::HoldOrGoChoice);
 
+        // Go
         game_state.consume(
             &(GameEvent::Go {
                 player_id: game_state.active_player_id,
@@ -622,6 +649,30 @@ mod tests {
         assert_eq!(game_state.active_player_id, pid);
         let player = game_state.get_active_player().unwrap();
         assert_eq!(player.points, 0);
+        assert_eq!(game_state.turn_stage, TurnStage::RollDice);
+
+        // Hold
+        let mut game_state = init_test_gamestate(TurnStage::MarkPoints);
+        let pid = game_state.active_player_id;
+        game_state.consume(
+            &(GameEvent::Mark {
+                player_id: pid,
+                points: 13,
+            }),
+        );
+        let moves = (
+            CheckerMove::new(1, 3).unwrap(),
+            CheckerMove::new(1, 3).unwrap(),
+        );
+        game_state.consume(
+            &(GameEvent::Move {
+                player_id: game_state.active_player_id,
+                moves,
+            }),
+        );
+        assert_ne!(game_state.active_player_id, pid);
+        assert_eq!(game_state.players.get(&pid).unwrap().points, 1);
+        assert_eq!(game_state.get_active_player().unwrap().points, 0);
         assert_eq!(game_state.turn_stage, TurnStage::RollDice);
     }
 }

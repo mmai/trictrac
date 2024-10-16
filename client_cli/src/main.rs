@@ -1,5 +1,6 @@
 // Application.
 pub mod app;
+mod game_runner;
 
 use anyhow::Result;
 use app::{App, AppArgs};

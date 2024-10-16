@@ -35,6 +35,6 @@ L'encyclopédie
 
 ## rêveries
 
-Trictrac : un domaine grand et complexe, un univers dans lequel on peut s'absorber. Un jeu geek parfait. Qui a la noblesse d'avoir été populaire, qui a la noblesse de règles nécessitant apprentissage et presse companionage. 
-Pourquoi s'investir dans  ce genre d'activité ? Toucher un absolu. Sauver de la mort une pépite. Entrer dans le monde des morts comme Orphée ou Ulysse ?
-Et maîtriser un vocabulaire, des gestes, des règles de plus en plus fine, discutées au fil des siècles.
+Trictrac : un domaine grand et complexe, un univers dans lequel on peut s'absorber. Un jeu geek parfait. Qui a la noblesse d'avoir été populaire, qui a la noblesse de règles nécessitant apprentissage et presque companionage. 
+Pourquoi s'investir dans  ce genre d'activité ? Toucher un absolu. Sauver de la mort une pépite du passé. Entrer dans le monde des morts comme Orphée ou Ulysse ?
+Et maîtriser un vocabulaire, des gestes, des règles affinées au fil des siècles.

@@ -1,6 +1,7 @@
 use itertools::Itertools;
 
 use crate::game_runner::Game;
+use bot::BotStrategy;
 use store::{CheckerMove, GameEvent, GameState, PointsRules, Stage, TurnStage};
 
 #[derive(Debug, Default)]

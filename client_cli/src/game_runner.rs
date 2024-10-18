@@ -1,14 +1,26 @@
-use bot::Bot;
+use bot::{Bot, BotStrategy, DefaultStrategy};
 use store::{CheckerMove, DiceRoller, GameEvent, GameState, PlayerId, TurnStage};
 
 // Application Game
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Game {
     pub state: GameState,
     pub dice_roller: DiceRoller,
     pub first_move: Option<CheckerMove>,
     pub player_id: Option<PlayerId>,
-    bot: Bot,
+    bot: Bot<DefaultStrategy>,
+}
+
+impl Default for Game {
+    fn default() -> Self {
+        Self {
+            state: GameState::default(),
+            dice_roller: DiceRoller::default(),
+            first_move: None,
+            player_id: None,
+            bot: Bot::default(),
+        }
+    }
 }
 
 impl Game {
@@ -20,7 +32,8 @@ impl Game {
         // bot
         let bot_id: PlayerId = state.init_player("bot").unwrap();
         let bot_color = state.player_color_by_id(&bot_id).unwrap();
-        let bot: Bot = Bot::new(bot_color, schools_enabled);
+        let bot_strategy = DefaultStrategy::default();
+        let bot: Bot<DefaultStrategy> = Bot::new(bot_strategy, bot_color, schools_enabled);
 
         let mut game = Self {
             state,

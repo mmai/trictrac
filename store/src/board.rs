@@ -310,7 +310,7 @@ impl Board {
     /// Check if a field is blocked for a player
     pub fn blocked(&self, color: &Color, field: Field) -> Result<bool, Error> {
         // the square is blocked on the opponent rest corner
-        let opp_corner_field = if color == &Color::White { 13 } else { 12 };
+        // let opp_corner_field = if color == &Color::White { 13 } else { 12 };
         self.passage_blocked(color, field)
         // .map(|blocked| blocked || opp_corner_field == field)
     }

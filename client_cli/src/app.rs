@@ -1,8 +1,7 @@
 use itertools::Itertools;
 
 use crate::game_runner::Game;
-use bot::BotStrategy;
-use store::{CheckerMove, GameEvent, GameState, PointsRules, Stage, TurnStage};
+use store::{CheckerMove, GameEvent, GameState, Stage, TurnStage};
 
 #[derive(Debug, Default)]
 pub struct AppArgs {
@@ -73,15 +72,15 @@ impl App {
         let dice = self.game.dice_roller.roll();
 
         // get correct points for these board and dice
-        let points_rules = PointsRules::new(
-            &self
-                .game
-                .state
-                .player_color_by_id(&self.game.player_id.unwrap())
-                .unwrap(),
-            &self.game.state.board,
-            dice,
-        );
+        // let points_rules = PointsRules::new(
+        //     &self
+        //         .game
+        //         .state
+        //         .player_color_by_id(&self.game.player_id.unwrap())
+        //         .unwrap(),
+        //     &self.game.state.board,
+        //     dice,
+        // );
         self.game.handle_event(&GameEvent::RollResult {
             player_id: self.game.player_id.unwrap(),
             dice,
@@ -191,10 +190,10 @@ impl App {
     }
 }
 
-use pretty_assertions::assert_eq;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pretty_assertions::assert_eq;
 
     #[test]
     fn test_display() {

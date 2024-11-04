@@ -1,4 +1,3 @@
-use crate::Error;
 use rand::distributions::{Distribution, Uniform};
 use rand::{rngs::StdRng, SeedableRng};
 use serde::{Deserialize, Serialize};
@@ -74,12 +73,6 @@ impl Dice {
     //         values: ()
     //     }
     // }
-}
-
-/// Trait to roll the dices
-pub trait Roll {
-    /// Roll the dices
-    fn roll(&mut self) -> &mut Self;
 }
 
 #[cfg(test)]

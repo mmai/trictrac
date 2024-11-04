@@ -25,6 +25,6 @@ pub fn render(app: &mut App, f: &mut Frame) {
         )
         .style(Style::default().fg(Color::Yellow))
         .alignment(Alignment::Center),
-        f.size(),
+        f.area(),
     )
 }

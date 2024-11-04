@@ -1,11 +1,4 @@
 [workspace]
-resolver="2"
+resolver = "2"
 
-members = [
-  "client",
-  "client_tui",
-  "client_cli",
-  "bot",
-  "server",
-  "store"
-]
+members = ["client_tui", "client_cli", "bot", "server", "store"]

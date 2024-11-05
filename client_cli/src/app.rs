@@ -1,3 +1,4 @@
+use bot::{BotStrategy, DefaultStrategy};
 use itertools::Itertools;
 
 use crate::game_runner::Game;
@@ -6,6 +7,7 @@ use store::{CheckerMove, GameEvent, GameState, Stage, TurnStage};
 #[derive(Debug, Default)]
 pub struct AppArgs {
     pub seed: Option<u32>,
+    pub bot: Option<String>,
 }
 
 // Application.
@@ -15,16 +17,33 @@ pub struct App {
     pub should_quit: bool,
     pub schools_enabled: bool,
     pub game: Game,
+    pub bot_strategies: Vec<Box<dyn BotStrategy>>,
 }
 
 impl App {
     // Constructs a new instance of [`App`].
     pub fn new(args: AppArgs) -> Self {
+        let bot_strategies: Vec<Box<dyn BotStrategy>> = args
+            .bot
+            .as_deref()
+            .map(|str_bots| {
+                str_bots
+                    .split(",")
+                    .filter_map(|s| match s.trim() {
+                        "dummy" => {
+                            Some(Box::new(DefaultStrategy::default()) as Box<dyn BotStrategy>)
+                        }
+                        _ => None,
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
         let schools_enabled = false;
         Self {
             game: Game::new(schools_enabled, args.seed.map(|s| s as u64)),
             should_quit: false,
             schools_enabled,
+            bot_strategies,
         }
     }
 

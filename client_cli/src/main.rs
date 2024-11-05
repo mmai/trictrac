@@ -17,7 +17,8 @@ FLAGS:
   -h, --help            Prints help information
 
 OPTIONS:
-  --seed SEED       Sets the random generator seed
+  --seed SEED         Sets the random generator seed
+  --bot STRATEGY_BOT  Add a bot player with strategy STRATEGY, a second bot may be added to play against the first : --bot STRATEGY_BOT1,STRATEGY_BOT2
 
 ARGS:
   <INPUT>
@@ -59,6 +60,7 @@ fn parse_args() -> Result<AppArgs, pico_args::Error> {
     let args = AppArgs {
         // Parses an optional value that implements `FromStr`.
         seed: pargs.opt_value_from_str("--seed")?,
+        bot: pargs.opt_value_from_str("--bot")?,
         // Parses an optional value from `&str` using a specified function.
         // width: pargs.opt_value_from_fn("--width", parse_width)?.unwrap_or(10),
     };

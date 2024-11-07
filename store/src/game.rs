@@ -106,7 +106,7 @@ impl GameState {
     fn get_opponent_id(&self) -> Option<PlayerId> {
         self.players
             .keys()
-            .map(|k| *k)
+            .copied()
             .filter(|k| k != &self.active_player_id)
             .collect::<Vec<PlayerId>>()
             .first()
@@ -262,7 +262,10 @@ impl GameState {
                     return false;
                 }
             }
-            Mark { player_id, points } => {
+            Mark {
+                player_id,
+                points: _,
+            } => {
                 // Check player exists
                 if !self.players.contains_key(player_id) {
                     return false;
@@ -353,6 +356,7 @@ impl GameState {
         Some(player_id as PlayerId)
     }
 
+    #[cfg(test)]
     fn add_player(&mut self, player_id: PlayerId, player: Player) {
         self.players.insert(player_id, player);
     }
@@ -418,7 +422,7 @@ impl GameState {
                     self.turn_stage = TurnStage::RollWaiting;
                 }
             }
-            RollResult { player_id, dice } => {
+            RollResult { player_id: _, dice } => {
                 self.dice = *dice;
                 self.inc_roll_count(self.active_player_id);
                 self.turn_stage = TurnStage::MarkPoints;
@@ -458,7 +462,7 @@ impl GameState {
                     };
                 }
             }
-            Go { player_id } => self.new_pick_up(),
+            Go { player_id: _ } => self.new_pick_up(),
             Move { player_id, moves } => {
                 let player = self.players.get(player_id).unwrap();
                 self.board.move_checker(&player.color, moves.0).unwrap();
@@ -505,8 +509,8 @@ impl GameState {
         // A player has won if he has got 12 holes
         self.players
             .iter()
-            .filter(|(id, p)| p.holes > 11)
-            .map(|(id, p)| *id)
+            .filter(|(_, p)| p.holes > 11)
+            .map(|(id, _)| *id)
             .next()
     }
 

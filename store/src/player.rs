@@ -76,6 +76,7 @@ pub enum CurrentPlayer {
 
 impl CurrentPlayer {
     /// Returns the other player, i.e. the player who is not the current player.
+    #[cfg(test)]
     pub fn other(&self) -> Self {
         match *self {
             CurrentPlayer::Nobody => CurrentPlayer::Nobody,

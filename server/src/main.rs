@@ -1,4 +1,3 @@
-use bincode;
 use log::{info, trace, warn};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr, UdpSocket};
 use std::thread;
@@ -92,7 +91,10 @@ fn main() {
                         trace!("The game gas begun");
                     }
                 }
-                ServerEvent::ClientDisconnected { client_id, reason: _ } => {
+                ServerEvent::ClientDisconnected {
+                    client_id,
+                    reason: _,
+                } => {
                     // First consume a disconnect event
                     let event = store::GameEvent::PlayerDisconnected {
                         player_id: client_id,

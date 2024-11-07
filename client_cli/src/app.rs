@@ -286,7 +286,10 @@ Player      :: holes :: points
   ----------------------------------------------------------------
     12   11   10    9    8    7        6    5    4    3    2    1   
 ";
-        let mut app = App::new(AppArgs { seed: Some(1327) });
+        let mut app = App::new(AppArgs {
+            seed: Some(1327),
+            bot: None,
+        });
         app.input("roll");
         app.input("1 3");
         app.input("1 4");

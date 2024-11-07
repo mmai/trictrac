@@ -6,6 +6,7 @@ use std::fmt;
 
 /// field (aka 'point') position on the board (from 0 to 24, 0 being 'outside')
 pub type Field = usize;
+pub type FieldWithCount = (Field, i8);
 
 #[derive(Debug, Copy, Clone, Serialize, PartialEq, Deserialize)]
 pub struct CheckerMove {
@@ -143,9 +144,9 @@ impl Board {
             .iter()
             .filter(|count| {
                 if color == Color::White {
-                    **count > 0 as i8
+                    **count > 0
                 } else {
-                    **count < 0 as i8
+                    **count < 0
                 }
             })
             .sum::<i8>()
@@ -352,7 +353,7 @@ impl Board {
     }
 
     pub fn is_field_in_small_jan(field: Field) -> bool {
-        field < 7 || field > 18
+        !(7..=18).contains(&field)
     }
 
     /// returns the list of Fields containing Checkers of the Color

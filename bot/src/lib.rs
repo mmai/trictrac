@@ -100,10 +100,6 @@ impl Default for Bot {
 
 impl Bot {
     /// new initialize a bot
-    /// # Examples
-    /// ```let mut bot = Bot::new(Color::Black);
-    ///    assert_eq!(bot.game.stage, Stage::PreGame);
-    /// ```
     // pub fn new(mut strategy: Box<dyn BotStrategy>, color: Color, schools_enabled: bool) -> Self {
     pub fn new(mut strategy: Box<dyn BotStrategy>, color: Color) -> Self {
         // let game = strategy.get_mut_game();

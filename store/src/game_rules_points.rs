@@ -1,4 +1,4 @@
-use crate::board::{Board, Field, EMPTY_MOVE};
+use crate::board::{Board, FieldWithCount, EMPTY_MOVE};
 use crate::dice::Dice;
 use crate::game_rules_moves::MoveRules;
 use crate::player::Color;
@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::cmp;
 use std::collections::HashMap;
 
+#[allow(clippy::enum_variant_names)]
 #[derive(PartialEq, Eq, Hash, Clone, Debug, Serialize, Deserialize)]
 pub enum Jan {
     FilledQuarter,
@@ -163,17 +164,16 @@ impl PointsRules {
     }
 
     fn get_jans(&self, board_ini: &Board, dice_rolls_count: u8) -> PossibleJans {
-        let dices = &vec![self.dice.values.0, self.dice.values.1];
-        let dices_reversed = &vec![self.dice.values.1, self.dice.values.0];
+        let dices = &[self.dice.values.0, self.dice.values.1];
+        let dices_reversed = &[self.dice.values.1, self.dice.values.0];
         let dice1 = self.dice.values.0 as usize;
         let dice2 = self.dice.values.1 as usize;
 
         // « JAN DE RÉCOMPENSE »
         // Battre à vrai une dame située dans la table des grands jans
         // Battre à vrai une dame située dans la table des petits jans
-        let mut jans = self.get_jans_by_ordered_dice(board_ini, dices, None, false);
-        let jans_revert_dices =
-            self.get_jans_by_ordered_dice(board_ini, dices_reversed, None, false);
+        let mut jans = get_jans_by_ordered_dice(board_ini, dices, None, false);
+        let jans_revert_dices = get_jans_by_ordered_dice(board_ini, dices_reversed, None, false);
         jans.merge(jans_revert_dices);
 
         // Battre à vrai le coin de repos de l'adversaire
@@ -184,8 +184,8 @@ impl PointsRules {
             let from0 = adv_corner_field - self.dice.values.0 as usize;
             let from1 = adv_corner_field - self.dice.values.1 as usize;
 
-            let (from0_count, from0_color) = board_ini.get_field_checkers(from0).unwrap();
-            let (from1_count, from1_color) = board_ini.get_field_checkers(from1).unwrap();
+            let (from0_count, _from0_color) = board_ini.get_field_checkers(from0).unwrap();
+            let (from1_count, _from1_color) = board_ini.get_field_checkers(from1).unwrap();
             let hit_moves = vec![(
                 CheckerMove::new(from0, adv_corner_field).unwrap(),
                 CheckerMove::new(from1, adv_corner_field).unwrap(),
@@ -253,9 +253,9 @@ impl PointsRules {
         if dice_rolls_count == 3 {
             //   on devrait avoir 4 cases occupées par une dame chacune
             let fields_with_single: Vec<&(usize, i8)> =
-                checkers.iter().filter(|(f, c)| c == &1).collect();
+                checkers.iter().filter(|(_, c)| c == &1).collect();
             if fields_with_single.len() == 4 {
-                let checkers_fields: Vec<usize> = checkers.iter().map(|(f, c)| *f).collect();
+                let checkers_fields: Vec<usize> = checkers.iter().map(|(f, _)| *f).collect();
                 let mut missing_for_6tables: Vec<usize> = Vec::from([2, 3, 4, 5, 6, 7])
                     .into_iter()
                     .filter(|f| !checkers_fields.contains(f))
@@ -281,8 +281,8 @@ impl PointsRules {
         }
 
         // Jans nécessitant que deux dames uniquement soient sorties du talon
-        let (talon, candidates): (Vec<(usize, i8)>, Vec<(usize, i8)>) =
-            checkers.iter().partition(|(field, count)| field == &1);
+        let (talon, candidates): (Vec<FieldWithCount>, Vec<FieldWithCount>) =
+            checkers.iter().partition(|(field, _count)| field == &1);
         let candidates_fields = candidates.iter().fold(vec![], |mut acc, (f, c)| {
             acc.extend_from_slice(&vec![*f; *c as usize]);
             acc
@@ -353,97 +353,6 @@ impl PointsRules {
         jans
     }
 
-    fn get_jans_by_ordered_dice(
-        &self,
-        board_ini: &Board,
-        dices: &Vec<u8>,
-        only_from: Option<usize>,
-        only_false_hit: bool,
-    ) -> PossibleJans {
-        let mut jans = PossibleJans::default();
-        let mut dices = dices.clone();
-        if let Some(dice) = dices.pop() {
-            let color = Color::White;
-            let mut board = board_ini.clone();
-            let corner_field = board.get_color_corner(&color);
-            let adv_corner_field = board.get_color_corner(&Color::Black);
-            let froms = if let Some(from) = only_from {
-                vec![from]
-            } else {
-                board
-                    .get_color_fields(color)
-                    .iter()
-                    .map(|cf| cf.0)
-                    .collect()
-            };
-            for from in froms {
-                // for (from, _) in board.get_color_fields(color) {
-                let to = if from + dice as usize > 24 {
-                    0
-                } else {
-                    from + dice as usize
-                };
-                if let Ok(cmove) = CheckerMove::new(from, to) {
-                    // print!(
-                    //     " <dice_move dice='{:?}' moves='{:?} -> {:?}'> ",
-                    //     dice, from, to
-                    // );
-                    // On vérifie que le mouvement n'est pas interdit par les règles des coins de
-                    // repos :
-                    // - on ne va pas sur le coin de l'adversaire
-                    // - ni sur son propre coin de repos avec une seule dame
-                    // - règle non prise en compte pour le battage des dames : on ne sort pas de son coin de repos s'il n'y reste que deux dames
-                    let (corner_count, _color) = board.get_field_checkers(corner_field).unwrap();
-                    if to != adv_corner_field && (to != corner_field || corner_count > 1) {
-                        // si only_false_hit est vrai, on est déja dans une tentative tout d'une
-                        let mut can_try_toutdune = !only_false_hit;
-                        let mut only_falsehit = false;
-                        match board.move_checker(&color, cmove) {
-                            Err(Error::FieldBlockedByOne) => {
-                                let jan = match (Board::is_field_in_small_jan(to), only_false_hit) {
-                                    (true, false) => Jan::TrueHitSmallJan,
-                                    (true, true) => Jan::FalseHitSmallJan,
-                                    (false, false) => Jan::TrueHitBigJan,
-                                    (false, true) => Jan::FalseHitBigJan,
-                                };
-                                jans.push(jan, (cmove, EMPTY_MOVE));
-                            }
-                            Err(Error::FieldBlocked) => {
-                                only_falsehit = true;
-                            }
-                            Err(_) => {
-                                can_try_toutdune = false;
-                                // let next_dice_jan = self.get_jans(&board, &dices);
-                                // jans possibles en tout d'une après un battage à vrai :
-                                // truehit
-                            }
-                            Ok(()) => {}
-                        }
-                        if can_try_toutdune {
-                            // Try tout d'une :
-                            // - use original board before first die move
-                            // - use a virtual dice by adding current dice to remaining dice
-                            // - limit the checker to the current one
-                            let next_dice_jan = self.get_jans_by_ordered_dice(
-                                &board_ini,
-                                &dices.iter().map(|d| d + dice).collect(),
-                                Some(from),
-                                only_falsehit,
-                            );
-                            jans.merge(next_dice_jan);
-                        }
-                    }
-                    // Second die
-                    let next_dice_jan =
-                        self.get_jans_by_ordered_dice(&board_ini, &dices, None, false);
-                    jans.merge(next_dice_jan);
-                }
-            }
-        }
-
-        jans
-    }
-
     pub fn get_jans_points(&self, jans: HashMap<Jan, Vec<(CheckerMove, CheckerMove)>>) -> (u8, u8) {
         let (points, adv_points) = jans
             .into_iter()
@@ -477,6 +386,95 @@ impl PointsRules {
     }
 }
 
+fn get_jans_by_ordered_dice(
+    board_ini: &Board,
+    // dices: &Vec<u8>,
+    dices: &[u8],
+    only_from: Option<usize>,
+    only_false_hit: bool,
+) -> PossibleJans {
+    let mut jans = PossibleJans::default();
+    let mut dices: Vec<u8> = dices.to_vec();
+    if let Some(dice) = dices.pop() {
+        let color = Color::White;
+        let mut board = board_ini.clone();
+        let corner_field = board.get_color_corner(&color);
+        let adv_corner_field = board.get_color_corner(&Color::Black);
+        let froms = if let Some(from) = only_from {
+            vec![from]
+        } else {
+            board
+                .get_color_fields(color)
+                .iter()
+                .map(|cf| cf.0)
+                .collect()
+        };
+        for from in froms {
+            // for (from, _) in board.get_color_fields(color) {
+            let to = if from + dice as usize > 24 {
+                0
+            } else {
+                from + dice as usize
+            };
+            if let Ok(cmove) = CheckerMove::new(from, to) {
+                // print!(
+                //     " <dice_move dice='{:?}' moves='{:?} -> {:?}'> ",
+                //     dice, from, to
+                // );
+                // On vérifie que le mouvement n'est pas interdit par les règles des coins de
+                // repos :
+                // - on ne va pas sur le coin de l'adversaire
+                // - ni sur son propre coin de repos avec une seule dame
+                // - règle non prise en compte pour le battage des dames : on ne sort pas de son coin de repos s'il n'y reste que deux dames
+                let (corner_count, _color) = board.get_field_checkers(corner_field).unwrap();
+                if to != adv_corner_field && (to != corner_field || corner_count > 1) {
+                    // si only_false_hit est vrai, on est déja dans une tentative tout d'une
+                    let mut can_try_toutdune = !only_false_hit;
+                    let mut only_falsehit = false;
+                    match board.move_checker(&color, cmove) {
+                        Err(Error::FieldBlockedByOne) => {
+                            let jan = match (Board::is_field_in_small_jan(to), only_false_hit) {
+                                (true, false) => Jan::TrueHitSmallJan,
+                                (true, true) => Jan::FalseHitSmallJan,
+                                (false, false) => Jan::TrueHitBigJan,
+                                (false, true) => Jan::FalseHitBigJan,
+                            };
+                            jans.push(jan, (cmove, EMPTY_MOVE));
+                        }
+                        Err(Error::FieldBlocked) => {
+                            only_falsehit = true;
+                        }
+                        Err(_) => {
+                            can_try_toutdune = false;
+                            // let next_dice_jan = self.get_jans(&board, &dices);
+                            // jans possibles en tout d'une après un battage à vrai :
+                            // truehit
+                        }
+                        Ok(()) => {}
+                    }
+                    if can_try_toutdune {
+                        // Try tout d'une :
+                        // - use original board before first die move
+                        // - use a virtual dice by adding current dice to remaining dice
+                        // - limit the checker to the current one
+                        let next_dice_jan = get_jans_by_ordered_dice(
+                            board_ini,
+                            &dices.iter().map(|d| d + dice).collect::<Vec<u8>>(),
+                            Some(from),
+                            only_falsehit,
+                        );
+                        jans.merge(next_dice_jan);
+                    }
+                }
+                // Second die
+                let next_dice_jan = get_jans_by_ordered_dice(board_ini, &dices, None, false);
+                jans.merge(next_dice_jan);
+            }
+        }
+    }
+
+    jans
+}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -487,11 +485,11 @@ mod tests {
             2, 0, -1, -1, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         ]);
 
-        let jans = rules.get_jans_by_ordered_dice(&rules.board, &vec![2, 3], None, false);
+        let jans = get_jans_by_ordered_dice(&rules.board, &[2, 3], None, false);
         assert_eq!(1, jans.len());
         assert_eq!(3, jans.get(&Jan::TrueHitSmallJan).unwrap().len());
 
-        let jans = rules.get_jans_by_ordered_dice(&rules.board, &vec![2, 2], None, false);
+        let jans = get_jans_by_ordered_dice(&rules.board, &[2, 2], None, false);
         assert_eq!(1, jans.len());
         assert_eq!(1, jans.get(&Jan::TrueHitSmallJan).unwrap().len());
 
@@ -501,9 +499,8 @@ mod tests {
             2, 0, -1, -2, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         ]);
 
-        let mut jans = rules.get_jans_by_ordered_dice(&rules.board, &vec![2, 3], None, false);
-        let jans_revert_dices =
-            rules.get_jans_by_ordered_dice(&rules.board, &vec![3, 2], None, false);
+        let mut jans = get_jans_by_ordered_dice(&rules.board, &[2, 3], None, false);
+        let jans_revert_dices = get_jans_by_ordered_dice(&rules.board, &[3, 2], None, false);
         assert_eq!(2, jans.len());
         assert_eq!(1, jans_revert_dices.len());
         jans.merge(jans_revert_dices);
@@ -513,7 +510,7 @@ mod tests {
             2, 0, -1, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         ]);
 
-        let jans = rules.get_jans_by_ordered_dice(&rules.board, &vec![2, 3], None, false);
+        let jans = get_jans_by_ordered_dice(&rules.board, &[2, 3], None, false);
         assert_eq!(1, jans.len());
         assert_eq!(2, jans.get(&Jan::TrueHitSmallJan).unwrap().len());
 
@@ -521,7 +518,7 @@ mod tests {
             2, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         ]);
 
-        let jans = rules.get_jans_by_ordered_dice(&rules.board, &vec![2, 3], None, false);
+        let jans = get_jans_by_ordered_dice(&rules.board, &[2, 3], None, false);
         assert_eq!(1, jans.len());
         assert_eq!(1, jans.get(&Jan::TrueHitSmallJan).unwrap().len());
 
@@ -529,7 +526,7 @@ mod tests {
             2, 0, 1, 1, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         ]);
 
-        let jans = rules.get_jans_by_ordered_dice(&rules.board, &vec![2, 3], None, false);
+        let jans = get_jans_by_ordered_dice(&rules.board, &[2, 3], None, false);
         assert_eq!(1, jans.len());
         assert_eq!(3, jans.get(&Jan::TrueHitSmallJan).unwrap().len());
 
@@ -540,7 +537,7 @@ mod tests {
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         ]);
         // le premier dé traité est le dernier du vecteur : 1
-        let jans = rules.get_jans_by_ordered_dice(&rules.board, &vec![2, 1], None, false);
+        let jans = get_jans_by_ordered_dice(&rules.board, &[2, 1], None, false);
         // println!("jans (dés bloqués) : {:?}", jans.get(&Jan::TrueHit));
         assert_eq!(0, jans.len());
 
@@ -548,16 +545,15 @@ mod tests {
         rules.board.set_positions([
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         ]);
-        let jans = rules.get_jans_by_ordered_dice(&rules.board, &vec![3, 3], None, false);
+        let jans = get_jans_by_ordered_dice(&rules.board, &[3, 3], None, false);
         assert_eq!(1, jans.len());
 
         // premier dé bloqué, mais tout d'une possible en commençant par le second
         rules.board.set_positions([
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         ]);
-        let mut jans = rules.get_jans_by_ordered_dice(&rules.board, &vec![3, 1], None, false);
-        let jans_revert_dices =
-            rules.get_jans_by_ordered_dice(&rules.board, &vec![1, 3], None, false);
+        let mut jans = get_jans_by_ordered_dice(&rules.board, &[3, 1], None, false);
+        let jans_revert_dices = get_jans_by_ordered_dice(&rules.board, &[1, 3], None, false);
         assert_eq!(1, jans_revert_dices.len());
 
         jans.merge(jans_revert_dices);

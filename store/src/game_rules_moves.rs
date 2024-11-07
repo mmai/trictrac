@@ -153,7 +153,7 @@ impl MoveRules {
 
     /// ---- moves_allowed : Third of three checks for moves
     pub fn moves_allowed(&self, moves: &(CheckerMove, CheckerMove)) -> Result<(), MoveError> {
-        self.check_corner_rules(&moves)?;
+        self.check_corner_rules(moves)?;
 
         if self.is_move_by_puissance(moves) {
             if self.can_take_corner_by_effect() {
@@ -169,7 +169,7 @@ impl MoveRules {
             let mut possible_moves_sequences = self.get_possible_moves_sequences(true);
             possible_moves_sequences.retain(|moves| self.check_exit_rules(moves).is_ok());
             // possible_moves_sequences.retain(|moves| self.check_corner_rules(moves).is_ok());
-            if !possible_moves_sequences.contains(&moves) && !possible_moves_sequences.is_empty() {
+            if !possible_moves_sequences.contains(moves) && !possible_moves_sequences.is_empty() {
                 if *moves == (EMPTY_MOVE, EMPTY_MOVE) {
                     return Err(MoveError::MustPlayAllDice);
                 }
@@ -336,7 +336,7 @@ impl MoveRules {
 
     pub fn get_scoring_quarter_filling_moves_sequences(&self) -> Vec<(CheckerMove, CheckerMove)> {
         let all_seqs = self.get_quarter_filling_moves_sequences();
-        if all_seqs.len() == 0 {
+        if all_seqs.is_empty() {
             return vec![];
         }
         let missing_fields = self.board.get_quarter_filling_candidate(Color::White);
@@ -441,7 +441,7 @@ impl MoveRules {
         moves_seqs
     }
 
-    fn get_direct_exit_moves(&self, state: &GameState) -> Vec<CheckerMove> {
+    fn _get_direct_exit_moves(&self, state: &GameState) -> Vec<CheckerMove> {
         let mut moves = Vec::new();
         let (dice1, dice2) = state.dice.values;
 
@@ -918,7 +918,7 @@ mod tests {
 
     #[test]
     fn moves_possible() {
-        let mut state = MoveRules::default();
+        let state = MoveRules::default();
 
         // Chained moves
         let moves = (

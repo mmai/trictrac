@@ -1,6 +1,7 @@
-mod bot;
+mod strategy;
 
 use store::{CheckerMove, Color, GameEvent, GameState, PlayerId, PointsRules, TurnStage};
+pub use strategy::default::DefaultStrategy;
 
 pub trait BotStrategy: std::fmt::Debug {
     fn get_game(&self) -> &GameState;
@@ -12,69 +13,6 @@ pub trait BotStrategy: std::fmt::Debug {
     fn init_players(&mut self) {
         self.get_mut_game().init_player("p1");
         self.get_mut_game().init_player("p2");
-    }
-}
-
-#[derive(Debug)]
-pub struct DefaultStrategy {
-    pub game: GameState,
-    pub player_id: PlayerId,
-    pub color: Color,
-}
-
-impl Default for DefaultStrategy {
-    fn default() -> Self {
-        let game = GameState::default();
-        Self {
-            game,
-            player_id: 2,
-            color: Color::Black,
-        }
-    }
-}
-
-impl BotStrategy for DefaultStrategy {
-    fn get_game(&self) -> &GameState {
-        &self.game
-    }
-    fn get_mut_game(&mut self) -> &mut GameState {
-        &mut self.game
-    }
-
-    fn set_player_id(&mut self, player_id: PlayerId) {
-        self.player_id = player_id;
-    }
-
-    fn calculate_points(&self) -> u8 {
-        let dice_roll_count = self
-            .get_game()
-            .players
-            .get(&self.player_id)
-            .unwrap()
-            .dice_roll_count;
-        let points_rules = PointsRules::new(&Color::White, &self.game.board, self.game.dice);
-        points_rules.get_points(dice_roll_count).0
-    }
-
-    fn calculate_adv_points(&self) -> u8 {
-        self.calculate_points()
-    }
-
-    fn choose_move(&self) -> (CheckerMove, CheckerMove) {
-        let (dice1, dice2) = match self.color {
-            Color::White => (self.game.dice.values.0 as i8, self.game.dice.values.1 as i8),
-            Color::Black => (
-                0 - self.game.dice.values.0 as i8,
-                0 - self.game.dice.values.1 as i8,
-            ),
-        };
-
-        let fields = self.game.board.get_color_fields(self.color);
-        let first_field = fields.first().unwrap();
-        (
-            CheckerMove::new(first_field.0, (first_field.0 as i8 + dice1) as usize).unwrap(),
-            CheckerMove::new(first_field.0, (first_field.0 as i8 + dice2) as usize).unwrap(),
-        )
     }
 }
 

@@ -57,12 +57,22 @@ impl App {
             "state" => self.show_state(),
             "history" => self.show_history(),
             "quit" => self.quit(),
+            // run bots game (when two bots)
+            "bots" => self.bots_all(),
+            "" => self.bots_next_step(),
+            // play (when one bot)
             "roll" => self.roll_dice(),
             "go" => self.go(),
             _ => self.add_move(input),
         }
         println!("{}", self.display());
     }
+
+    // --- 2 bots game actions
+
+    fn bots_all(&mut self) {}
+
+    fn bots_next_step(&mut self) {}
 
     // Set running to false to quit the application.
     pub fn quit(&mut self) {

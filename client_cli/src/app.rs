@@ -1,7 +1,7 @@
 use bot::{BotStrategy, DefaultStrategy};
 use itertools::Itertools;
 
-use crate::game_runner::Game;
+use crate::game_runner::GameRunner;
 use store::{CheckerMove, GameEvent, GameState, Stage, TurnStage};
 
 #[derive(Debug, Default)]
@@ -16,8 +16,7 @@ pub struct App {
     // should the application exit?
     pub should_quit: bool,
     pub schools_enabled: bool,
-    pub game: Game,
-    pub bot_strategies: Vec<Box<dyn BotStrategy>>,
+    pub game: GameRunner,
 }
 
 impl App {
@@ -40,10 +39,9 @@ impl App {
             .unwrap_or_default();
         let schools_enabled = false;
         Self {
-            game: Game::new(schools_enabled, args.seed.map(|s| s as u64)),
+            game: GameRunner::new(schools_enabled, bot_strategies, args.seed.map(|s| s as u64)),
             should_quit: false,
             schools_enabled,
-            bot_strategies,
         }
     }
 
@@ -298,7 +296,7 @@ Player      :: holes :: points
 ";
         let mut app = App::new(AppArgs {
             seed: Some(1327),
-            bot: None,
+            bot: Some("dummy".into()),
         });
         app.input("roll");
         app.input("1 3");

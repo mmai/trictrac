@@ -23,7 +23,7 @@ impl GameRunner {
         let player_id: Option<PlayerId> = state.init_player("myself");
 
         // bots
-        let bots = bot_strategies
+        let bots: Vec<Bot> = bot_strategies
             .into_iter()
             .map(|strategy| {
                 let bot_id: PlayerId = state.init_player("bot").unwrap();
@@ -35,6 +35,11 @@ impl GameRunner {
         // let bot: Bot = Bot::new(bot_strategy, bot_color, schools_enabled);
         // let bot: Bot = Bot::new(bot_strategy, bot_color);
 
+        let first_player_id = if bots.len() > 1 {
+            bots[0].player_id
+        } else {
+            player_id.unwrap()
+        };
         let mut game = Self {
             state,
             dice_roller: DiceRoller::new(seed),
@@ -43,7 +48,7 @@ impl GameRunner {
             bots,
         };
         game.handle_event(&GameEvent::BeginGame {
-            goes_first: player_id.unwrap(),
+            goes_first: first_player_id,
         });
         game
     }
@@ -54,24 +59,39 @@ impl GameRunner {
         }
         // println!("consuming {:?}", event);
         self.state.consume(event);
+
         // chain all successive bot actions
-        let bot_event = self.bots[0]
-            .handle_event(event)
-            .and_then(|evt| self.handle_event(&evt));
-        // roll dice for bot if needed
-        if self.bot_needs_dice_roll() {
-            let dice = self.dice_roller.roll();
-            self.handle_event(&GameEvent::RollResult {
-                player_id: self.bots[0].player_id,
-                dice,
-            })
-        } else {
-            bot_event
+        if self.bots.is_empty() {
+            return None;
         }
+
+        // Collect bot actions to avoid borrow conflicts
+        let bot_events: Vec<GameEvent> = self
+            .bots
+            .iter_mut()
+            .filter(|bot| Some(bot.player_id) != event.player_id())
+            .filter_map(|bot| bot.handle_event(event))
+            .collect();
+
+        let mut next_event = None;
+        for bot_event in bot_events {
+            let bot_result_event = self.handle_event(&bot_event);
+            if let Some(bot_id) = bot_event.player_id() {
+                next_event = if self.bot_needs_dice_roll(bot_id) {
+                    let dice = self.dice_roller.roll();
+                    self.handle_event(&GameEvent::RollResult {
+                        player_id: bot_id,
+                        dice,
+                    })
+                } else {
+                    bot_result_event
+                }
+            }
+        }
+        next_event
     }
 
-    fn bot_needs_dice_roll(&self) -> bool {
-        self.state.active_player_id == self.bots[0].player_id
-            && self.state.turn_stage == TurnStage::RollWaiting
+    fn bot_needs_dice_roll(&self, bot_id: PlayerId) -> bool {
+        self.state.active_player_id == bot_id && self.state.turn_stage == TurnStage::RollWaiting
     }
 }

@@ -58,8 +58,10 @@ impl Bot {
     pub fn handle_event(&mut self, event: &GameEvent) -> Option<GameEvent> {
         let game = self.strategy.get_mut_game();
         game.consume(event);
-        // println!("bot game {:?}", self.game);
-        // println!("bot player_id {:?}", self.player_id);
+        // println!(
+        //     "bot player_id {:?} (active player_id {:?})",
+        //     self.player_id, game.active_player_id
+        // );
         if game.active_player_id == self.player_id {
             return match game.turn_stage {
                 TurnStage::MarkAdvPoints => Some(GameEvent::Mark {

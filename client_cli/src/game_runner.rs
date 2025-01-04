@@ -69,12 +69,12 @@ impl GameRunner {
         let bot_events: Vec<GameEvent> = self
             .bots
             .iter_mut()
-            .filter(|bot| Some(bot.player_id) != event.player_id())
             .filter_map(|bot| bot.handle_event(event))
             .collect();
 
         let mut next_event = None;
         for bot_event in bot_events {
+            println!("bot event {:?}", bot_event);
             let bot_result_event = self.handle_event(&bot_event);
             if let Some(bot_id) = bot_event.player_id() {
                 next_event = if self.bot_needs_dice_roll(bot_id) {

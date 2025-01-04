@@ -4,13 +4,14 @@
   # https://devenv.sh/basics/
   # env.GREET = "devenv";
 
-  packages = [ 
+  packages = [
     # for bevy
     pkgs.alsaLib
     pkgs.udev
 
     # bevy fast compile
-    pkgs.clang pkgs.lld
+    pkgs.clang
+    pkgs.lld
 
     # copié de https://github.com/mmai/Hyperspeedcube/blob/develop/devenv.nix
     # TODO : retirer ce qui est inutile
@@ -27,7 +28,8 @@
     pkgs.xorg.libXi
     pkgs.xorg.libX11
 
-    pkgs.vulkan-headers pkgs.vulkan-loader
+    pkgs.vulkan-headers
+    pkgs.vulkan-loader
     # ------------ fin copie
 
   ];
@@ -44,7 +46,7 @@
   # scripts.hello.exec = "echo hello from $GREET";
 
   # https://devenv.sh/pre-commit-hooks/
-  pre-commit.hooks.shellcheck.enable = true;
+  # pre-commit.hooks.shellcheck.enable = true;
 
   # https://devenv.sh/processes/
   # processes.ping.exec = "ping example.com";

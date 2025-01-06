@@ -1,5 +1,6 @@
 mod game;
 mod game_rules_moves;
+pub use game_rules_moves::MoveRules;
 mod game_rules_points;
 pub use game::{EndGameReason, GameEvent, GameState, Stage, TurnStage};
 pub use game_rules_points::PointsRules;

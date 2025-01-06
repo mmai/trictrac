@@ -263,7 +263,7 @@ Rolled dice : 0 & 0
 InGame > myself > RollDice
 Rolled dice : 4 & 6
 Rolled dice jans : {}
-Last move : CheckerMove { from: 24, to: 20 } , CheckerMove { from: 24, to: 18 } 
+Last move : CheckerMove { from: 24, to: 18 } , CheckerMove { from: 24, to: 20 } 
 
 Player      :: holes :: points
 1. myself   :: 0     :: 0

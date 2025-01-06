@@ -20,7 +20,11 @@ impl GameRunner {
     ) -> Self {
         let mut state = GameState::new(schools_enabled);
         // local : player
-        let player_id: Option<PlayerId> = state.init_player("myself");
+        let player_id: Option<PlayerId> = if bot_strategies.len() > 1 {
+            None
+        } else {
+            state.init_player("myself")
+        };
 
         // bots
         let bots: Vec<Bot> = bot_strategies
@@ -55,6 +59,7 @@ impl GameRunner {
 
     pub fn handle_event(&mut self, event: &GameEvent) -> Option<GameEvent> {
         if !self.state.validate(event) {
+            println!("event not valid : {:?}", event);
             return None;
         }
         // println!("consuming {:?}", event);
@@ -72,9 +77,15 @@ impl GameRunner {
             .filter_map(|bot| bot.handle_event(event))
             .collect();
 
+        // if bot_events.len() > 1 {
+        //     println!(
+        //         "There might be a problem : 2 bots events : {:?}",
+        //         bot_events
+        //     );
+        // }
+
         let mut next_event = None;
         for bot_event in bot_events {
-            println!("bot event {:?}", bot_event);
             let bot_result_event = self.handle_event(&bot_event);
             if let Some(bot_id) = bot_event.player_id() {
                 next_event = if self.bot_needs_dice_roll(bot_id) {
@@ -85,7 +96,7 @@ impl GameRunner {
                     })
                 } else {
                     bot_result_event
-                }
+                };
             }
         }
         next_event

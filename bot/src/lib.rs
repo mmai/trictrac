@@ -10,6 +10,7 @@ pub trait BotStrategy: std::fmt::Debug {
     fn calculate_adv_points(&self) -> u8;
     fn choose_move(&self) -> (CheckerMove, CheckerMove);
     fn set_player_id(&mut self, player_id: PlayerId);
+    fn set_color(&mut self, color: Color);
     fn init_players(&mut self) {
         self.get_mut_game().init_player("p1");
         self.get_mut_game().init_player("p2");
@@ -47,6 +48,7 @@ impl Bot {
             Color::Black => 2,
         };
         strategy.set_player_id(player_id);
+        strategy.set_color(color);
         Self {
             player_id,
             strategy,
@@ -58,10 +60,6 @@ impl Bot {
     pub fn handle_event(&mut self, event: &GameEvent) -> Option<GameEvent> {
         let game = self.strategy.get_mut_game();
         game.consume(event);
-        // println!(
-        //     "bot player_id {:?} (active player_id {:?})",
-        //     self.player_id, game.active_player_id
-        // );
         if game.active_player_id == self.player_id {
             return match game.turn_stage {
                 TurnStage::MarkAdvPoints => Some(GameEvent::Mark {

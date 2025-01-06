@@ -1,4 +1,5 @@
 use crate::{BotStrategy, CheckerMove, Color, GameState, PlayerId, PointsRules};
+use store::MoveRules;
 
 #[derive(Debug)]
 pub struct DefaultStrategy {
@@ -26,6 +27,10 @@ impl BotStrategy for DefaultStrategy {
         &mut self.game
     }
 
+    fn set_color(&mut self, color: Color) {
+        self.color = color;
+    }
+
     fn set_player_id(&mut self, player_id: PlayerId) {
         self.player_id = player_id;
     }
@@ -46,19 +51,30 @@ impl BotStrategy for DefaultStrategy {
     }
 
     fn choose_move(&self) -> (CheckerMove, CheckerMove) {
-        let (dice1, dice2) = match self.color {
-            Color::White => (self.game.dice.values.0 as i8, self.game.dice.values.1 as i8),
-            Color::Black => (
-                0 - self.game.dice.values.0 as i8,
-                0 - self.game.dice.values.1 as i8,
-            ),
-        };
+        let rules = MoveRules::new(&self.color, &self.game.board, self.game.dice);
+        let possible_moves = rules.get_possible_moves_sequences(true);
+        let choosen_move = *possible_moves
+            .first()
+            .unwrap_or(&(CheckerMove::default(), CheckerMove::default()));
+        if self.color == Color::White {
+            choosen_move
+        } else {
+            (choosen_move.0.mirror(), choosen_move.1.mirror())
+        }
 
-        let fields = self.game.board.get_color_fields(self.color);
-        let first_field = fields.first().unwrap();
-        (
-            CheckerMove::new(first_field.0, (first_field.0 as i8 + dice1) as usize).unwrap(),
-            CheckerMove::new(first_field.0, (first_field.0 as i8 + dice2) as usize).unwrap(),
-        )
+        // let (dice1, dice2) = match self.color {
+        //     Color::White => (self.game.dice.values.0 as i8, self.game.dice.values.1 as i8),
+        //     Color::Black => (
+        //         0 - self.game.dice.values.0 as i8,
+        //         0 - self.game.dice.values.1 as i8,
+        //     ),
+        // };
+        //
+        // let fields = self.game.board.get_color_fields(self.color);
+        // let first_field = fields.first().unwrap();
+        // (
+        //     CheckerMove::new(first_field.0, (first_field.0 as i8 + dice1) as usize).unwrap(),
+        //     CheckerMove::new(first_field.0, (first_field.0 as i8 + dice2) as usize).unwrap(),
+        // )
     }
 }

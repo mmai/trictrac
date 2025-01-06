@@ -30,6 +30,10 @@ impl BotStrategy for ClientStrategy {
         self.player_id = player_id;
     }
 
+    fn set_color(&mut self, color: Color) {
+        self.color = color;
+    }
+
     fn calculate_points(&self) -> u8 {
         let dice_roll_count = self
             .get_game()

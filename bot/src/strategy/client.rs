@@ -49,6 +49,10 @@ impl BotStrategy for ClientStrategy {
         self.calculate_points()
     }
 
+    fn choose_go(&self) -> bool {
+        true
+    }
+
     fn choose_move(&self) -> (CheckerMove, CheckerMove) {
         let (dice1, dice2) = match self.color {
             Color::White => (self.game.dice.values.0 as i8, self.game.dice.values.1 as i8),

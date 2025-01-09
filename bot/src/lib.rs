@@ -9,6 +9,7 @@ pub trait BotStrategy: std::fmt::Debug {
     fn calculate_points(&self) -> u8;
     fn calculate_adv_points(&self) -> u8;
     fn choose_move(&self) -> (CheckerMove, CheckerMove);
+    fn choose_go(&self) -> bool;
     fn set_player_id(&mut self, player_id: PlayerId);
     fn set_color(&mut self, color: Color);
     fn init_players(&mut self) {
@@ -77,6 +78,18 @@ impl Bot {
                     player_id: self.player_id,
                     moves: self.strategy.choose_move(),
                 }),
+                TurnStage::HoldOrGoChoice => {
+                    if self.strategy.choose_go() {
+                        Some(GameEvent::Go {
+                            player_id: self.player_id,
+                        })
+                    } else {
+                        Some(GameEvent::Move {
+                            player_id: self.player_id,
+                            moves: self.strategy.choose_move(),
+                        })
+                    }
+                }
                 _ => None,
             };
         }

@@ -315,6 +315,7 @@ impl GameState {
                 if self.turn_stage != TurnStage::Move
                     && self.turn_stage != TurnStage::HoldOrGoChoice
                 {
+                    error!("bad stage {:?}", self.turn_stage);
                     return false;
                 }
                 let color = &self.players[player_id].color;
@@ -326,6 +327,7 @@ impl GameState {
                     *moves
                 };
                 if !rules.moves_follow_rules(&moves) {
+                    error!("rules not followed ");
                     return false;
                 }
             }

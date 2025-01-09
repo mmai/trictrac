@@ -50,6 +50,10 @@ impl BotStrategy for DefaultStrategy {
         self.calculate_points()
     }
 
+    fn choose_go(&self) -> bool {
+        true
+    }
+
     fn choose_move(&self) -> (CheckerMove, CheckerMove) {
         let rules = MoveRules::new(&self.color, &self.game.board, self.game.dice);
         let possible_moves = rules.get_possible_moves_sequences(true);

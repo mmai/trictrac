@@ -72,6 +72,7 @@ impl MoveRules {
 
     /// ---- moves_possibles : First of three checks for moves
     fn moves_possible(&self, moves: &(CheckerMove, CheckerMove)) -> bool {
+        println!("possible  ???");
         let color = &Color::White;
         if let Ok(chained_move) = moves.0.chain(moves.1) {
             // Check intermediary move and chained_move : "Tout d'une"
@@ -84,6 +85,7 @@ impl MoveRules {
             || !self.board.move_possible(color, &moves.1)
         {
             // Move is not physically possible
+            println!("no phys! {} {:?}", self.board, moves);
             return false;
         }
         true

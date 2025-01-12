@@ -3,6 +3,7 @@ use crate::board::{Board, CheckerMove, Field, EMPTY_MOVE};
 use crate::dice::Dice;
 use crate::game::GameState;
 use crate::player::Color;
+use log::info;
 use std::cmp;
 
 #[derive(std::cmp::PartialEq, Debug)]
@@ -65,27 +66,34 @@ impl MoveRules {
         // Check moves possibles on the board
         // Check moves conforms to the dice
         // Check move is allowed by the rules (to desactivate when playing with schools)
-        self.moves_possible(moves)
-            && self.moves_follows_dices(moves)
-            && self.moves_allowed(moves).is_ok()
+        self.moves_possible(moves) && self.moves_follows_dices(moves) && {
+            let is_allowed = self.moves_allowed(moves);
+            if is_allowed.is_err() {
+                info!("Move not allowed : {:?}", is_allowed.unwrap_err());
+                false
+            } else {
+                true
+            }
+        }
+        // && self.moves_allowed(moves).is_ok()
     }
 
     /// ---- moves_possibles : First of three checks for moves
     fn moves_possible(&self, moves: &(CheckerMove, CheckerMove)) -> bool {
-        println!("possible  ???");
         let color = &Color::White;
         if let Ok(chained_move) = moves.0.chain(moves.1) {
             // Check intermediary move and chained_move : "Tout d'une"
             if !self.board.passage_possible(color, &moves.0)
                 || !self.board.move_possible(color, &chained_move)
             {
+                info!("Tout d'une : Move not physically possible");
                 return false;
             }
         } else if !self.board.move_possible(color, &moves.0)
             || !self.board.move_possible(color, &moves.1)
         {
             // Move is not physically possible
-            println!("no phys! {} {:?}", self.board, moves);
+            info!("Move not physically possible");
             return false;
         }
         true
@@ -103,10 +111,12 @@ impl MoveRules {
 
         let move1_dices = self.get_move_compatible_dices(move1);
         if move1_dices.is_empty() {
+            info!("Move does not follow dice");
             return false;
         }
         let move2_dices = self.get_move_compatible_dices(move2);
         if move2_dices.is_empty() {
+            info!("Move does not follow dice");
             return false;
         }
         if move1_dices.len() == 1
@@ -114,6 +124,7 @@ impl MoveRules {
             && move1_dices[0] == move2_dices[0]
             && dice1 != dice2
         {
+            info!("Move does not follow dice");
             return false;
         }
 
@@ -1038,7 +1049,6 @@ mod tests {
             CheckerMove::new(8, 13).unwrap(),
             CheckerMove::new(13, 19).unwrap(),
         );
-        println!("{:?}", state.moves_allowed(&moves));
         assert!(state.moves_allowed(&moves).is_ok());
 
         // s'il n'y a pas d'autre solution, on peut rompre

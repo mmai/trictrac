@@ -6,11 +6,7 @@ doc:
   cargo doc --no-deps
 shell:
 	devenv shell
-startserver:
-	RUST_LOG=trictrac_server cargo run --bin trictrac-server
-startclient1:
-	RUST_LOG=trictrac_client cargo run --bin=trictrac-client Titi
-startclient2:
-	RUST_LOG=trictrac_client cargo run --bin=trictrac-client Titu
-startclienttui:
-	RUST_LOG=trictrac_client cargo run --bin=client_tui Tutu
+runcli:
+	RUST_LOG=info cargo run --bin=client_cli
+runclibots:
+	RUST_LOG=info cargo run --bin=client_cli -- --bot dummy,dummy

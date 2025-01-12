@@ -491,8 +491,9 @@ impl GameState {
             p.dice_roll_count = 0;
             // reset bredouille
             p.can_bredouille = true;
-            // switch colors
-            p.color = p.color.opponent_color();
+            // XXX : switch colors
+            // désactivé pour le moment car la vérification des mouvements échoue, cf. https://code.rhumbs.fr/henri/trictrac/issues/31
+            // p.color = p.color.opponent_color();
         });
         // joueur actif = joueur ayant sorti ses dames ou est parti (donc deux jeux successifs)
         self.turn_stage = TurnStage::RollDice;

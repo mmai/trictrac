@@ -1,4 +1,4 @@
-use bot::{Bot, BotStrategy, DefaultStrategy};
+use bot::{Bot, BotStrategy};
 use store::{CheckerMove, DiceRoller, GameEvent, GameState, PlayerId, TurnStage};
 
 // Application Game

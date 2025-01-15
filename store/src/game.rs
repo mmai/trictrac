@@ -618,13 +618,19 @@ pub enum GameEvent {
 impl GameEvent {
     pub fn player_id(&self) -> Option<PlayerId> {
         match self {
-            Self::PlayerJoined { player_id, name } => Some(*player_id),
+            Self::PlayerJoined { player_id, name: _ } => Some(*player_id),
             Self::PlayerDisconnected { player_id } => Some(*player_id),
             Self::Roll { player_id } => Some(*player_id),
-            Self::RollResult { player_id, dice } => Some(*player_id),
-            Self::Mark { player_id, points } => Some(*player_id),
+            Self::RollResult { player_id, dice: _ } => Some(*player_id),
+            Self::Mark {
+                player_id,
+                points: _,
+            } => Some(*player_id),
             Self::Go { player_id } => Some(*player_id),
-            Self::Move { player_id, moves } => Some(*player_id),
+            Self::Move {
+                player_id,
+                moves: _,
+            } => Some(*player_id),
             _ => None,
         }
     }

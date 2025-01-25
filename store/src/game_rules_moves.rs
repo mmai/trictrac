@@ -432,19 +432,31 @@ impl MoveRules {
                 continue;
             }
 
+            // XXX : the goal here is to replicate moves_allowed() checks without using get_possible_moves_sequences to
+            // avoid an infinite loop...
             let mut has_second_dice_move = false;
             for second_move in
                 board2.get_possible_moves(*color, dice2, with_excedents, true, forbid_exits)
             {
-                if self.check_corner_rules(&(first_move, second_move)).is_ok() {
+                if self.check_corner_rules(&(first_move, second_move)).is_ok()
+                    && !(self.is_move_by_puissance(&(first_move, second_move))
+                        && self.can_take_corner_by_effect())
+                {
                     moves_seqs.push((first_move, second_move));
                     has_second_dice_move = true;
                 }
+                // TODO : autres règles à vérifier (cf. moves_allowed)
+                // - check_exit_rules -> utilise get_possible_moves_sequences !
+                // - get_quarter_filling_moves_sequences -> utilise get_possible_moves_sequences !
             }
             if !has_second_dice_move
                 && with_excedents
                 && !ignore_empty
                 && self.check_corner_rules(&(first_move, EMPTY_MOVE)).is_ok()
+            // TODO : autres règles à vérifier (cf. moves_allowed)
+            // - can_take_corner_by_effect
+            // - check_exit_rules
+            // - get_quarter_filling_moves_sequences
             {
                 // empty move
                 moves_seqs.push((first_move, EMPTY_MOVE));

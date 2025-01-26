@@ -441,7 +441,7 @@ impl Board {
         let blocked = self.blocked(color, cmove.to).unwrap_or(true);
         // Check if there is a player's checker on the 'from' square
         let has_checker = self.get_checkers_color(cmove.from).unwrap_or(None) == Some(color);
-        has_checker && !blocked
+        (has_checker && !blocked) || cmove == &EMPTY_MOVE
     }
 
     /// Return if there is a quarter filled by the color
@@ -649,6 +649,12 @@ mod tests {
     fn set_wrong_amount1() {
         let mut board = Board::new();
         assert!(board.set(&Color::White, 23, -3).is_err());
+    }
+
+    #[test]
+    fn move_possible() {
+        let board = Board::new();
+        assert!(board.move_possible(&Color::White, &EMPTY_MOVE));
     }
 
     #[test]

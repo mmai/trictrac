@@ -4,7 +4,7 @@ use crate::dice::Dice;
 use crate::game_rules_moves::MoveRules;
 use crate::game_rules_points::{PointsRules, PossibleJans};
 use crate::player::{Color, Player, PlayerId};
-use log::error;
+use log::{error, info};
 
 // use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -170,7 +170,7 @@ impl GameState {
     }
 
     pub fn who_plays(&self) -> Option<&Player> {
-        self.players.get(&self.active_player_id)
+        self.get_active_player()
     }
 
     pub fn get_white_player(&self) -> Option<&Player> {
@@ -392,7 +392,9 @@ impl GameState {
                 self.stage = Stage::InGame;
                 self.turn_stage = TurnStage::RollDice;
             }
-            EndGame { reason: _ } => self.stage = Stage::Ended,
+            EndGame { reason: _ } => {
+                self.stage = Stage::Ended;
+            }
             PlayerJoined { player_id, name } => {
                 let color = if !self.players.is_empty() {
                     Color::White
@@ -542,6 +544,13 @@ impl GameState {
             }
             p.points = sum_points % 12;
             p.holes += holes;
+
+            if points > 0 && p.holes > 15 {
+                info!(
+                    "player {:?}  holes : {:?} added points : {:?}",
+                    player_id, p.holes, points
+                )
+            }
             p
         });
 

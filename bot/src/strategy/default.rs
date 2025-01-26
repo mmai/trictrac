@@ -56,7 +56,7 @@ impl BotStrategy for DefaultStrategy {
 
     fn choose_move(&self) -> (CheckerMove, CheckerMove) {
         let rules = MoveRules::new(&self.color, &self.game.board, self.game.dice);
-        let possible_moves = rules.get_possible_moves_sequences(true);
+        let possible_moves = rules.get_possible_moves_sequences(true, vec![]);
         let choosen_move = *possible_moves
             .first()
             .unwrap_or(&(CheckerMove::default(), CheckerMove::default()));

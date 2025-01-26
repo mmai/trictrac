@@ -1,6 +1,6 @@
 mod strategy;
 
-use store::{CheckerMove, Color, GameEvent, GameState, PlayerId, PointsRules, TurnStage};
+use store::{CheckerMove, Color, GameEvent, GameState, PlayerId, PointsRules, Stage, TurnStage};
 pub use strategy::default::DefaultStrategy;
 
 pub trait BotStrategy: std::fmt::Debug {
@@ -61,6 +61,9 @@ impl Bot {
     pub fn handle_event(&mut self, event: &GameEvent) -> Option<GameEvent> {
         let game = self.strategy.get_mut_game();
         game.consume(event);
+        if game.stage == Stage::Ended {
+            return None;
+        }
         if game.active_player_id == self.player_id {
             return match game.turn_stage {
                 TurnStage::MarkAdvPoints => Some(GameEvent::Mark {

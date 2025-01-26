@@ -331,7 +331,7 @@ impl PointsRules {
         }
 
         // Jan qui ne peut : dés non jouables
-        let poss = self.move_rules.get_possible_moves_sequences(true);
+        let poss = self.move_rules.get_possible_moves_sequences(true, vec![]);
         let moves = poss.iter().fold(vec![], |mut acc, (m1, m2)| {
             acc.push(*m1);
             acc.push(*m2);

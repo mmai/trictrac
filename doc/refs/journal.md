@@ -10,6 +10,10 @@ Organisation store / server / client selon <https://herluf-ba.github.io/making-a
 
 _store_ est la bibliothèque contenant le _reducer_ qui transforme l'état du jeu en fonction des évènements. Elle est utilisée par le _server_ et le _client_. Seuls les évènements sont transmis entre clients et serveur.
 
+## Config neovim debugger launchers
+
+Cela se passe dans la config neovim (lua/plugins/overrides.lua)
+
 ## Organisation du store
 
 lib
@@ -24,6 +28,7 @@ lib
 ## Algorithme de détermination des coups
 
 - strategy::choose_move
+
   - GameRules.get_possible_moves_sequences(with_excedents: bool)
     - get_possible_moves_sequences_by_dices(dice_max, dice_min, with_excedents, false);
     - get_possible_moves_sequences_by_dices(dice_min, dice_max, with_excedents, true);
@@ -41,7 +46,7 @@ lib
         - can_take_corner_by_effect ok
         - get_possible_moves_sequences -> cf. l.15
         - check_exit_rules
-          - get_possible_moves_sequences -> cf l.15
+          - get_possible_moves_sequences(without exedents) -> cf l.15
         - get_quarter_filling_moves_sequences
           - get_possible_moves_sequences -> cf l.15
   - state.consume (RollResult) (ok)

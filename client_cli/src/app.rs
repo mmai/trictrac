@@ -38,9 +38,10 @@ impl App {
             })
             .unwrap_or_default();
         let schools_enabled = false;
+        let should_quit = bot_strategies.len() > 1;
         Self {
             game: GameRunner::new(schools_enabled, bot_strategies, args.seed.map(|s| s as u64)),
-            should_quit: false,
+            should_quit,
             schools_enabled,
         }
     }

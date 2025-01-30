@@ -101,7 +101,6 @@ impl GameRunner {
         }
 
         if let Some(winner) = self.state.determine_winner() {
-            // panic!("WE HAVE A WINNER!");
             next_event = Some(store::GameEvent::EndGame {
                 reason: store::EndGameReason::PlayerWon { winner },
             });

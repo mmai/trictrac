@@ -37,6 +37,9 @@ fn main() -> Result<()> {
 
     // Create an application.
     let mut app = App::new(args);
+    if app.should_quit {
+        println!("{}", app.display());
+    }
 
     // Start the main loop.
     while !app.should_quit {

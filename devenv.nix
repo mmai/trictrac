@@ -1,13 +1,19 @@
 { pkgs, ... }:
 
 {
-  # https://devenv.sh/basics/
-  # env.GREET = "devenv";
 
   packages = [
 
     # dev tools
     pkgs.samply # code profiler
+
+    # generate python classes  from rust code (for AI training)
+    pkgs.maturin
+    # required to manually install generated python module in local venv
+    pkgs.python312Packages.pip
+
+    # required by python numpy (for AI training)
+    pkgs.libz
 
     # for bevy
     pkgs.alsaLib
@@ -38,13 +44,25 @@
 
   ];
 
-  # enterShell = ''
-  #   hello
-  #   git --version
-  # '';
+  enterShell = ''
+    PYTHONPATH=$PYTHONPATH:$PWD/.devenv/state/venv/lib/python3.12/site-packages
+  '';
 
   # https://devenv.sh/languages/
   languages.rust.enable = true;
+
+
+  # for AI training
+  languages.python = {
+    enable = true;
+    uv.enable = true;
+    venv.enable = true;
+    venv.requirements = "
+      gym
+      numpy
+      stable-baselines3
+    ";
+  };
 
   # https://devenv.sh/scripts/
   # scripts.hello.exec = "echo hello from $GREET";

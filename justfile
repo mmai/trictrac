@@ -14,3 +14,6 @@ profile:
   echo '1' | sudo tee /proc/sys/kernel/perf_event_paranoid
   cargo build --profile profiling
   samply record ./target/profiling/client_cli --bot dummy,dummy
+pythonlib:
+  maturin build -m store/Cargo.toml --release
+  pip install --no-deps --force-reinstall --prefix .devenv/state/venv target/wheels/*.whl

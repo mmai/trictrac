@@ -16,3 +16,6 @@ pub use board::CheckerMove;
 
 mod dice;
 pub use dice::{Dice, DiceRoller};
+
+// python interface "trictrac_engine" (for AI training..)
+mod engine;

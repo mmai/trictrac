@@ -5,11 +5,18 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[lib]
+name = "trictrac"
+# "cdylib" is necessary to produce a shared library for Python to import from.
+crate-type = ["cdylib"]
+
 [dependencies]
 base64 = "0.21.7"
 # provides macros for creating log messages to be used by a logger (for example env_logger)
 log = "0.4.20"
 merge = "0.1.0"
+# generate python lib to be used in AI training
+pyo3 = { version = "0.23", features = ["extension-module", "abi3-py38"] }
 rand = "0.8.5"
 serde = { version = "1.0", features = ["derive"] }
 transpose = "0.2.2"

@@ -37,9 +37,6 @@ fn main() -> Result<()> {
 
     // Create an application.
     let mut app = App::new(args);
-    if app.should_quit {
-        println!("{}", app.display());
-    }
 
     // Start the main loop.
     while !app.should_quit {
@@ -48,6 +45,9 @@ fn main() -> Result<()> {
         let _bytecount = io::stdin().read_line(&mut input)?;
         app.input(input.trim());
     }
+
+    // display app final state
+    println!("{}", app.display());
 
     Ok(())
 }

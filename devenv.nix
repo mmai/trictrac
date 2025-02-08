@@ -5,6 +5,10 @@
   # env.GREET = "devenv";
 
   packages = [
+
+    # dev tools
+    pkgs.samply # code profiler
+
     # for bevy
     pkgs.alsaLib
     pkgs.udev

@@ -10,3 +10,7 @@ runcli:
 	RUST_LOG=info cargo run --bin=client_cli
 runclibots:
 	RUST_LOG=info cargo run --bin=client_cli -- --bot dummy,dummy
+profile:
+  echo '1' | sudo tee /proc/sys/kernel/perf_event_paranoid
+  cargo build --profile profiling
+  samply record ./target/profiling/client_cli --bot dummy,dummy

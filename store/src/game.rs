@@ -582,8 +582,6 @@ impl GameState {
 /// The reasons why a game could end
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Deserialize)]
 pub enum EndGameReason {
-    // In tic tac toe it doesn't make sense to keep playing when one of the players disconnect.
-    // Note that it might make sense to keep playing in some other game (like Team Fight Tactics for instance).
     PlayerLeft { player_id: PlayerId },
     PlayerWon { winner: PlayerId },
 }

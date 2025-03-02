@@ -57,9 +57,10 @@
     venv.enable = true;
     venv.requirements = "
       pip
-      gym
+      gymnasium
       numpy
       stable-baselines3
+      shimmy
     ";
   };
 

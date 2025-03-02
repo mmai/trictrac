@@ -1,4 +1,4 @@
-use bot::{BotStrategy, DefaultStrategy};
+use bot::{BotStrategy, DefaultStrategy, StableBaselines3Strategy};
 use itertools::Itertools;
 
 use crate::game_runner::GameRunner;
@@ -31,6 +31,13 @@ impl App {
                     .filter_map(|s| match s.trim() {
                         "dummy" => {
                             Some(Box::new(DefaultStrategy::default()) as Box<dyn BotStrategy>)
+                        }
+                        "ai" => {
+                            Some(Box::new(StableBaselines3Strategy::default()) as Box<dyn BotStrategy>)
+                        }
+                        s if s.starts_with("ai:") => {
+                            let path = s.trim_start_matches("ai:");
+                            Some(Box::new(StableBaselines3Strategy::new(path)) as Box<dyn BotStrategy>)
                         }
                         _ => None,
                     })

@@ -19,6 +19,10 @@ FLAGS:
 OPTIONS:
   --seed SEED         Sets the random generator seed
   --bot STRATEGY_BOT  Add a bot player with strategy STRATEGY, a second bot may be added to play against the first : --bot STRATEGY_BOT1,STRATEGY_BOT2
+                      Available strategies:
+                      - dummy: Default strategy selecting the first valid move
+                      - ai: AI strategy using the default model at models/trictrac_ppo.zip
+                      - ai:/path/to/model.zip: AI strategy using a custom model
 
 ARGS:
   <INPUT>

@@ -17,3 +17,5 @@ profile:
 pythonlib:
   maturin build -m store/Cargo.toml --release
   pip install --no-deps --force-reinstall --prefix .devenv/state/venv target/wheels/*.whl
+trainbot:
+  python ./store/python/trainModel.py

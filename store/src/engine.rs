@@ -330,7 +330,7 @@ impl TricTrac {
 /// the `lib.name` setting in the `Cargo.toml`, else Python will not be able to
 /// import the module.
 #[pymodule]
-fn trictrac(m: &Bound<'_, PyModule>) -> PyResult<()> {
+fn store(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<TricTrac>()?;
 
     Ok(())

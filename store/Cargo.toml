@@ -6,9 +6,10 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
-name = "trictrac"
+name = "store"
 # "cdylib" is necessary to produce a shared library for Python to import from.
-crate-type = ["cdylib"]
+# "rlib" is needed for other Rust crates to use this library
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 base64 = "0.21.7"

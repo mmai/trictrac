@@ -9,14 +9,12 @@
 
     # generate python classes  from rust code (for AI training)
     pkgs.maturin
-    # required to manually install generated python module in local venv
-    pkgs.python312Packages.pip
 
     # required by python numpy (for AI training)
     pkgs.libz
 
     # for bevy
-    pkgs.alsaLib
+    pkgs.alsa-lib
     pkgs.udev
 
     # bevy fast compile
@@ -58,6 +56,7 @@
     uv.enable = true;
     venv.enable = true;
     venv.requirements = "
+      pip
       gym
       numpy
       stable-baselines3

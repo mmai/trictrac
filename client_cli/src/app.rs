@@ -1,4 +1,4 @@
-use bot::{BotStrategy, DefaultStrategy, StableBaselines3Strategy};
+use bot::{BotStrategy, DefaultStrategy, ErroneousStrategy, StableBaselines3Strategy};
 use itertools::Itertools;
 
 use crate::game_runner::GameRunner;
@@ -22,28 +22,31 @@ pub struct App {
 impl App {
     // Constructs a new instance of [`App`].
     pub fn new(args: AppArgs) -> Self {
-        let bot_strategies: Vec<Box<dyn BotStrategy>> = args
-            .bot
-            .as_deref()
-            .map(|str_bots| {
-                str_bots
-                    .split(",")
-                    .filter_map(|s| match s.trim() {
-                        "dummy" => {
-                            Some(Box::new(DefaultStrategy::default()) as Box<dyn BotStrategy>)
-                        }
-                        "ai" => {
-                            Some(Box::new(StableBaselines3Strategy::default()) as Box<dyn BotStrategy>)
-                        }
-                        s if s.starts_with("ai:") => {
-                            let path = s.trim_start_matches("ai:");
-                            Some(Box::new(StableBaselines3Strategy::new(path)) as Box<dyn BotStrategy>)
-                        }
-                        _ => None,
-                    })
-                    .collect()
-            })
-            .unwrap_or_default();
+        let bot_strategies: Vec<Box<dyn BotStrategy>> =
+            args.bot
+                .as_deref()
+                .map(|str_bots| {
+                    str_bots
+                        .split(",")
+                        .filter_map(|s| match s.trim() {
+                            "dummy" => {
+                                Some(Box::new(DefaultStrategy::default()) as Box<dyn BotStrategy>)
+                            }
+                            "erroneous" => {
+                                Some(Box::new(ErroneousStrategy::default()) as Box<dyn BotStrategy>)
+                            }
+                            "ai" => Some(Box::new(StableBaselines3Strategy::default())
+                                as Box<dyn BotStrategy>),
+                            s if s.starts_with("ai:") => {
+                                let path = s.trim_start_matches("ai:");
+                                Some(Box::new(StableBaselines3Strategy::new(path))
+                                    as Box<dyn BotStrategy>)
+                            }
+                            _ => None,
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
         let schools_enabled = false;
         let should_quit = bot_strategies.len() > 1;
         Self {

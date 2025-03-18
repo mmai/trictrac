@@ -9,7 +9,7 @@ shell:
 runcli:
 	RUST_LOG=info cargo run --bin=client_cli
 runclibots:
-	RUST_LOG=info cargo run --bin=client_cli -- --bot dummy,dummy
+	RUST_LOG=info cargo run --bin=client_cli -- --bot dummy,ai
 profile:
   echo '1' | sudo tee /proc/sys/kernel/perf_event_paranoid
   cargo build --profile profiling

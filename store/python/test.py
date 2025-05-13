@@ -1,6 +1,7 @@
-import trictrac
+import store
+# import trictrac
 
-game = trictrac.TricTrac()
+game = store.TricTrac()
 print(game.get_state())  # "Initial state"
 
 moves = game.get_available_moves()

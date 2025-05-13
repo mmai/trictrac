@@ -1,7 +1,8 @@
 import gymnasium as gym
 import numpy as np
 from gymnasium import spaces
-import trictrac  # module Rust exposé via PyO3
+# import trictrac  # module Rust exposé via PyO3
+import store  # module Rust exposé via PyO3
 from typing import Dict, List, Tuple, Optional, Any, Union
 
 class TricTracEnv(gym.Env):
@@ -13,7 +14,7 @@ class TricTracEnv(gym.Env):
         super(TricTracEnv, self).__init__()
 
         # Instancier le jeu
-        self.game = trictrac.TricTrac()
+        self.game = store.TricTrac()
 
         # Stratégie de l'adversaire
         self.opponent_strategy = opponent_strategy

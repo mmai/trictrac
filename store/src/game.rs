@@ -331,6 +331,9 @@ impl GameState {
                     return false;
                 }
             }
+            PlayError => {
+                return true;
+            }
         }
 
         // We couldn't find anything wrong with the event so it must be good
@@ -479,6 +482,7 @@ impl GameState {
                     TurnStage::RollDice
                 };
             }
+            PlayError => {}
         }
         self.history.push(valid_event.clone());
     }
@@ -620,6 +624,7 @@ pub enum GameEvent {
         player_id: PlayerId,
         moves: (CheckerMove, CheckerMove),
     },
+    PlayError,
 }
 
 impl GameEvent {

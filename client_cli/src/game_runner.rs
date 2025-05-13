@@ -58,12 +58,17 @@ impl GameRunner {
     }
 
     pub fn handle_event(&mut self, event: &GameEvent) -> Option<GameEvent> {
-        if !self.state.validate(event) {
-            println!("event not valid : {:?}", event);
+        if event == &GameEvent::PlayError {
             return None;
         }
-        // println!("consuming {:?}", event);
-        self.state.consume(event);
+        let valid_event = if self.state.validate(event) {
+            self.state.consume(event);
+            event
+        } else {
+            println!("{}", self.state);
+            println!("event not valid : {:?}", event);
+            &GameEvent::PlayError
+        };
 
         // chain all successive bot actions
         if self.bots.is_empty() {
@@ -74,7 +79,7 @@ impl GameRunner {
         let bot_events: Vec<GameEvent> = self
             .bots
             .iter_mut()
-            .filter_map(|bot| bot.handle_event(event))
+            .filter_map(|bot| bot.handle_event(valid_event))
             .collect();
 
         // if bot_events.len() > 1 {

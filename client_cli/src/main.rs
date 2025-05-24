@@ -23,6 +23,8 @@ OPTIONS:
                       - dummy: Default strategy selecting the first valid move
                       - ai: AI strategy using the default model at models/trictrac_ppo.zip
                       - ai:/path/to/model.zip: AI strategy using a custom model
+                      - dqn: DQN strategy using native Rust implementation with Burn
+                      - dqn:/path/to/model: DQN strategy using a custom model
 
 ARGS:
   <INPUT>

@@ -2,6 +2,7 @@ mod strategy;
 
 use store::{CheckerMove, Color, GameEvent, GameState, PlayerId, PointsRules, Stage, TurnStage};
 pub use strategy::default::DefaultStrategy;
+pub use strategy::dqn::DqnStrategy;
 pub use strategy::erroneous_moves::ErroneousStrategy;
 pub use strategy::stable_baselines3::StableBaselines3Strategy;
 

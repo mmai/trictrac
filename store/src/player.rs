@@ -1,11 +1,9 @@
 use serde::{Deserialize, Serialize};
 use std::fmt;
-use pyo3::prelude::*;
 
 // This just makes it easier to dissern between a player id and any ol' u64
 pub type PlayerId = u64;
 
-#[pyclass]
 #[derive(Copy, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Color {
     White,

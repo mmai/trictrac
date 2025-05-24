@@ -7,12 +7,6 @@
     # dev tools
     pkgs.samply # code profiler
 
-    # generate python classes  from rust code (for AI training)
-    pkgs.maturin
-
-    # required by python numpy (for AI training)
-    pkgs.libz
-
     # for bevy
     pkgs.alsa-lib
     pkgs.udev
@@ -42,27 +36,8 @@
 
   ];
 
-  enterShell = ''
-    PYTHONPATH=$PYTHONPATH:$PWD/.devenv/state/venv/lib/python3.12/site-packages
-  '';
-
   # https://devenv.sh/languages/
   languages.rust.enable = true;
-
-
-  # for AI training
-  languages.python = {
-    enable = true;
-    uv.enable = true;
-    venv.enable = true;
-    venv.requirements = "
-      pip
-      gymnasium
-      numpy
-      stable-baselines3
-      shimmy
-    ";
-  };
 
   # https://devenv.sh/scripts/
   # scripts.hello.exec = "echo hello from $GREET";

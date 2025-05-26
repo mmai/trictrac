@@ -5,9 +5,14 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[[bin]]
+name = "train_dqn"
+path = "src/bin/train_dqn.rs"
+
 [dependencies]
 pretty_assertions = "1.4.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 store = { path = "../store" }
 rand = "0.8"
+env_logger = "0.10"

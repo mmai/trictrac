@@ -1,4 +1,4 @@
-mod strategy;
+pub mod strategy;
 
 use store::{CheckerMove, Color, GameEvent, GameState, PlayerId, PointsRules, Stage, TurnStage};
 pub use strategy::default::DefaultStrategy;

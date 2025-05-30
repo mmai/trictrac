@@ -1,8 +1,8 @@
 use crate::{BotStrategy, CheckerMove, Color, GameState, PlayerId, PointsRules};
-use store::MoveRules;
 use std::path::Path;
+use store::MoveRules;
 
-use super::dqn_common::{DqnConfig, SimpleNeuralNetwork, game_state_to_vector};
+use super::dqn_common::{DqnConfig, SimpleNeuralNetwork};
 
 /// Stratégie DQN pour le bot - ne fait que charger et utiliser un modèle pré-entraîné
 #[derive(Debug)]
@@ -40,7 +40,7 @@ impl DqnStrategy {
     /// Utilise le modèle DQN pour choisir une action
     fn get_dqn_action(&self) -> Option<usize> {
         if let Some(ref model) = self.model {
-            let state = game_state_to_vector(&self.game);
+            let state = self.game.to_vec_float();
             Some(model.get_best_action(&state))
         } else {
             None
@@ -52,7 +52,7 @@ impl BotStrategy for DqnStrategy {
     fn get_game(&self) -> &GameState {
         &self.game
     }
-    
+
     fn get_mut_game(&mut self) -> &mut GameState {
         &mut self.game
     }
@@ -66,8 +66,6 @@ impl BotStrategy for DqnStrategy {
     }
 
     fn calculate_points(&self) -> u8 {
-        // Pour l'instant, utilisation de la méthode standard
-        // Plus tard on pourrait utiliser le DQN pour optimiser le calcul de points
         let dice_roll_count = self
             .get_game()
             .players
@@ -96,7 +94,7 @@ impl BotStrategy for DqnStrategy {
     fn choose_move(&self) -> (CheckerMove, CheckerMove) {
         let rules = MoveRules::new(&self.color, &self.game.board, self.game.dice);
         let possible_moves = rules.get_possible_moves_sequences(true, vec![]);
-        
+
         let chosen_move = if let Some(action) = self.get_dqn_action() {
             // Utiliser l'action DQN pour choisir parmi les mouvements valides
             // Action 0 = premier mouvement, action 1 = mouvement moyen, etc.
@@ -107,14 +105,16 @@ impl BotStrategy for DqnStrategy {
             } else {
                 possible_moves.len().saturating_sub(1) // Dernier mouvement
             };
-            *possible_moves.get(move_index).unwrap_or(&(CheckerMove::default(), CheckerMove::default()))
+            *possible_moves
+                .get(move_index)
+                .unwrap_or(&(CheckerMove::default(), CheckerMove::default()))
         } else {
             // Fallback : premier mouvement valide
             *possible_moves
                 .first()
                 .unwrap_or(&(CheckerMove::default(), CheckerMove::default()))
         };
-        
+
         if self.color == Color::White {
             chosen_move
         } else {
@@ -122,3 +122,4 @@ impl BotStrategy for DqnStrategy {
         }
     }
 }
+

@@ -32,6 +32,33 @@ pub enum TurnStage {
     MarkAdvPoints,
 }
 
+impl From<u8> for TurnStage {
+    fn from(item: u8) -> Self {
+        match item {
+            0 => TurnStage::RollWaiting,
+            1 => TurnStage::RollDice,
+            2 => TurnStage::MarkPoints,
+            3 => TurnStage::HoldOrGoChoice,
+            4 => TurnStage::Move,
+            5 => TurnStage::MarkAdvPoints,
+            _ => TurnStage::RollWaiting,
+        }
+    }
+}
+
+impl From<TurnStage> for u8 {
+    fn from(stage: TurnStage) -> u8 {
+        match stage {
+            TurnStage::RollWaiting => 0,
+            TurnStage::RollDice => 1,
+            TurnStage::MarkPoints => 2,
+            TurnStage::HoldOrGoChoice => 3,
+            TurnStage::Move => 4,
+            TurnStage::MarkAdvPoints => 5,
+        }
+    }
+}
+
 /// Represents a TricTrac game
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GameState {
@@ -116,6 +143,63 @@ impl GameState {
     // -------------------------------------------------------------------------
     //                        accessors
     // -------------------------------------------------------------------------
+
+    pub fn to_vec_float(&self) -> Vec<f32> {
+        self.to_vec().iter().map(|&x| x as f32).collect()
+    }
+
+    /// Get state as a vector (to be used for bot training input) :
+    /// length = 36
+    pub fn to_vec(&self) -> Vec<i8> {
+        let state_len = 36;
+        let mut state = Vec::with_capacity(state_len);
+
+        // length = 24
+        state.extend(self.board.to_vec());
+
+        // active player -> length = 1
+        // white : 0 (false)
+        // black : 1 (true)
+        state.push(
+            self.who_plays()
+                .map(|player| if player.color == Color::Black { 1 } else { 0 })
+                .unwrap_or(0), // White by default
+        );
+
+        // step  -> length = 1
+        let turn_stage: u8 = self.turn_stage.into();
+        state.push(turn_stage as i8);
+
+        // dice roll -> length = 2
+        state.push(self.dice.values.0 as i8);
+        state.push(self.dice.values.1 as i8);
+
+        // points length=4 x2 joueurs = 8
+        let white_player: Vec<i8> = self
+            .get_white_player()
+            .unwrap()
+            .to_vec()
+            .iter()
+            .map(|&x| x as i8)
+            .collect();
+        state.extend(white_player);
+        let black_player: Vec<i8> = self
+            .get_black_player()
+            .unwrap()
+            .to_vec()
+            .iter()
+            .map(|&x| x as i8)
+            .collect();
+        // .iter().map(|&x| x as i8) .collect()
+        state.extend(black_player);
+
+        // ensure state has length state_len
+        state.truncate(state_len);
+        while state.len() < state_len {
+            state.push(0);
+        }
+        state
+    }
 
     /// Calculate game state id :
     pub fn to_string_id(&self) -> String {

@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 /// Configuration pour l'agent DQN
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DqnConfig {
-    pub input_size: usize,
+    pub state_size: usize,
     pub hidden_size: usize,
     pub num_actions: usize,
     pub learning_rate: f64,
@@ -18,7 +18,7 @@ pub struct DqnConfig {
 impl Default for DqnConfig {
     fn default() -> Self {
         Self {
-            input_size: 32,
+            state_size: 36,
             hidden_size: 256,
             num_actions: 3,
             learning_rate: 0.001,
@@ -47,23 +47,35 @@ impl SimpleNeuralNetwork {
     pub fn new(input_size: usize, hidden_size: usize, output_size: usize) -> Self {
         use rand::{thread_rng, Rng};
         let mut rng = thread_rng();
-        
+
         // Initialisation aléatoire des poids avec Xavier/Glorot
         let scale1 = (2.0 / input_size as f32).sqrt();
         let weights1 = (0..hidden_size)
-            .map(|_| (0..input_size).map(|_| rng.gen_range(-scale1..scale1)).collect())
+            .map(|_| {
+                (0..input_size)
+                    .map(|_| rng.gen_range(-scale1..scale1))
+                    .collect()
+            })
             .collect();
         let biases1 = vec![0.0; hidden_size];
-        
+
         let scale2 = (2.0 / hidden_size as f32).sqrt();
         let weights2 = (0..hidden_size)
-            .map(|_| (0..hidden_size).map(|_| rng.gen_range(-scale2..scale2)).collect())
+            .map(|_| {
+                (0..hidden_size)
+                    .map(|_| rng.gen_range(-scale2..scale2))
+                    .collect()
+            })
             .collect();
         let biases2 = vec![0.0; hidden_size];
-        
+
         let scale3 = (2.0 / hidden_size as f32).sqrt();
         let weights3 = (0..output_size)
-            .map(|_| (0..hidden_size).map(|_| rng.gen_range(-scale3..scale3)).collect())
+            .map(|_| {
+                (0..hidden_size)
+                    .map(|_| rng.gen_range(-scale3..scale3))
+                    .collect()
+            })
             .collect();
         let biases3 = vec![0.0; output_size];
 
@@ -123,7 +135,10 @@ impl SimpleNeuralNetwork {
             .unwrap_or(0)
     }
 
-    pub fn save<P: AsRef<std::path::Path>>(&self, path: P) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn save<P: AsRef<std::path::Path>>(
+        &self,
+        path: P,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let data = serde_json::to_string_pretty(self)?;
         std::fs::write(path, data)?;
         Ok(())
@@ -136,47 +151,3 @@ impl SimpleNeuralNetwork {
     }
 }
 
-/// Convertit l'état du jeu en vecteur d'entrée pour le réseau de neurones
-pub fn game_state_to_vector(game_state: &crate::GameState) -> Vec<f32> {
-    use crate::Color;
-    
-    let mut state = Vec::with_capacity(32);
-
-    // Plateau (24 cases)
-    let white_positions = game_state.board.get_color_fields(Color::White);
-    let black_positions = game_state.board.get_color_fields(Color::Black);
-    
-    let mut board = vec![0.0; 24];
-    for (pos, count) in white_positions {
-        if pos < 24 {
-            board[pos] = count as f32;
-        }
-    }
-    for (pos, count) in black_positions {
-        if pos < 24 {
-            board[pos] = -(count as f32);
-        }
-    }
-    state.extend(board);
-
-    // Informations supplémentaires limitées pour respecter input_size = 32
-    state.push(game_state.active_player_id as f32);
-    state.push(game_state.dice.values.0 as f32);
-    state.push(game_state.dice.values.1 as f32);
-
-    // Points et trous des joueurs
-    if let Some(white_player) = game_state.get_white_player() {
-        state.push(white_player.points as f32);
-        state.push(white_player.holes as f32);
-    } else {
-        state.extend(vec![0.0, 0.0]);
-    }
-
-    // Assurer que la taille est exactement input_size
-    state.truncate(32);
-    while state.len() < 32 {
-        state.push(0.0);
-    }
-
-    state
-}

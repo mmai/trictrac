@@ -52,6 +52,15 @@ impl Player {
             self.points, self.holes, self.can_bredouille as u8, self.can_big_bredouille as u8
         )
     }
+
+    pub fn to_vec(&self) -> Vec<u8> {
+        vec![
+            self.points,
+            self.holes,
+            self.can_bredouille as u8,
+            self.can_big_bredouille as u8,
+        ]
+    }
 }
 
 /// Represents a player in the game.

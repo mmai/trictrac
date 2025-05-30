@@ -1,5 +1,4 @@
 use crate::{BotStrategy, CheckerMove, Color, GameState, PlayerId, PointsRules};
-use store::MoveRules;
 
 #[derive(Debug)]
 pub struct ErroneousStrategy {

@@ -1,10 +1,11 @@
 use crate::{Color, GameState, PlayerId};
-use store::{GameEvent, MoveRules, PointsRules, Stage, TurnStage};
+use rand::prelude::SliceRandom;
 use rand::{thread_rng, Rng};
-use std::collections::VecDeque;
 use serde::{Deserialize, Serialize};
+use std::collections::VecDeque;
+use store::{GameEvent, MoveRules, PointsRules, Stage, TurnStage};
 
-use super::dqn_common::{DqnConfig, SimpleNeuralNetwork, game_state_to_vector};
+use super::dqn_common::{DqnConfig, SimpleNeuralNetwork};
 
 /// Expérience pour le buffer de replay
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -71,7 +72,8 @@ pub struct DqnAgent {
 
 impl DqnAgent {
     pub fn new(config: DqnConfig) -> Self {
-        let model = SimpleNeuralNetwork::new(config.input_size, config.hidden_size, config.num_actions);
+        let model =
+            SimpleNeuralNetwork::new(config.state_size, config.hidden_size, config.num_actions);
         let target_model = model.clone();
         let replay_buffer = ReplayBuffer::new(config.replay_buffer_size);
         let epsilon = config.epsilon;
@@ -117,7 +119,10 @@ impl DqnAgent {
         }
     }
 
-    pub fn save_model<P: AsRef<std::path::Path>>(&self, path: P) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn save_model<P: AsRef<std::path::Path>>(
+        &self,
+        path: P,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         self.model.save(path)
     }
 
@@ -141,12 +146,12 @@ pub struct TrictracEnv {
     pub current_step: usize,
 }
 
-impl TrictracEnv {
-    pub fn new() -> Self {
+impl Default for TrictracEnv {
+    fn default() -> Self {
         let mut game_state = GameState::new(false);
         game_state.init_player("agent");
         game_state.init_player("opponent");
-        
+
         Self {
             game_state,
             agent_player_id: 1,
@@ -156,213 +161,233 @@ impl TrictracEnv {
             current_step: 0,
         }
     }
+}
 
+impl TrictracEnv {
     pub fn reset(&mut self) -> Vec<f32> {
         self.game_state = GameState::new(false);
         self.game_state.init_player("agent");
         self.game_state.init_player("opponent");
-        
+
         // Commencer la partie
-        self.game_state.consume(&GameEvent::BeginGame { goes_first: self.agent_player_id });
-        
+        self.game_state.consume(&GameEvent::BeginGame {
+            goes_first: self.agent_player_id,
+        });
+
         self.current_step = 0;
-        game_state_to_vector(&self.game_state)
+        self.game_state.to_vec_float()
     }
 
     pub fn step(&mut self, action: usize) -> (Vec<f32>, f32, bool) {
         let mut reward = 0.0;
-        
+
         // Appliquer l'action de l'agent
         if self.game_state.active_player_id == self.agent_player_id {
             reward += self.apply_agent_action(action);
         }
-        
+
         // Faire jouer l'adversaire (stratégie simple)
-        while self.game_state.active_player_id == self.opponent_player_id 
-            && self.game_state.stage != Stage::Ended {
-            self.play_opponent_turn();
+        while self.game_state.active_player_id == self.opponent_player_id
+            && self.game_state.stage != Stage::Ended
+        {
+            reward += self.play_opponent_turn();
         }
-        
+
         // Vérifier si la partie est terminée
-        let done = self.game_state.stage == Stage::Ended || 
-                   self.game_state.determine_winner().is_some() ||
-                   self.current_step >= self.max_steps;
+        let done = self.game_state.stage == Stage::Ended
+            || self.game_state.determine_winner().is_some()
+            || self.current_step >= self.max_steps;
 
         // Récompense finale si la partie est terminée
         if done {
             if let Some(winner) = self.game_state.determine_winner() {
                 if winner == self.agent_player_id {
-                    reward += 10.0; // Bonus pour gagner
+                    reward += 100.0; // Bonus pour gagner
                 } else {
-                    reward -= 5.0; // Pénalité pour perdre
+                    reward -= 50.0; // Pénalité pour perdre
                 }
             }
         }
 
         self.current_step += 1;
-        let next_state = game_state_to_vector(&self.game_state);
-        
+        let next_state = self.game_state.to_vec_float();
         (next_state, reward, done)
     }
 
     fn apply_agent_action(&mut self, action: usize) -> f32 {
         let mut reward = 0.0;
-        
-        match self.game_state.turn_stage {
+
+        // TODO : déterminer event selon action ...
+
+        let event = match self.game_state.turn_stage {
             TurnStage::RollDice => {
                 // Lancer les dés
-                let event = GameEvent::Roll { player_id: self.agent_player_id };
-                if self.game_state.validate(&event) {
-                    self.game_state.consume(&event);
-                    
-                    // Simuler le résultat des dés
-                    let mut rng = thread_rng();
-                    let dice_values = (rng.gen_range(1..=6), rng.gen_range(1..=6));
-                    let dice_event = GameEvent::RollResult {
-                        player_id: self.agent_player_id,
-                        dice: store::Dice { values: dice_values },
-                    };
-                    if self.game_state.validate(&dice_event) {
-                        self.game_state.consume(&dice_event);
-                    }
-                    reward += 0.1;
+                GameEvent::Roll {
+                    player_id: self.agent_player_id,
+                }
+            }
+            TurnStage::RollWaiting => {
+                // Simuler le résultat des dés
+                reward += 0.1;
+                let mut rng = thread_rng();
+                let dice_values = (rng.gen_range(1..=6), rng.gen_range(1..=6));
+                GameEvent::RollResult {
+                    player_id: self.agent_player_id,
+                    dice: store::Dice {
+                        values: dice_values,
+                    },
                 }
             }
             TurnStage::Move => {
                 // Choisir un mouvement selon l'action
-                let rules = MoveRules::new(&self.agent_color, &self.game_state.board, self.game_state.dice);
+                let rules = MoveRules::new(
+                    &self.agent_color,
+                    &self.game_state.board,
+                    self.game_state.dice,
+                );
                 let possible_moves = rules.get_possible_moves_sequences(true, vec![]);
-                
-                if !possible_moves.is_empty() {
-                    let move_index = if action == 0 {
-                        0
-                    } else if action == 1 && possible_moves.len() > 1 {
-                        possible_moves.len() / 2
-                    } else {
-                        possible_moves.len().saturating_sub(1)
-                    };
-                    
-                    let moves = *possible_moves.get(move_index).unwrap_or(&possible_moves[0]);
-                    let event = GameEvent::Move {
-                        player_id: self.agent_player_id,
-                        moves,
-                    };
-                    
-                    if self.game_state.validate(&event) {
-                        self.game_state.consume(&event);
-                        reward += 0.2;
-                    } else {
-                        reward -= 1.0; // Pénalité pour mouvement invalide
-                    }
+
+                // TODO : choix d'action
+                let move_index = if action == 0 {
+                    0
+                } else if action == 1 && possible_moves.len() > 1 {
+                    possible_moves.len() / 2
+                } else {
+                    possible_moves.len().saturating_sub(1)
+                };
+
+                let moves = *possible_moves.get(move_index).unwrap_or(&possible_moves[0]);
+                GameEvent::Move {
+                    player_id: self.agent_player_id,
+                    moves,
                 }
             }
-            TurnStage::MarkPoints => {
+            TurnStage::MarkAdvPoints | TurnStage::MarkPoints => {
                 // Calculer et marquer les points
-                let dice_roll_count = self.game_state.players.get(&self.agent_player_id).unwrap().dice_roll_count;
-                let points_rules = PointsRules::new(&self.agent_color, &self.game_state.board, self.game_state.dice);
+                let dice_roll_count = self
+                    .game_state
+                    .players
+                    .get(&self.agent_player_id)
+                    .unwrap()
+                    .dice_roll_count;
+                let points_rules = PointsRules::new(
+                    &self.agent_color,
+                    &self.game_state.board,
+                    self.game_state.dice,
+                );
                 let points = points_rules.get_points(dice_roll_count).0;
-                
-                let event = GameEvent::Mark {
+
+                reward += 0.3 * points as f32; // Récompense proportionnelle aux points
+                GameEvent::Mark {
                     player_id: self.agent_player_id,
                     points,
-                };
-                
-                if self.game_state.validate(&event) {
-                    self.game_state.consume(&event);
-                    reward += 0.1 * points as f32; // Récompense proportionnelle aux points
                 }
             }
             TurnStage::HoldOrGoChoice => {
                 // Décider de continuer ou pas selon l'action
-                if action == 2 { // Action "go"
-                    let event = GameEvent::Go { player_id: self.agent_player_id };
-                    if self.game_state.validate(&event) {
-                        self.game_state.consume(&event);
-                        reward += 0.1;
+                if action == 2 {
+                    // Action "go"
+                    GameEvent::Go {
+                        player_id: self.agent_player_id,
                     }
                 } else {
                     // Passer son tour en jouant un mouvement
-                    let rules = MoveRules::new(&self.agent_color, &self.game_state.board, self.game_state.dice);
+                    let rules = MoveRules::new(
+                        &self.agent_color,
+                        &self.game_state.board,
+                        self.game_state.dice,
+                    );
                     let possible_moves = rules.get_possible_moves_sequences(true, vec![]);
-                    
-                    if !possible_moves.is_empty() {
-                        let moves = possible_moves[0];
-                        let event = GameEvent::Move {
-                            player_id: self.agent_player_id,
-                            moves,
-                        };
-                        
-                        if self.game_state.validate(&event) {
-                            self.game_state.consume(&event);
-                        }
+
+                    let moves = possible_moves[0];
+                    GameEvent::Move {
+                        player_id: self.agent_player_id,
+                        moves,
                     }
                 }
             }
-            _ => {}
+        };
+
+        if self.game_state.validate(&event) {
+            self.game_state.consume(&event);
+            reward += 0.2;
+        } else {
+            reward -= 1.0; // Pénalité pour action invalide
         }
-        
         reward
     }
 
-    fn play_opponent_turn(&mut self) {
-        match self.game_state.turn_stage {
-            TurnStage::RollDice => {
-                let event = GameEvent::Roll { player_id: self.opponent_player_id };
-                if self.game_state.validate(&event) {
-                    self.game_state.consume(&event);
-                    
-                    let mut rng = thread_rng();
-                    let dice_values = (rng.gen_range(1..=6), rng.gen_range(1..=6));
-                    let dice_event = GameEvent::RollResult {
-                        player_id: self.opponent_player_id,
-                        dice: store::Dice { values: dice_values },
-                    };
-                    if self.game_state.validate(&dice_event) {
-                        self.game_state.consume(&dice_event);
-                    }
+    // TODO : use default bot strategy
+    fn play_opponent_turn(&mut self) -> f32 {
+        let mut reward = 0.0;
+        let event = match self.game_state.turn_stage {
+            TurnStage::RollDice => GameEvent::Roll {
+                player_id: self.opponent_player_id,
+            },
+            TurnStage::RollWaiting => {
+                let mut rng = thread_rng();
+                let dice_values = (rng.gen_range(1..=6), rng.gen_range(1..=6));
+                GameEvent::RollResult {
+                    player_id: self.opponent_player_id,
+                    dice: store::Dice {
+                        values: dice_values,
+                    },
+                }
+            }
+            TurnStage::MarkAdvPoints | TurnStage::MarkPoints => {
+                let opponent_color = self.agent_color.opponent_color();
+                let dice_roll_count = self
+                    .game_state
+                    .players
+                    .get(&self.opponent_player_id)
+                    .unwrap()
+                    .dice_roll_count;
+                let points_rules = PointsRules::new(
+                    &opponent_color,
+                    &self.game_state.board,
+                    self.game_state.dice,
+                );
+                let points = points_rules.get_points(dice_roll_count).0;
+                reward -= 0.3 * points as f32; // Récompense proportionnelle aux points
+
+                GameEvent::Mark {
+                    player_id: self.opponent_player_id,
+                    points,
                 }
             }
             TurnStage::Move => {
                 let opponent_color = self.agent_color.opponent_color();
-                let rules = MoveRules::new(&opponent_color, &self.game_state.board, self.game_state.dice);
+                let rules = MoveRules::new(
+                    &opponent_color,
+                    &self.game_state.board,
+                    self.game_state.dice,
+                );
                 let possible_moves = rules.get_possible_moves_sequences(true, vec![]);
-                
-                if !possible_moves.is_empty() {
-                    let moves = possible_moves[0]; // Stratégie simple : premier mouvement
-                    let event = GameEvent::Move {
-                        player_id: self.opponent_player_id,
-                        moves,
-                    };
-                    
-                    if self.game_state.validate(&event) {
-                        self.game_state.consume(&event);
-                    }
-                }
-            }
-            TurnStage::MarkPoints => {
-                let opponent_color = self.agent_color.opponent_color();
-                let dice_roll_count = self.game_state.players.get(&self.opponent_player_id).unwrap().dice_roll_count;
-                let points_rules = PointsRules::new(&opponent_color, &self.game_state.board, self.game_state.dice);
-                let points = points_rules.get_points(dice_roll_count).0;
-                
-                let event = GameEvent::Mark {
+
+                // Stratégie simple : choix aléatoire
+                let mut rng = thread_rng();
+                let choosen_move = *possible_moves.choose(&mut rng).unwrap();
+
+                GameEvent::Move {
                     player_id: self.opponent_player_id,
-                    points,
-                };
-                
-                if self.game_state.validate(&event) {
-                    self.game_state.consume(&event);
+                    moves: if opponent_color == Color::White {
+                        choosen_move
+                    } else {
+                        (choosen_move.0.mirror(), choosen_move.1.mirror())
+                    },
                 }
             }
             TurnStage::HoldOrGoChoice => {
                 // Stratégie simple : toujours continuer
-                let event = GameEvent::Go { player_id: self.opponent_player_id };
-                if self.game_state.validate(&event) {
-                    self.game_state.consume(&event);
+                GameEvent::Go {
+                    player_id: self.opponent_player_id,
                 }
             }
-            _ => {}
+        };
+        if self.game_state.validate(&event) {
+            self.game_state.consume(&event);
         }
+        reward
     }
 }
 
@@ -376,14 +401,14 @@ impl DqnTrainer {
     pub fn new(config: DqnConfig) -> Self {
         Self {
             agent: DqnAgent::new(config),
-            env: TrictracEnv::new(),
+            env: TrictracEnv::default(),
         }
     }
 
     pub fn train_episode(&mut self) -> f32 {
         let mut total_reward = 0.0;
         let mut state = self.env.reset();
-        
+
         loop {
             let action = self.agent.select_action(&state);
             let (next_state, reward, done) = self.env.step(action);
@@ -408,31 +433,40 @@ impl DqnTrainer {
         total_reward
     }
 
-    pub fn train(&mut self, episodes: usize, save_every: usize, model_path: &str) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn train(
+        &mut self,
+        episodes: usize,
+        save_every: usize,
+        model_path: &str,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         println!("Démarrage de l'entraînement DQN pour {} épisodes", episodes);
-        
+
         for episode in 1..=episodes {
             let reward = self.train_episode();
-            
+
             if episode % 100 == 0 {
                 println!(
                     "Épisode {}/{}: Récompense = {:.2}, Epsilon = {:.3}, Steps = {}",
-                    episode, episodes, reward, self.agent.get_epsilon(), self.agent.get_step_count()
+                    episode,
+                    episodes,
+                    reward,
+                    self.agent.get_epsilon(),
+                    self.agent.get_step_count()
                 );
             }
-            
+
             if episode % save_every == 0 {
                 let save_path = format!("{}_episode_{}.json", model_path, episode);
                 self.agent.save_model(&save_path)?;
                 println!("Modèle sauvegardé : {}", save_path);
             }
         }
-        
+
         // Sauvegarder le modèle final
         let final_path = format!("{}_final.json", model_path);
         self.agent.save_model(&final_path)?;
         println!("Modèle final sauvegardé : {}", final_path);
-        
+
         Ok(())
     }
 }

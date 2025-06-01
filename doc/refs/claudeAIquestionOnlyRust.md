@@ -123,3 +123,44 @@ Le code est maintenant parfaitement séparé entre :
 
 - Utilisation (stratégie simple qui charge un modèle)
 - Entraînement (environnement complet avec logique d'apprentissage)
+
+---
+
+● ✅ Espace d'actions étendu implémenté avec succès !
+
+J'ai complètement étendu l'espace d'actions du DQN pour couvrir tous les choix possibles dans le jeu Trictrac :
+
+🎯 Nouvel espace d'actions :
+
+TrictracAction enum comprend :
+
+- Roll - Lancer les dés (index 0)
+- Mark { points } - Marquer des points (indices 1-13 pour 0-12 points)
+- Go - Continuer après avoir gagné un trou (index 14)
+- Move { move1, move2 } - Mouvement de pions (indices 15+)
+  - Encode (from, to) pour les deux pions
+  - Espace total : 331,791 actions possibles
+
+🧠 Améliorations intelligentes :
+
+1. Masquage d'actions valides - Le DQN ne considère que les actions légales dans l'état actuel
+2. Encodage compact - Mouvements encodés en un seul entier pour efficacité
+3. Décodage automatique - Conversion transparente entre indices et actions
+4. Stratégie adaptative - La stratégie DQN utilise maintenant le bon type d'action selon le contexte
+
+🔧 Fonctionnalités ajoutées :
+
+- get_valid_actions() - Obtient les actions valides pour l'état actuel
+- TrictracAction::to_action_index() / from_action_index() - Conversion bidirectionnelle
+- sample_valid_action() - Sélection aléatoire d'une action valide
+- Réseau de neurones élargi (512 neurones cachés) pour gérer l'espace étendu
+
+📊 Utilisation dans le jeu :
+
+Le bot DQN peut maintenant :
+
+- Choisir le nombre exact de points à marquer (pas seulement le maximum)
+- Sélectionner des mouvements spécifiques parmi toutes les combinaisons possibles
+- Décider intelligemment entre "Go" et les mouvements alternatifs
+
+L'espace d'actions est maintenant parfaitement aligné avec la complexité réelle du jeu Trictrac ! 🎲

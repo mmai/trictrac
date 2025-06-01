@@ -2,7 +2,7 @@ use crate::{BotStrategy, CheckerMove, Color, GameState, PlayerId, PointsRules};
 use std::path::Path;
 use store::MoveRules;
 
-use super::dqn_common::{DqnConfig, SimpleNeuralNetwork};
+use super::dqn_common::{DqnConfig, SimpleNeuralNetwork, TrictracAction, get_valid_actions, sample_valid_action};
 
 /// Stratégie DQN pour le bot - ne fait que charger et utiliser un modèle pré-entraîné
 #[derive(Debug)]
@@ -37,13 +37,38 @@ impl DqnStrategy {
         strategy
     }
 
-    /// Utilise le modèle DQN pour choisir une action
-    fn get_dqn_action(&self) -> Option<usize> {
+    /// Utilise le modèle DQN pour choisir une action valide
+    fn get_dqn_action(&self) -> Option<TrictracAction> {
         if let Some(ref model) = self.model {
             let state = self.game.to_vec_float();
-            Some(model.get_best_action(&state))
+            let valid_actions = get_valid_actions(&self.game);
+            
+            if valid_actions.is_empty() {
+                return None;
+            }
+            
+            // Obtenir les Q-values pour toutes les actions
+            let q_values = model.forward(&state);
+            
+            // Trouver la meilleure action valide
+            let mut best_action = &valid_actions[0];
+            let mut best_q_value = f32::NEG_INFINITY;
+            
+            for action in &valid_actions {
+                let action_index = action.to_action_index();
+                if action_index < q_values.len() {
+                    let q_value = q_values[action_index];
+                    if q_value > best_q_value {
+                        best_q_value = q_value;
+                        best_action = action;
+                    }
+                }
+            }
+            
+            Some(best_action.clone())
         } else {
-            None
+            // Fallback : action aléatoire valide
+            sample_valid_action(&self.game)
         }
     }
 }
@@ -66,6 +91,14 @@ impl BotStrategy for DqnStrategy {
     }
 
     fn calculate_points(&self) -> u8 {
+        // Utiliser le DQN pour choisir le nombre de points à marquer
+        if let Some(action) = self.get_dqn_action() {
+            if let TrictracAction::Mark { points } = action {
+                return points;
+            }
+        }
+        
+        // Fallback : utiliser la méthode standard
         let dice_roll_count = self
             .get_game()
             .players
@@ -81,10 +114,9 @@ impl BotStrategy for DqnStrategy {
     }
 
     fn choose_go(&self) -> bool {
-        // Utiliser le DQN pour décider si on continue (action 2 = "go")
+        // Utiliser le DQN pour décider si on continue
         if let Some(action) = self.get_dqn_action() {
-            // Si le modèle prédit l'action "go" (2), on continue
-            action == 2
+            matches!(action, TrictracAction::Go)
         } else {
             // Fallback : toujours continuer
             true
@@ -92,28 +124,29 @@ impl BotStrategy for DqnStrategy {
     }
 
     fn choose_move(&self) -> (CheckerMove, CheckerMove) {
+        // Utiliser le DQN pour choisir le mouvement
+        if let Some(action) = self.get_dqn_action() {
+            if let TrictracAction::Move { move1, move2 } = action {
+                let checker_move1 = CheckerMove::new(move1.0, move1.1).unwrap_or_default();
+                let checker_move2 = CheckerMove::new(move2.0, move2.1).unwrap_or_default();
+                
+                let chosen_move = if self.color == Color::White {
+                    (checker_move1, checker_move2)
+                } else {
+                    (checker_move1.mirror(), checker_move2.mirror())
+                };
+                
+                return chosen_move;
+            }
+        }
+        
+        // Fallback : utiliser la stratégie par défaut
         let rules = MoveRules::new(&self.color, &self.game.board, self.game.dice);
         let possible_moves = rules.get_possible_moves_sequences(true, vec![]);
-
-        let chosen_move = if let Some(action) = self.get_dqn_action() {
-            // Utiliser l'action DQN pour choisir parmi les mouvements valides
-            // Action 0 = premier mouvement, action 1 = mouvement moyen, etc.
-            let move_index = if action == 0 {
-                0 // Premier mouvement
-            } else if action == 1 && possible_moves.len() > 1 {
-                possible_moves.len() / 2 // Mouvement du milieu
-            } else {
-                possible_moves.len().saturating_sub(1) // Dernier mouvement
-            };
-            *possible_moves
-                .get(move_index)
-                .unwrap_or(&(CheckerMove::default(), CheckerMove::default()))
-        } else {
-            // Fallback : premier mouvement valide
-            *possible_moves
-                .first()
-                .unwrap_or(&(CheckerMove::default(), CheckerMove::default()))
-        };
+        
+        let chosen_move = *possible_moves
+            .first()
+            .unwrap_or(&(CheckerMove::default(), CheckerMove::default()));
 
         if self.color == Color::White {
             chosen_move

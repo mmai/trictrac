@@ -5,13 +5,13 @@ use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use store::{GameEvent, MoveRules, PointsRules, Stage, TurnStage};
 
-use super::dqn_common::{DqnConfig, SimpleNeuralNetwork};
+use super::dqn_common::{DqnConfig, SimpleNeuralNetwork, TrictracAction, get_valid_actions, get_valid_action_indices, sample_valid_action};
 
 /// Expérience pour le buffer de replay
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Experience {
     pub state: Vec<f32>,
-    pub action: usize,
+    pub action: TrictracAction,
     pub reward: f32,
     pub next_state: Vec<f32>,
     pub done: bool,
@@ -88,14 +88,37 @@ impl DqnAgent {
         }
     }
 
-    pub fn select_action(&mut self, state: &[f32]) -> usize {
+    pub fn select_action(&mut self, game_state: &GameState, state: &[f32]) -> TrictracAction {
+        let valid_actions = get_valid_actions(game_state);
+        
+        if valid_actions.is_empty() {
+            // Fallback si aucune action valide
+            return TrictracAction::Roll;
+        }
+        
         let mut rng = thread_rng();
         if rng.gen::<f64>() < self.epsilon {
-            // Exploration : action aléatoire
-            rng.gen_range(0..self.config.num_actions)
+            // Exploration : action valide aléatoire
+            valid_actions.choose(&mut rng).cloned().unwrap_or(TrictracAction::Roll)
         } else {
-            // Exploitation : meilleure action selon le modèle
-            self.model.get_best_action(state)
+            // Exploitation : meilleure action valide selon le modèle
+            let q_values = self.model.forward(state);
+            
+            let mut best_action = &valid_actions[0];
+            let mut best_q_value = f32::NEG_INFINITY;
+            
+            for action in &valid_actions {
+                let action_index = action.to_action_index();
+                if action_index < q_values.len() {
+                    let q_value = q_values[action_index];
+                    if q_value > best_q_value {
+                        best_q_value = q_value;
+                        best_action = action;
+                    }
+                }
+            }
+            
+            best_action.clone()
         }
     }
 
@@ -178,7 +201,7 @@ impl TrictracEnv {
         self.game_state.to_vec_float()
     }
 
-    pub fn step(&mut self, action: usize) -> (Vec<f32>, f32, bool) {
+    pub fn step(&mut self, action: TrictracAction) -> (Vec<f32>, f32, bool) {
         let mut reward = 0.0;
 
         // Appliquer l'action de l'agent
@@ -214,106 +237,68 @@ impl TrictracEnv {
         (next_state, reward, done)
     }
 
-    fn apply_agent_action(&mut self, action: usize) -> f32 {
+    fn apply_agent_action(&mut self, action: TrictracAction) -> f32 {
         let mut reward = 0.0;
 
-        // TODO : déterminer event selon action ...
-
-        let event = match self.game_state.turn_stage {
-            TurnStage::RollDice => {
+        let event = match action {
+            TrictracAction::Roll => {
                 // Lancer les dés
-                GameEvent::Roll {
-                    player_id: self.agent_player_id,
-                }
-            }
-            TurnStage::RollWaiting => {
-                // Simuler le résultat des dés
                 reward += 0.1;
-                let mut rng = thread_rng();
-                let dice_values = (rng.gen_range(1..=6), rng.gen_range(1..=6));
-                GameEvent::RollResult {
+                Some(GameEvent::Roll {
                     player_id: self.agent_player_id,
-                    dice: store::Dice {
-                        values: dice_values,
-                    },
-                }
+                })
             }
-            TurnStage::Move => {
-                // Choisir un mouvement selon l'action
-                let rules = MoveRules::new(
-                    &self.agent_color,
-                    &self.game_state.board,
-                    self.game_state.dice,
-                );
-                let possible_moves = rules.get_possible_moves_sequences(true, vec![]);
-
-                // TODO : choix d'action
-                let move_index = if action == 0 {
-                    0
-                } else if action == 1 && possible_moves.len() > 1 {
-                    possible_moves.len() / 2
-                } else {
-                    possible_moves.len().saturating_sub(1)
-                };
-
-                let moves = *possible_moves.get(move_index).unwrap_or(&possible_moves[0]);
-                GameEvent::Move {
-                    player_id: self.agent_player_id,
-                    moves,
-                }
-            }
-            TurnStage::MarkAdvPoints | TurnStage::MarkPoints => {
-                // Calculer et marquer les points
-                let dice_roll_count = self
-                    .game_state
-                    .players
-                    .get(&self.agent_player_id)
-                    .unwrap()
-                    .dice_roll_count;
-                let points_rules = PointsRules::new(
-                    &self.agent_color,
-                    &self.game_state.board,
-                    self.game_state.dice,
-                );
-                let points = points_rules.get_points(dice_roll_count).0;
-
-                reward += 0.3 * points as f32; // Récompense proportionnelle aux points
-                GameEvent::Mark {
+            TrictracAction::Mark { points } => {
+                // Marquer des points
+                reward += 0.1 * points as f32;
+                Some(GameEvent::Mark {
                     player_id: self.agent_player_id,
                     points,
-                }
+                })
             }
-            TurnStage::HoldOrGoChoice => {
-                // Décider de continuer ou pas selon l'action
-                if action == 2 {
-                    // Action "go"
-                    GameEvent::Go {
-                        player_id: self.agent_player_id,
-                    }
-                } else {
-                    // Passer son tour en jouant un mouvement
-                    let rules = MoveRules::new(
-                        &self.agent_color,
-                        &self.game_state.board,
-                        self.game_state.dice,
-                    );
-                    let possible_moves = rules.get_possible_moves_sequences(true, vec![]);
-
-                    let moves = possible_moves[0];
-                    GameEvent::Move {
-                        player_id: self.agent_player_id,
-                        moves,
-                    }
-                }
+            TrictracAction::Go => {
+                // Continuer après avoir gagné un trou
+                reward += 0.2;
+                Some(GameEvent::Go {
+                    player_id: self.agent_player_id,
+                })
+            }
+            TrictracAction::Move { move1, move2 } => {
+                // Effectuer un mouvement
+                let checker_move1 = store::CheckerMove::new(move1.0, move1.1).unwrap_or_default();
+                let checker_move2 = store::CheckerMove::new(move2.0, move2.1).unwrap_or_default();
+                
+                reward += 0.2;
+                Some(GameEvent::Move {
+                    player_id: self.agent_player_id,
+                    moves: (checker_move1, checker_move2),
+                })
             }
         };
 
-        if self.game_state.validate(&event) {
-            self.game_state.consume(&event);
-            reward += 0.2;
-        } else {
-            reward -= 1.0; // Pénalité pour action invalide
+        // Appliquer l'événement si valide
+        if let Some(event) = event {
+            if self.game_state.validate(&event) {
+                self.game_state.consume(&event);
+                
+                // Simuler le résultat des dés après un Roll
+                if matches!(action, TrictracAction::Roll) {
+                    let mut rng = thread_rng();
+                    let dice_values = (rng.gen_range(1..=6), rng.gen_range(1..=6));
+                    let dice_event = GameEvent::RollResult {
+                        player_id: self.agent_player_id,
+                        dice: store::Dice { values: dice_values },
+                    };
+                    if self.game_state.validate(&dice_event) {
+                        self.game_state.consume(&dice_event);
+                    }
+                }
+            } else {
+                // Pénalité pour action invalide
+                reward -= 2.0;
+            }
         }
+
         reward
     }
 
@@ -410,8 +395,8 @@ impl DqnTrainer {
         let mut state = self.env.reset();
 
         loop {
-            let action = self.agent.select_action(&state);
-            let (next_state, reward, done) = self.env.step(action);
+            let action = self.agent.select_action(&self.env.game_state, &state);
+            let (next_state, reward, done) = self.env.step(action.clone());
             total_reward += reward;
 
             let experience = Experience {

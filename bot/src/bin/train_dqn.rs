@@ -1,4 +1,4 @@
-use bot::strategy::dqn_common::DqnConfig;
+use bot::strategy::dqn_common::{DqnConfig, TrictracAction};
 use bot::strategy::dqn_trainer::DqnTrainer;
 use std::env;
 
@@ -68,7 +68,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = DqnConfig {
         state_size: 36, // state.to_vec size
         hidden_size: 256,
-        num_actions: 3,
+        num_actions: TrictracAction::action_space_size(),
         learning_rate: 0.001,
         gamma: 0.99,
         epsilon: 0.9, // Commencer avec plus d'exploration

@@ -174,7 +174,7 @@ impl GameState {
         state.push(self.dice.values.0 as i8);
         state.push(self.dice.values.1 as i8);
 
-        // points length=4 x2 joueurs = 8
+        // points, trous, bredouille, grande bredouille length=4 x2 joueurs = 8
         let white_player: Vec<i8> = self
             .get_white_player()
             .unwrap()

@@ -2,7 +2,7 @@ use crate::{BotStrategy, CheckerMove, Color, GameState, PlayerId, PointsRules};
 use std::path::Path;
 use store::MoveRules;
 
-use super::dqn_common::{DqnConfig, SimpleNeuralNetwork, TrictracAction, get_valid_actions, sample_valid_action};
+use super::dqn_common::{SimpleNeuralNetwork, TrictracAction, get_valid_actions, sample_valid_action};
 
 /// Stratégie DQN pour le bot - ne fait que charger et utiliser un modèle pré-entraîné
 #[derive(Debug)]

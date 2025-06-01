@@ -1,11 +1,11 @@
 use crate::{BotStrategy, CheckerMove, Color, GameState, PlayerId, PointsRules};
-use store::MoveRules;
-use std::process::Command;
-use std::io::Write;
+use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::Read;
+use std::io::Write;
 use std::path::Path;
-use serde::{Serialize, Deserialize};
+use std::process::Command;
+use store::MoveRules;
 
 #[derive(Debug)]
 pub struct StableBaselines3Strategy {
@@ -62,21 +62,21 @@ impl StableBaselines3Strategy {
     fn get_state_as_json(&self) -> GameStateJson {
         // Convertir l'état du jeu en un format compatible avec notre modèle Python
         let mut board = vec![0; 24];
-        
+
         // Remplir les positions des pièces blanches (valeurs positives)
         for (pos, count) in self.game.board.get_color_fields(Color::White) {
             if pos < 24 {
                 board[pos] = count as i8;
             }
         }
-        
+
         // Remplir les positions des pièces noires (valeurs négatives)
         for (pos, count) in self.game.board.get_color_fields(Color::Black) {
             if pos < 24 {
                 board[pos] = -(count as i8);
             }
         }
-        
+
         // Convertir l'étape du tour en entier
         let turn_stage = match self.game.turn_stage {
             store::TurnStage::RollDice => 0,
@@ -85,15 +85,14 @@ impl StableBaselines3Strategy {
             store::TurnStage::HoldOrGoChoice => 3,
             store::TurnStage::Move => 4,
             store::TurnStage::MarkAdvPoints => 5,
-            _ => 0,
         };
-        
+
         // Récupérer les points et trous des joueurs
         let white_points = self.game.players.get(&1).map_or(0, |p| p.points);
         let white_holes = self.game.players.get(&1).map_or(0, |p| p.holes);
         let black_points = self.game.players.get(&2).map_or(0, |p| p.points);
         let black_holes = self.game.players.get(&2).map_or(0, |p| p.holes);
-        
+
         // Créer l'objet JSON
         GameStateJson {
             board,
@@ -111,12 +110,12 @@ impl StableBaselines3Strategy {
         // Convertir l'état du jeu en JSON
         let state_json = self.get_state_as_json();
         let state_str = serde_json::to_string(&state_json).unwrap();
-        
+
         // Écrire l'état dans un fichier temporaire
         let temp_input_path = "temp_state.json";
         let mut file = File::create(temp_input_path).ok()?;
         file.write_all(state_str.as_bytes()).ok()?;
-        
+
         // Exécuter le script Python pour faire une prédiction
         let output_path = "temp_action.json";
         let python_script = format!(
@@ -164,32 +163,29 @@ with open("{}", "w") as f:
 "#,
             self.model_path, output_path
         );
-        
+
         let temp_script_path = "temp_predict.py";
         let mut script_file = File::create(temp_script_path).ok()?;
         script_file.write_all(python_script.as_bytes()).ok()?;
-        
+
         // Exécuter le script Python
-        let status = Command::new("python")
-            .arg(temp_script_path)
-            .status()
-            .ok()?;
-            
+        let status = Command::new("python").arg(temp_script_path).status().ok()?;
+
         if !status.success() {
             return None;
         }
-        
+
         // Lire la prédiction
         if Path::new(output_path).exists() {
             let mut file = File::open(output_path).ok()?;
             let mut contents = String::new();
             file.read_to_string(&mut contents).ok()?;
-            
+
             // Nettoyer les fichiers temporaires
             std::fs::remove_file(temp_input_path).ok();
             std::fs::remove_file(temp_script_path).ok();
             std::fs::remove_file(output_path).ok();
-            
+
             // Analyser la prédiction
             let action: ActionJson = serde_json::from_str(&contents).ok()?;
             Some(action)
@@ -203,7 +199,7 @@ impl BotStrategy for StableBaselines3Strategy {
     fn get_game(&self) -> &GameState {
         &self.game
     }
-    
+
     fn get_mut_game(&mut self) -> &mut GameState {
         &mut self.game
     }
@@ -224,7 +220,7 @@ impl BotStrategy for StableBaselines3Strategy {
                 return self.game.dice.values.0 + self.game.dice.values.1;
             }
         }
-        
+
         // Fallback vers la méthode standard si la prédiction échoue
         let dice_roll_count = self
             .get_game()
@@ -245,7 +241,7 @@ impl BotStrategy for StableBaselines3Strategy {
         if let Some(action) = self.predict_action() {
             return action.action_type == 2;
         }
-        
+
         // Fallback vers la méthode standard si la prédiction échoue
         true
     }
@@ -259,14 +255,14 @@ impl BotStrategy for StableBaselines3Strategy {
                 return (move1, move2);
             }
         }
-        
+
         // Fallback vers la méthode standard si la prédiction échoue
         let rules = MoveRules::new(&self.color, &self.game.board, self.game.dice);
         let possible_moves = rules.get_possible_moves_sequences(true, vec![]);
         let choosen_move = *possible_moves
             .first()
             .unwrap_or(&(CheckerMove::default(), CheckerMove::default()));
-        
+
         if self.color == Color::White {
             choosen_move
         } else {
@@ -274,3 +270,4 @@ impl BotStrategy for StableBaselines3Strategy {
         }
     }
 }
+

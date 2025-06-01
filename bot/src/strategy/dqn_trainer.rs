@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use store::{GameEvent, MoveRules, PointsRules, Stage, TurnStage};
 
-use super::dqn_common::{DqnConfig, SimpleNeuralNetwork, TrictracAction, get_valid_actions, get_valid_action_indices, sample_valid_action};
+use super::dqn_common::{get_valid_actions, DqnConfig, SimpleNeuralNetwork, TrictracAction};
 
 /// Expérience pour le buffer de replay
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -90,23 +90,26 @@ impl DqnAgent {
 
     pub fn select_action(&mut self, game_state: &GameState, state: &[f32]) -> TrictracAction {
         let valid_actions = get_valid_actions(game_state);
-        
+
         if valid_actions.is_empty() {
             // Fallback si aucune action valide
             return TrictracAction::Roll;
         }
-        
+
         let mut rng = thread_rng();
         if rng.gen::<f64>() < self.epsilon {
             // Exploration : action valide aléatoire
-            valid_actions.choose(&mut rng).cloned().unwrap_or(TrictracAction::Roll)
+            valid_actions
+                .choose(&mut rng)
+                .cloned()
+                .unwrap_or(TrictracAction::Roll)
         } else {
             // Exploitation : meilleure action valide selon le modèle
             let q_values = self.model.forward(state);
-            
+
             let mut best_action = &valid_actions[0];
             let mut best_q_value = f32::NEG_INFINITY;
-            
+
             for action in &valid_actions {
                 let action_index = action.to_action_index();
                 if action_index < q_values.len() {
@@ -117,7 +120,7 @@ impl DqnAgent {
                     }
                 }
             }
-            
+
             best_action.clone()
         }
     }
@@ -267,7 +270,7 @@ impl TrictracEnv {
                 // Effectuer un mouvement
                 let checker_move1 = store::CheckerMove::new(move1.0, move1.1).unwrap_or_default();
                 let checker_move2 = store::CheckerMove::new(move2.0, move2.1).unwrap_or_default();
-                
+
                 reward += 0.2;
                 Some(GameEvent::Move {
                     player_id: self.agent_player_id,
@@ -280,14 +283,16 @@ impl TrictracEnv {
         if let Some(event) = event {
             if self.game_state.validate(&event) {
                 self.game_state.consume(&event);
-                
+
                 // Simuler le résultat des dés après un Roll
                 if matches!(action, TrictracAction::Roll) {
                     let mut rng = thread_rng();
                     let dice_values = (rng.gen_range(1..=6), rng.gen_range(1..=6));
                     let dice_event = GameEvent::RollResult {
                         player_id: self.agent_player_id,
-                        dice: store::Dice { values: dice_values },
+                        dice: store::Dice {
+                            values: dice_values,
+                        },
                     };
                     if self.game_state.validate(&dice_event) {
                         self.game_state.consume(&dice_event);
@@ -393,8 +398,10 @@ impl DqnTrainer {
     pub fn train_episode(&mut self) -> f32 {
         let mut total_reward = 0.0;
         let mut state = self.env.reset();
+        // let mut step_count = 0;
 
         loop {
+            // step_count += 1;
             let action = self.agent.select_action(&self.env.game_state, &state);
             let (next_state, reward, done) = self.env.step(action.clone());
             total_reward += reward;
@@ -412,6 +419,9 @@ impl DqnTrainer {
             if done {
                 break;
             }
+            // if step_count % 100 == 0 {
+            //     println!("{:?}", next_state);
+            // }
             state = next_state;
         }
 
@@ -429,6 +439,7 @@ impl DqnTrainer {
         for episode in 1..=episodes {
             let reward = self.train_episode();
 
+            print!(".");
             if episode % 100 == 0 {
                 println!(
                     "Épisode {}/{}: Récompense = {:.2}, Epsilon = {:.3}, Steps = {}",

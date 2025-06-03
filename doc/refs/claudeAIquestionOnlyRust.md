@@ -164,3 +164,39 @@ Le bot DQN peut maintenant :
 - Décider intelligemment entre "Go" et les mouvements alternatifs
 
 L'espace d'actions est maintenant parfaitement aligné avec la complexité réelle du jeu Trictrac ! 🎲
+
+---
+
+Pour réduire la taille de l'espace des actions, est-ce qu'on peut tenir compte de l'état du jeu pour le choix des actions ?
+Ça voudrait dire que pour le choix du mouvement par exemple, comme on connait la valeur des dés on a juste à choisir quel dé on joue en premier (2 choix), puis la position de départ du premier pion (25 choix), et la position de départ du deuxième pion (25 choix), la position de départ étant déduite de la valeur des dés.
+
+....
+
+● Parfait ! J'ai implémenté l'espace d'actions compactes basé sur le contexte du jeu. Voici les amélirations majeures apportées :
+
+✅ Réduction drastique de l'espace d'actions :
+
+- Avant : 331,791 actions possibles à chaque étape
+- Maintenant : 1-200 actions selon le contexte du jeu
+
+✅ Actions contextuelles :
+
+- Roll : Seulement quand c'est possible (1 action)
+- Mark : Seulement les points valides 0-12 (≤13 actions)
+- Go : Toujours 1 action
+- MoveChoice : 2 ordres de dés × ~10 positions de départ × ~10 positions = ~200 actions au lieu de 331,791
+
+✅ Architecture modulaire :
+
+- CompactAction : actions simplifiées basées sur le contexte
+- to_trictrac_action() : conversion automatique vers les actions complètes
+- get_valid_compact_actions() : génération contextuelle des actions valides
+- context_action_space_size() : taille dynamique de l'espace d'actions
+
+L'approche utilise exactement votre suggestion : pour les mouvements, au lieu d'encoder toutes les combinaisons possibles, on choisit :
+
+1. L'ordre des dés (2 choix max si dés différents)
+2. Les positions de départ (seulement celles avec des pions)
+3. Les destinations sont automatiquement calculées selon les règles
+
+Cela réduit l'espace d'actions de 99.94% tout en gardant toute la richesse du jeu !

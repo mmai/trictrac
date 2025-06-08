@@ -266,7 +266,11 @@ impl TrictracEnv {
                     player_id: self.agent_player_id,
                 })
             }
-            TrictracAction::Move { move1, move2 } => {
+            TrictracAction::Move {
+                dice_order,
+                from1,
+                from2,
+            } => {
                 // Effectuer un mouvement
                 let checker_move1 = store::CheckerMove::new(move1.0, move1.1).unwrap_or_default();
                 let checker_move2 = store::CheckerMove::new(move2.0, move2.1).unwrap_or_default();

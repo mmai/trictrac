@@ -71,7 +71,7 @@ pub struct GameState {
     /// last dice pair rolled
     pub dice: Dice,
     /// players points computed for the last dice pair rolled
-    dice_points: (u8, u8),
+    pub dice_points: (u8, u8),
     pub dice_moves: (CheckerMove, CheckerMove),
     pub dice_jans: PossibleJans,
     /// true if player needs to roll first
@@ -505,13 +505,7 @@ impl GameState {
                 self.players.remove(player_id);
             }
             Roll { player_id: _ } => {
-                // Opponent has moved, we can mark pending points earned during opponent's turn
-                let new_hole = self.mark_points(self.active_player_id, self.dice_points.1);
-                if new_hole && self.get_active_player().unwrap().holes > 12 {
-                    self.stage = Stage::Ended;
-                } else {
-                    self.turn_stage = TurnStage::RollWaiting;
-                }
+                self.turn_stage = TurnStage::RollWaiting;
             }
             RollResult { player_id: _, dice } => {
                 self.dice = *dice;
@@ -534,23 +528,25 @@ impl GameState {
                 }
             }
             Mark { player_id, points } => {
-                let new_hole = self.mark_points(*player_id, *points);
-                if new_hole {
-                    if self.get_active_player().unwrap().holes > 12 {
-                        self.stage = Stage::Ended;
+                if self.schools_enabled {
+                    let new_hole = self.mark_points(*player_id, *points);
+                    if new_hole {
+                        if self.get_active_player().unwrap().holes > 12 {
+                            self.stage = Stage::Ended;
+                        } else {
+                            self.turn_stage = if self.turn_stage == TurnStage::MarkAdvPoints {
+                                TurnStage::RollDice
+                            } else {
+                                TurnStage::HoldOrGoChoice
+                            };
+                        }
                     } else {
                         self.turn_stage = if self.turn_stage == TurnStage::MarkAdvPoints {
                             TurnStage::RollDice
                         } else {
-                            TurnStage::HoldOrGoChoice
+                            TurnStage::Move
                         };
                     }
-                } else {
-                    self.turn_stage = if self.turn_stage == TurnStage::MarkAdvPoints {
-                        TurnStage::RollDice
-                    } else {
-                        TurnStage::Move
-                    };
                 }
             }
             Go { player_id: _ } => self.new_pick_up(),
@@ -563,6 +559,11 @@ impl GameState {
                 self.turn_stage = if self.schools_enabled {
                     TurnStage::MarkAdvPoints
                 } else {
+                    // The player has moved, we can mark its opponent's points (which is now the current player)
+                    let new_hole = self.mark_points(self.active_player_id, self.dice_points.1);
+                    if new_hole && self.get_active_player().unwrap().holes > 12 {
+                        self.stage = Stage::Ended;
+                    }
                     TurnStage::RollDice
                 };
             }

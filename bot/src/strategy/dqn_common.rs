@@ -1,118 +1,23 @@
+use std::cmp::max;
+
 use serde::{Deserialize, Serialize};
+use store::{CheckerMove, Dice, GameEvent, PlayerId};
 
 /// Types d'actions possibles dans le jeu
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum TrictracAction {
     /// Lancer les dés
     Roll,
-    /// Marquer des points
-    Mark { points: u8 },
+    /// Marquer les points
+    Mark,
     /// Continuer après avoir gagné un trou
     Go,
     /// Effectuer un mouvement de pions
     Move {
-        move1: (usize, usize), // (from, to) pour le premier pion
-        move2: (usize, usize), // (from, to) pour le deuxième pion
+        dice_order: bool, // true = utiliser dice[0] en premier, false = dice[1] en premier
+        from1: usize,     // position de départ du premier pion (0-24)
+        from2: usize,     // position de départ du deuxième pion (0-24)
     },
-}
-
-/// Actions compactes basées sur le contexte du jeu
-/// Réduit drastiquement l'espace d'actions en utilisant l'état du jeu
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub enum CompactAction {
-    /// Lancer les dés
-    Roll,
-    /// Marquer des points (0-12)
-    Mark { points: u8 },
-    /// Continuer après avoir gagné un trou
-    Go,
-    /// Choix de mouvement simplifié
-    MoveChoice {
-        dice_order: bool,  // true = utiliser dice[0] en premier, false = dice[1] en premier
-        from1: usize,      // position de départ du premier pion (0-24)
-        from2: usize,      // position de départ du deuxième pion (0-24)
-    },
-}
-
-impl CompactAction {
-    /// Convertit CompactAction vers TrictracAction en utilisant l'état du jeu
-    pub fn to_trictrac_action(&self, game_state: &crate::GameState) -> Option<TrictracAction> {
-        match self {
-            CompactAction::Roll => Some(TrictracAction::Roll),
-            CompactAction::Mark { points } => Some(TrictracAction::Mark { points: *points }),
-            CompactAction::Go => Some(TrictracAction::Go),
-            CompactAction::MoveChoice { dice_order, from1, from2 } => {
-                // Calculer les positions de destination basées sur les dés
-                if let Some(player_color) = game_state.player_color_by_id(&game_state.active_player_id) {
-                    let dice = game_state.dice;
-                    let (die1, die2) = if *dice_order { (dice.values.0, dice.values.1) } else { (dice.values.1, dice.values.0) };
-                    
-                    // Calculer les destinations (simplifiée - à adapter selon les règles de mouvement)
-                    let to1 = if player_color == store::Color::White {
-                        from1 + die1 as usize
-                    } else {
-                        from1.saturating_sub(die1 as usize)
-                    };
-                    
-                    let to2 = if player_color == store::Color::White {
-                        from2 + die2 as usize
-                    } else {
-                        from2.saturating_sub(die2 as usize)
-                    };
-                    
-                    Some(TrictracAction::Move {
-                        move1: (*from1, to1),
-                        move2: (*from2, to2),
-                    })
-                } else {
-                    None
-                }
-            }
-        }
-    }
-    
-    /// Taille de l'espace d'actions compactes selon le contexte
-    pub fn context_action_space_size(game_state: &crate::GameState) -> usize {
-        use store::TurnStage;
-        
-        match game_state.turn_stage {
-            TurnStage::RollDice | TurnStage::RollWaiting => 1, // Seulement Roll
-            TurnStage::MarkPoints | TurnStage::MarkAdvPoints => 13, // Mark 0-12 points
-            TurnStage::HoldOrGoChoice => {
-                // Go + mouvements possibles
-                if let Some(player_color) = game_state.player_color_by_id(&game_state.active_player_id) {
-                    let rules = store::MoveRules::new(&player_color, &game_state.board, game_state.dice);
-                    let possible_moves = rules.get_possible_moves_sequences(true, vec![]);
-                    1 + Self::estimate_compact_moves(game_state, &possible_moves)
-                } else {
-                    1
-                }
-            }
-            TurnStage::Move => {
-                // Seulement les mouvements
-                if let Some(player_color) = game_state.player_color_by_id(&game_state.active_player_id) {
-                    let rules = store::MoveRules::new(&player_color, &game_state.board, game_state.dice);
-                    let possible_moves = rules.get_possible_moves_sequences(true, vec![]);
-                    Self::estimate_compact_moves(game_state, &possible_moves)
-                } else {
-                    0
-                }
-            }
-        }
-    }
-    
-    /// Estime le nombre d'actions compactes pour les mouvements
-    fn estimate_compact_moves(game_state: &crate::GameState, _possible_moves: &[(store::CheckerMove, store::CheckerMove)]) -> usize {
-        // Au lieu d'encoder tous les mouvements possibles,
-        // on utilise : 2 (ordre des dés) * 25 (from1) * 25 (from2) = 1250 maximum
-        // En pratique, beaucoup moins car on ne peut partir que des positions avec des pions
-        
-        let max_dice_orders = if game_state.dice.values.0 != game_state.dice.values.1 { 2 } else { 1 };
-        let _max_positions = 25; // positions 0-24
-        
-        // Estimation conservatrice : environ 10 positions de départ possibles en moyenne
-        max_dice_orders * 10 * 10 // ≈ 200 au lieu de 331,791
-    }
 }
 
 impl TrictracAction {
@@ -120,14 +25,21 @@ impl TrictracAction {
     pub fn to_action_index(&self) -> usize {
         match self {
             TrictracAction::Roll => 0,
-            TrictracAction::Mark { points } => {
-                1 + (*points as usize).min(12) // Indices 1-13 pour 0-12 points
-            }
-            TrictracAction::Go => 14,
-            TrictracAction::Move { move1, move2 } => {
+            TrictracAction::Mark => 1,
+            TrictracAction::Go => 2,
+            TrictracAction::Move {
+                dice_order,
+                from1,
+                from2,
+            } => {
                 // Encoder les mouvements dans l'espace d'actions
-                // Indices 15+ pour les mouvements
-                15 + encode_move_pair(*move1, *move2)
+                // Indices 3+ pour les mouvements
+                let mut start = 3;
+                if !dice_order {
+                    // 25 * 25 = 625
+                    start += 625;
+                }
+                start + from1 * 25 + from2
             }
         }
     }
@@ -136,51 +48,62 @@ impl TrictracAction {
     pub fn from_action_index(index: usize) -> Option<TrictracAction> {
         match index {
             0 => Some(TrictracAction::Roll),
-            1..=13 => Some(TrictracAction::Mark {
-                points: (index - 1) as u8,
-            }),
-            14 => Some(TrictracAction::Go),
-            i if i >= 15 => {
-                let move_code = i - 15;
-                let (move1, move2) = decode_move_pair(move_code);
-                Some(TrictracAction::Move { move1, move2 })
+            1 => Some(TrictracAction::Mark),
+            2 => Some(TrictracAction::Go),
+            i if i >= 3 => {
+                let move_code = i - 3;
+                let (dice_order, from1, from2) = Self::decode_move(move_code);
+                Some(TrictracAction::Move {
+                    dice_order,
+                    from1,
+                    from2,
+                })
             }
             _ => None,
         }
     }
 
+    /// Décode un entier en paire de mouvements
+    fn decode_move(code: usize) -> (bool, usize, usize) {
+        let mut encoded = code;
+        let dice_order = code < 626;
+        if !dice_order {
+            encoded -= 625
+        }
+        let from1 = encoded / 25;
+        let from2 = encoded % 25;
+        (dice_order, from1, from2)
+    }
+
     /// Retourne la taille de l'espace d'actions total
     pub fn action_space_size() -> usize {
-        // 1 (Roll) + 13 (Mark 0-12) + 1 (Go) + mouvements possibles
-        // Pour les mouvements : 25*25*25*25 = 390625 (position 0-24 pour chaque from/to)
+        // 1 (Roll) + 1 (Mark) + 1 (Go) + mouvements possibles
+        // Pour les mouvements : 2*25*25 = 1250 (choix du dé + position 0-24 pour chaque from)
         // Mais on peut optimiser en limitant aux positions valides (1-24)
-        15 + (24 * 24 * 24 * 24) // = 331791
+        3 + (2 * 25 * 25) // = 1253
     }
-}
 
-/// Encode une paire de mouvements en un seul entier
-fn encode_move_pair(move1: (usize, usize), move2: (usize, usize)) -> usize {
-    let (from1, to1) = move1;
-    let (from2, to2) = move2;
-    // Assurer que les positions sont dans la plage 0-24
-    let from1 = from1.min(24);
-    let to1 = to1.min(24);
-    let from2 = from2.min(24);
-    let to2 = to2.min(24);
-
-    from1 * (25 * 25 * 25) + to1 * (25 * 25) + from2 * 25 + to2
-}
-
-/// Décode un entier en paire de mouvements
-fn decode_move_pair(code: usize) -> ((usize, usize), (usize, usize)) {
-    let from1 = code / (25 * 25 * 25);
-    let remainder = code % (25 * 25 * 25);
-    let to1 = remainder / (25 * 25);
-    let remainder = remainder % (25 * 25);
-    let from2 = remainder / 25;
-    let to2 = remainder % 25;
-
-    ((from1, to1), (from2, to2))
+    // pub fn to_game_event(&self, player_id: PlayerId, dice: Dice) -> GameEvent {
+    //     match action {
+    //         TrictracAction::Roll => Some(GameEvent::Roll { player_id }),
+    //         TrictracAction::Mark => Some(GameEvent::Mark { player_id, points }),
+    //         TrictracAction::Go => Some(GameEvent::Go { player_id }),
+    //         TrictracAction::Move {
+    //             dice_order,
+    //             from1,
+    //             from2,
+    //         } => {
+    //             // Effectuer un mouvement
+    //             let checker_move1 = store::CheckerMove::new(move1.0, move1.1).unwrap_or_default();
+    //             let checker_move2 = store::CheckerMove::new(move2.0, move2.1).unwrap_or_default();
+    //
+    //             Some(GameEvent::Move {
+    //                 player_id: self.agent_player_id,
+    //                 moves: (checker_move1, checker_move2),
+    //             })
+    //         }
+    //     };
+    // }
 }
 
 /// Configuration pour l'agent DQN
@@ -350,17 +273,7 @@ pub fn get_valid_actions(game_state: &crate::GameState) -> Vec<TrictracAction> {
                 valid_actions.push(TrictracAction::Roll);
             }
             TurnStage::MarkPoints | TurnStage::MarkAdvPoints => {
-                // Calculer les points possibles
-                if let Some(player) = game_state.players.get(&active_player_id) {
-                    let dice_roll_count = player.dice_roll_count;
-                    let points_rules = PointsRules::new(&color, &game_state.board, game_state.dice);
-                    let (max_points, _) = points_rules.get_points(dice_roll_count);
-
-                    // Permettre de marquer entre 0 et max_points
-                    for points in 0..=max_points {
-                        valid_actions.push(TrictracAction::Mark { points });
-                    }
-                }
+                valid_actions.push(TrictracAction::Mark);
             }
             TurnStage::HoldOrGoChoice => {
                 valid_actions.push(TrictracAction::Go);
@@ -370,9 +283,11 @@ pub fn get_valid_actions(game_state: &crate::GameState) -> Vec<TrictracAction> {
                 let possible_moves = rules.get_possible_moves_sequences(true, vec![]);
 
                 for (move1, move2) in possible_moves {
+                    let diff_move1 = move1.get_to() - move1.get_from();
                     valid_actions.push(TrictracAction::Move {
-                        move1: (move1.get_from(), move1.get_to()),
-                        move2: (move2.get_from(), move2.get_to()),
+                        dice_order: diff_move1 == game_state.dice.values.0 as usize,
+                        from1: move1.get_from(),
+                        from2: move2.get_from(),
                     });
                 }
             }
@@ -381,9 +296,11 @@ pub fn get_valid_actions(game_state: &crate::GameState) -> Vec<TrictracAction> {
                 let possible_moves = rules.get_possible_moves_sequences(true, vec![]);
 
                 for (move1, move2) in possible_moves {
+                    let diff_move1 = move1.get_to() - move1.get_from();
                     valid_actions.push(TrictracAction::Move {
-                        move1: (move1.get_from(), move1.get_to()),
-                        move2: (move2.get_from(), move2.get_to()),
+                        dice_order: diff_move1 == game_state.dice.values.0 as usize,
+                        from1: move1.get_from(),
+                        from2: move2.get_from(),
                     });
                 }
             }
@@ -391,92 +308,6 @@ pub fn get_valid_actions(game_state: &crate::GameState) -> Vec<TrictracAction> {
     }
 
     valid_actions
-}
-
-/// Génère les actions compactes valides selon l'état du jeu
-pub fn get_valid_compact_actions(game_state: &crate::GameState) -> Vec<CompactAction> {
-    use crate::PointsRules;
-    use store::TurnStage;
-
-    let mut valid_actions = Vec::new();
-
-    let active_player_id = game_state.active_player_id;
-    let player_color = game_state.player_color_by_id(&active_player_id);
-
-    if let Some(color) = player_color {
-        match game_state.turn_stage {
-            TurnStage::RollDice | TurnStage::RollWaiting => {
-                valid_actions.push(CompactAction::Roll);
-            }
-            TurnStage::MarkPoints | TurnStage::MarkAdvPoints => {
-                // Calculer les points possibles
-                if let Some(player) = game_state.players.get(&active_player_id) {
-                    let dice_roll_count = player.dice_roll_count;
-                    let points_rules = PointsRules::new(&color, &game_state.board, game_state.dice);
-                    let (max_points, _) = points_rules.get_points(dice_roll_count);
-
-                    // Permettre de marquer entre 0 et max_points
-                    for points in 0..=max_points {
-                        valid_actions.push(CompactAction::Mark { points });
-                    }
-                }
-            }
-            TurnStage::HoldOrGoChoice => {
-                valid_actions.push(CompactAction::Go);
-                
-                // Ajouter les choix de mouvements compacts
-                add_compact_move_actions(game_state, &color, &mut valid_actions);
-            }
-            TurnStage::Move => {
-                // Seulement les mouvements compacts
-                add_compact_move_actions(game_state, &color, &mut valid_actions);
-            }
-        }
-    }
-
-    valid_actions
-}
-
-/// Ajoute les actions de mouvement compactes basées sur le contexte
-fn add_compact_move_actions(game_state: &crate::GameState, color: &store::Color, valid_actions: &mut Vec<CompactAction>) {
-    let rules = store::MoveRules::new(color, &game_state.board, game_state.dice);
-    let possible_moves = rules.get_possible_moves_sequences(true, vec![]);
-    
-    // Extraire les positions de départ uniques des mouvements possibles
-    let mut valid_from_positions = std::collections::HashSet::new();
-    for (move1, move2) in &possible_moves {
-        valid_from_positions.insert(move1.get_from());
-        valid_from_positions.insert(move2.get_from());
-    }
-    
-    let dice = game_state.dice;
-    let dice_orders = if dice.values.0 != dice.values.1 { vec![true, false] } else { vec![true] };
-    
-    // Générer les combinaisons compactes valides
-    for dice_order in dice_orders {
-        for &from1 in &valid_from_positions {
-            for &from2 in &valid_from_positions {
-                // Vérifier si cette combinaison produit un mouvement valide
-                let compact_action = CompactAction::MoveChoice { 
-                    dice_order, 
-                    from1, 
-                    from2 
-                };
-                
-                if let Some(trictrac_action) = compact_action.to_trictrac_action(game_state) {
-                    // Vérifier si ce mouvement est dans la liste des mouvements possibles
-                    if let TrictracAction::Move { move1, move2 } = trictrac_action {
-                        if let (Ok(checker_move1), Ok(checker_move2)) = 
-                            (store::CheckerMove::new(move1.0, move1.1), store::CheckerMove::new(move2.0, move2.1)) {
-                            if possible_moves.contains(&(checker_move1, checker_move2)) {
-                                valid_actions.push(compact_action);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
 }
 
 /// Retourne les indices des actions valides

@@ -36,18 +36,20 @@ impl BotStrategy for DefaultStrategy {
     }
 
     fn calculate_points(&self) -> u8 {
-        let dice_roll_count = self
-            .get_game()
-            .players
-            .get(&self.player_id)
-            .unwrap()
-            .dice_roll_count;
-        let points_rules = PointsRules::new(&Color::White, &self.game.board, self.game.dice);
-        points_rules.get_points(dice_roll_count).0
+        // let dice_roll_count = self
+        //     .get_game()
+        //     .players
+        //     .get(&self.player_id)
+        //     .unwrap()
+        //     .dice_roll_count;
+        // let points_rules = PointsRules::new(&Color::White, &self.game.board, self.game.dice);
+        // points_rules.get_points(dice_roll_count).0
+        self.game.dice_points.0
     }
 
     fn calculate_adv_points(&self) -> u8 {
-        self.calculate_points()
+        // self.calculate_points()
+        self.game.dice_points.1
     }
 
     fn choose_go(&self) -> bool {

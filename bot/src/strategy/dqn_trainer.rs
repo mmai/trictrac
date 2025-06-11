@@ -1,4 +1,4 @@
-use crate::{Color, GameState, PlayerId};
+use crate::{CheckerMove, Color, GameState, PlayerId};
 use rand::prelude::SliceRandom;
 use rand::{thread_rng, Rng};
 use serde::{Deserialize, Serialize};
@@ -251,14 +251,15 @@ impl TrictracEnv {
                     player_id: self.agent_player_id,
                 })
             }
-            TrictracAction::Mark { points } => {
-                // Marquer des points
-                reward += 0.1 * points as f32;
-                Some(GameEvent::Mark {
-                    player_id: self.agent_player_id,
-                    points,
-                })
-            }
+            // TrictracAction::Mark => {
+            //     // Marquer des points
+            //     let points = self.game_state.
+            //     reward += 0.1 * points as f32;
+            //     Some(GameEvent::Mark {
+            //         player_id: self.agent_player_id,
+            //         points,
+            //     })
+            // }
             TrictracAction::Go => {
                 // Continuer après avoir gagné un trou
                 reward += 0.2;
@@ -272,8 +273,23 @@ impl TrictracEnv {
                 from2,
             } => {
                 // Effectuer un mouvement
-                let checker_move1 = store::CheckerMove::new(move1.0, move1.1).unwrap_or_default();
-                let checker_move2 = store::CheckerMove::new(move2.0, move2.1).unwrap_or_default();
+                let (dice1, dice2) = if dice_order {
+                    (self.game_state.dice.values.0, self.game_state.dice.values.1)
+                } else {
+                    (self.game_state.dice.values.1, self.game_state.dice.values.0)
+                };
+                let mut to1 = from1 + dice1 as usize;
+                let mut to2 = from2 + dice2 as usize;
+
+                // Gestion prise de coin par puissance
+                let opp_rest_field = 13;
+                if to1 == opp_rest_field && to2 == opp_rest_field {
+                    to1 -= 1;
+                    to2 -= 1;
+                }
+
+                let checker_move1 = store::CheckerMove::new(from1, to1).unwrap_or_default();
+                let checker_move2 = store::CheckerMove::new(from2, to2).unwrap_or_default();
 
                 reward += 0.2;
                 Some(GameEvent::Move {
@@ -360,7 +376,9 @@ impl TrictracEnv {
 
                 // Stratégie simple : choix aléatoire
                 let mut rng = thread_rng();
-                let choosen_move = *possible_moves.choose(&mut rng).unwrap();
+                let choosen_move = *possible_moves
+                    .choose(&mut rng)
+                    .unwrap_or(&(CheckerMove::default(), CheckerMove::default()));
 
                 GameEvent::Move {
                     player_id: self.opponent_player_id,
@@ -443,7 +461,6 @@ impl DqnTrainer {
         for episode in 1..=episodes {
             let reward = self.train_episode();
 
-            print!(".");
             if episode % 100 == 0 {
                 println!(
                     "Épisode {}/{}: Récompense = {:.2}, Epsilon = {:.3}, Steps = {}",

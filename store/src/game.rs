@@ -757,6 +757,7 @@ mod tests {
     #[test]
     fn hold_or_go() {
         let mut game_state = init_test_gamestate(TurnStage::MarkPoints);
+        game_state.schools_enabled = true;
         let pid = game_state.active_player_id;
         game_state.consume(
             &(GameEvent::Mark {
@@ -782,6 +783,7 @@ mod tests {
 
         // Hold
         let mut game_state = init_test_gamestate(TurnStage::MarkPoints);
+        game_state.schools_enabled = true;
         let pid = game_state.active_player_id;
         game_state.consume(
             &(GameEvent::Mark {
@@ -802,6 +804,6 @@ mod tests {
         assert_ne!(game_state.active_player_id, pid);
         assert_eq!(game_state.players.get(&pid).unwrap().points, 1);
         assert_eq!(game_state.get_active_player().unwrap().points, 0);
-        assert_eq!(game_state.turn_stage, TurnStage::RollDice);
+        assert_eq!(game_state.turn_stage, TurnStage::MarkAdvPoints);
     }
 }

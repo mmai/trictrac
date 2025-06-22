@@ -200,3 +200,33 @@ L'approche utilise exactement votre suggestion : pour les mouvements, au lieu d'
 3. Les destinations sont automatiquement calculées selon les règles
 
 Cela réduit l'espace d'actions de 99.94% tout en gardant toute la richesse du jeu !
+
+---
+
+● Parfait ! J'ai créé le fichier train_burn_rl.rs qui utilise votre environnement Burn-RL corrigé.
+
+Pour lancer l'entraînement avec Burn-RL :
+
+cargo run --bin=train_burn_rl
+
+Ou avec des options personnalisées :
+
+cargo run --bin=train_burn_rl -- --episodes 2000 --save-every 200 --max-steps 1000
+
+Caractéristiques de cet entraîneur :
+
+✅ Utilise l'environnement Burn-RL que vous avez corrigé
+✅ Actions contextuelles via get_valid_actions()
+✅ Politique epsilon-greedy simple pour commencer
+✅ Statistiques détaillées avec moyennes mobiles
+✅ Configuration flexible via arguments CLI
+✅ Logging progressif pour suivre l'entraînement
+
+Options disponibles :
+
+- --episodes : nombre d'épisodes (défaut: 1000)
+- --save-every : fréquence d'affichage des stats (défaut: 100)
+- --max-steps : nombre max de steps par épisode (défaut: 500)
+- --help : aide complète
+
+Cet entraîneur sert de base pour tester l'environnement Burn-RL. Une fois que tout fonctionne bien, on pourra y intégrer un vrai agent DQN avec réseaux de neurones !

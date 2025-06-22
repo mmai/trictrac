@@ -9,6 +9,10 @@ edition = "2021"
 name = "train_dqn"
 path = "src/bin/train_dqn.rs"
 
+[[bin]]
+name = "train_burn_rl"
+path = "src/bin/train_burn_rl.rs"
+
 [dependencies]
 pretty_assertions = "1.4.0"
 serde = { version = "1.0", features = ["derive"] }

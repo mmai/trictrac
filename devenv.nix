@@ -4,6 +4,11 @@
 
   packages = [
 
+    # pour burn-rs (compilation sdl2-sys)
+    pkgs.cmake
+    pkgs.libffi
+    pkgs.wayland-scanner
+
     # dev tools
     pkgs.samply # code profiler
 

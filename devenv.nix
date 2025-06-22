@@ -4,7 +4,9 @@
 
   packages = [
 
-    # pour burn-rs (compilation sdl2-sys)
+    # pour burn-rs
+    pkgs.SDL2_gfx
+    #  (compilation sdl2-sys)
     pkgs.cmake
     pkgs.libffi
     pkgs.wayland-scanner

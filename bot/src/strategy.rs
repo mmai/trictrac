@@ -1,3 +1,4 @@
+pub mod burn_environment;
 pub mod client;
 pub mod default;
 pub mod dqn;

@@ -1,6 +1,7 @@
 pub mod strategy;
 
 use store::{CheckerMove, Color, GameEvent, GameState, PlayerId, PointsRules, Stage, TurnStage};
+pub use strategy::burn_dqn_strategy::{BurnDqnStrategy, create_burn_dqn_strategy};
 pub use strategy::default::DefaultStrategy;
 pub use strategy::dqn::DqnStrategy;
 pub use strategy::erroneous_moves::ErroneousStrategy;

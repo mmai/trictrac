@@ -1,3 +1,5 @@
+pub mod burn_dqn_agent;
+pub mod burn_dqn_strategy;
 pub mod burn_environment;
 pub mod client;
 pub mod default;

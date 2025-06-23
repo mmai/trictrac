@@ -230,3 +230,23 @@ Options disponibles :
 - --help : aide complète
 
 Cet entraîneur sert de base pour tester l'environnement Burn-RL. Une fois que tout fonctionne bien, on pourra y intégrer un vrai agent DQN avec réseaux de neurones !
+
+---
+
+Session où je n'ai cessé de recevoir ce message :
+
+⎿ API Error (429 {"type":"error","error":{"type":"rate_limit_error","message":"This request would exceed the rate limit for your organization (813e6b21-ec6f-44c3-a7f0-408244105e5c) of 20,000 input tokens per minute. For details, refer to: <https://docs.anthropic.com/en/api/rate-limits>. You can see the response headers for current usage. Please reduce the prompt length or the maximum tokens requested, or try again later. You may also contact sales at <https://www.anthropic.com/contact-sales> to discuss your options for a rate limit increase."}}) · Retrying in 391 seconds… (attempt 1/10)
+
+✶ Coaching… (403s · ↑ 382 tokens · esc to interrupt)
+
+Pour à la fin de la session avoir ce résumé :
+
+Total cost: $0.95
+Total duration (API): 1h 24m 22.8s
+Total duration (wall): 1h 43m 3.5s
+Total code changes: 746 lines added, 0 lines removed
+Token usage by model:
+claude-3-5-haiku: 18.8k input, 443 output, 0 cache read, 0 cache write
+claude-sonnet: 10 input, 666 output, 0 cache read, 245.6k cache write
+
+Mais pourtant 2 millions indiqués dans la page usage : <https://console.anthropic.com/usage>, et 7.88 dollars de consommés sur <https://console.anthropic.com/cost>.

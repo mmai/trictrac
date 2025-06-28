@@ -1,5 +1,5 @@
 use bot::strategy::burn_dqn_agent::{BurnDqnAgent, DqnConfig, Experience};
-use bot::strategy::burn_environment::{TrictracEnvironment, TrictracAction};
+use bot::strategy::burn_environment::{TrictracAction, TrictracEnvironment};
 use bot::strategy::dqn_common::get_valid_actions;
 use burn_rl::base::Environment;
 use std::env;
@@ -80,7 +80,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Configuration DQN
     let config = DqnConfig {
         state_size: 36,
-        action_size: 1000, // Espace d'actions réduit via contexte
+        action_size: 1252, // Espace d'actions réduit via contexte
         hidden_size: 256,
         learning_rate: 0.001,
         gamma: 0.99,
@@ -94,6 +94,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Créer l'agent et l'environnement
     let mut agent = BurnDqnAgent::new(config);
+    let mut optimizer = AdamConfig::new().init();
+
     let mut env = TrictracEnvironment::new(true);
 
     // Variables pour les statistiques
@@ -114,35 +116,44 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         loop {
             step += 1;
-            let current_state = snapshot.state;
+            let current_state = snapshot.state();
 
             // Obtenir les actions valides selon le contexte du jeu
             let valid_actions = get_valid_actions(&env.game);
-            
+
             if valid_actions.is_empty() {
                 break;
             }
 
             // Convertir les actions Trictrac en indices pour l'agent
             let valid_indices: Vec<usize> = (0..valid_actions.len()).collect();
-            
+
             // Sélectionner une action avec l'agent DQN
-            let action_index = agent.select_action(&current_state.data.iter().map(|&x| x as f32).collect::<Vec<_>>(), &valid_indices);
-            let action = TrictracAction { index: action_index as u32 };
+            let action_index = agent.select_action(
+                &current_state
+                    .data
+                    .iter()
+                    .map(|&x| x as f32)
+                    .collect::<Vec<_>>(),
+                &valid_indices,
+            );
+            let action = TrictracAction {
+                index: action_index as u32,
+            };
 
             // Exécuter l'action
             snapshot = env.step(action);
-            episode_reward += snapshot.reward;
+            episode_reward += snapshot.reward();
 
             // Préparer l'expérience pour l'agent
             let experience = Experience {
                 state: current_state.data.iter().map(|&x| x as f32).collect(),
                 action: action_index,
-                reward: snapshot.reward,
-                next_state: if snapshot.terminated { 
-                    None 
-                } else { 
-                    Some(snapshot.state.data.iter().map(|&x| x as f32).collect())
+                reward: snapshot.reward(),
+                next_state: if snapshot.terminated {
+                    None
+                } else {
+                    Some(snapshot.state().data.iter().map(|&x| x as f32).collect())
                 },
                 done: snapshot.terminated,
             };
@@ -151,7 +162,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             agent.add_experience(experience);
 
             // Entraîner l'agent
-            if let Some(loss) = agent.train_step() {
+            if let Some(loss) = agent.train_step(optimizer) {
                 episode_loss += loss;
                 loss_count += 1;
             }
@@ -163,7 +174,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         // Calculer la loss moyenne de l'épisode
-        let avg_loss = if loss_count > 0 { episode_loss / loss_count as f32 } else { 0.0 };
+        let avg_loss = if loss_count > 0 {
+            episode_loss / loss_count as f32
+        } else {
+            0.0
+        };
 
         // Sauvegarder les statistiques
         total_rewards.push(episode_reward);
@@ -172,13 +187,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Affichage des statistiques
         if episode % save_every == 0 {
-            let avg_reward = total_rewards.iter().rev().take(save_every).sum::<f32>() / save_every as f32;
-            let avg_length = episode_lengths.iter().rev().take(save_every).sum::<usize>() / save_every;
-            let avg_episode_loss = losses.iter().rev().take(save_every).sum::<f32>() / save_every as f32;
-            
+            let avg_reward =
+                total_rewards.iter().rev().take(save_every).sum::<f32>() / save_every as f32;
+            let avg_length =
+                episode_lengths.iter().rev().take(save_every).sum::<usize>() / save_every;
+            let avg_episode_loss =
+                losses.iter().rev().take(save_every).sum::<f32>() / save_every as f32;
+
             println!("Episode {} | Avg Reward: {:.3} | Avg Length: {} | Avg Loss: {:.6} | Epsilon: {:.3} | Buffer: {}", 
                      episode, avg_reward, avg_length, avg_episode_loss, agent.get_epsilon(), agent.get_buffer_size());
-            
+
             // Sauvegarder le modèle
             let checkpoint_path = format!("{}_{}", model_path, episode);
             if let Err(e) = agent.save_model(&checkpoint_path) {
@@ -187,8 +205,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("  → Modèle sauvegardé : {}", checkpoint_path);
             }
         } else if episode % 10 == 0 {
-            println!("Episode {} | Reward: {:.3} | Length: {} | Loss: {:.6} | Epsilon: {:.3}", 
-                     episode, episode_reward, step, avg_loss, agent.get_epsilon());
+            println!(
+                "Episode {} | Reward: {:.3} | Length: {} | Loss: {:.6} | Epsilon: {:.3}",
+                episode,
+                episode_reward,
+                step,
+                avg_loss,
+                agent.get_epsilon()
+            );
         }
     }
 
@@ -199,28 +223,54 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Statistiques finales
     println!();
     println!("=== Résultats de l'entraînement ===");
-    let final_avg_reward = total_rewards.iter().rev().take(100.min(episodes)).sum::<f32>() / 100.min(episodes) as f32;
-    let final_avg_length = episode_lengths.iter().rev().take(100.min(episodes)).sum::<usize>() / 100.min(episodes);
-    let final_avg_loss = losses.iter().rev().take(100.min(episodes)).sum::<f32>() / 100.min(episodes) as f32;
-    
-    println!("Récompense moyenne (100 derniers épisodes) : {:.3}", final_avg_reward);
-    println!("Longueur moyenne (100 derniers épisodes) : {}", final_avg_length);
-    println!("Loss moyenne (100 derniers épisodes) : {:.6}", final_avg_loss);
+    let final_avg_reward = total_rewards
+        .iter()
+        .rev()
+        .take(100.min(episodes))
+        .sum::<f32>()
+        / 100.min(episodes) as f32;
+    let final_avg_length = episode_lengths
+        .iter()
+        .rev()
+        .take(100.min(episodes))
+        .sum::<usize>()
+        / 100.min(episodes);
+    let final_avg_loss =
+        losses.iter().rev().take(100.min(episodes)).sum::<f32>() / 100.min(episodes) as f32;
+
+    println!(
+        "Récompense moyenne (100 derniers épisodes) : {:.3}",
+        final_avg_reward
+    );
+    println!(
+        "Longueur moyenne (100 derniers épisodes) : {}",
+        final_avg_length
+    );
+    println!(
+        "Loss moyenne (100 derniers épisodes) : {:.6}",
+        final_avg_loss
+    );
     println!("Epsilon final : {:.3}", agent.get_epsilon());
     println!("Taille du buffer final : {}", agent.get_buffer_size());
-    
+
     // Statistiques globales
-    let max_reward = total_rewards.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
+    let max_reward = total_rewards
+        .iter()
+        .cloned()
+        .fold(f32::NEG_INFINITY, f32::max);
     let min_reward = total_rewards.iter().cloned().fold(f32::INFINITY, f32::min);
     println!("Récompense max : {:.3}", max_reward);
     println!("Récompense min : {:.3}", min_reward);
-    
+
     println!();
     println!("Entraînement terminé avec succès !");
     println!("Modèle final sauvegardé : {}", final_path);
     println!();
     println!("Pour utiliser le modèle entraîné :");
-    println!("  cargo run --bin=client_cli -- --bot burn_dqn:{}_final,dummy", model_path);
+    println!(
+        "  cargo run --bin=client_cli -- --bot burn_dqn:{}_final,dummy",
+        model_path
+    );
 
     Ok(())
 }

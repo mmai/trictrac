@@ -250,3 +250,19 @@ claude-3-5-haiku: 18.8k input, 443 output, 0 cache read, 0 cache write
 claude-sonnet: 10 input, 666 output, 0 cache read, 245.6k cache write
 
 Mais pourtant 2 millions indiqués dans la page usage : <https://console.anthropic.com/usage>, et 7.88 dollars de consommés sur <https://console.anthropic.com/cost>.
+
+I just had a claude code session in which I kept having this error, even if the agent didn't seem to read a lot of files : API Error (429 {"type":"error","error":{"type":"rate_limit_error","message":"This request would exceed the rate limit for your organization (813e6b21-ec6f-44c3-a7f0-408244105e5c) of 20,000 input tokens per minute.
+
+at the end of the session the token usage and cost indicated was this :
+
+Total cost: $0.95
+Total duration (API): 1h 24m 22.8s
+Total duration (wall): 1h 43m 3.5s
+Total code changes: 746 lines added, 0 lines removed
+Token usage by model:
+claude-3-5-haiku: 18.8k input, 443 output, 0 cache read, 0 cache write
+claude-sonnet: 10 input, 666 output, 0 cache read, 245.6k cache write
+
+but the usage on the /usage page was 2,073,698 token in, and the cost on the /cost page was $7.90.
+
+When looking at the costs csv file, it seems that it is the "input cache write 5m" that consumed nearly all the tokens ( $7,71 ). Is it a bug ?

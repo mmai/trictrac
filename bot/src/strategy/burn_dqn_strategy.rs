@@ -64,11 +64,11 @@ impl BurnDqnStrategy {
 
         // Convertir l'état du jeu en tensor
         let state_vec = self.game.to_vec_float();
-        let state_tensor = Tensor::<InferenceBackend, 2>::from_floats([state_vec], &self.device);
+        let state_tensor = Tensor::<InferenceBackend, 2>::from_floats(state_vec.as_slice(), &self.device).reshape([1, self.config.as_ref().unwrap().state_size]);
 
         // Faire une prédiction
         let q_values = network.forward(state_tensor);
-        let q_data = q_values.into_data().convert::<f32>().value;
+        let q_data = q_values.into_data().convert::<f32>().into_vec().unwrap();
 
         // Trouver la meilleure action parmi les actions valides
         let mut best_action = &valid_actions[0];
@@ -129,14 +129,14 @@ impl BotStrategy for BurnDqnStrategy {
 
     fn calculate_points(&self) -> u8 {
         // Utiliser le modèle DQN pour décider des points à marquer
-        let valid_actions = get_valid_actions(&self.game);
+        // let valid_actions = get_valid_actions(&self.game);
         
         // Chercher une action Mark dans les actions valides
-        for action in &valid_actions {
-            if let super::dqn_common::TrictracAction::Mark { points } = action {
-                return *points;
-            }
-        }
+        // for action in &valid_actions {
+        //     if let super::dqn_common::TrictracAction::Mark { points } = action {
+        //         return *points;
+        //     }
+        // }
         
         // Par défaut, marquer 0 points
         0

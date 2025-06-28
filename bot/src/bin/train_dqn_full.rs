@@ -1,6 +1,7 @@
 use bot::strategy::burn_dqn_agent::{BurnDqnAgent, DqnConfig, Experience};
 use bot::strategy::burn_environment::{TrictracAction, TrictracEnvironment};
 use bot::strategy::dqn_common::get_valid_actions;
+use burn::optim::AdamConfig;
 use burn_rl::base::Environment;
 use std::env;
 
@@ -116,7 +117,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         loop {
             step += 1;
-            let current_state = snapshot.state();
+            let current_state_data = snapshot.state().data;
 
             // Obtenir les actions valides selon le contexte du jeu
             let valid_actions = get_valid_actions(&env.game);
@@ -130,11 +131,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             // Sélectionner une action avec l'agent DQN
             let action_index = agent.select_action(
-                &current_state
-                    .data
-                    .iter()
-                    .map(|&x| x as f32)
-                    .collect::<Vec<_>>(),
+                &current_state_data,
                 &valid_indices,
             );
             let action = TrictracAction {
@@ -143,32 +140,32 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             // Exécuter l'action
             snapshot = env.step(action);
-            episode_reward += snapshot.reward();
+            episode_reward += *snapshot.reward();
 
             // Préparer l'expérience pour l'agent
             let experience = Experience {
-                state: current_state.data.iter().map(|&x| x as f32).collect(),
+                state: current_state_data.to_vec(),
                 action: action_index,
-                reward: snapshot.reward(),
-                next_state: if snapshot.terminated {
+                reward: *snapshot.reward(),
+                next_state: if snapshot.done() {
                     None
                 } else {
-                    Some(snapshot.state().data.iter().map(|&x| x as f32).collect())
+                    Some(snapshot.state().data.to_vec())
                 },
-                done: snapshot.terminated,
+                done: snapshot.done(),
             };
 
             // Ajouter l'expérience au replay buffer
             agent.add_experience(experience);
 
             // Entraîner l'agent
-            if let Some(loss) = agent.train_step(optimizer) {
+            if let Some(loss) = agent.train_step(&mut optimizer) {
                 episode_loss += loss;
                 loss_count += 1;
             }
 
             // Vérifier les conditions de fin
-            if snapshot.terminated || step >= max_steps_per_episode {
+            if snapshot.done() || step >= max_steps_per_episode {
                 break;
             }
         }

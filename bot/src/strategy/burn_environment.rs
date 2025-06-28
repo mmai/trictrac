@@ -6,7 +6,7 @@ use store::{GameEvent, GameState, PlayerId, PointsRules, Stage, TurnStage};
 /// État du jeu Trictrac pour burn-rl
 #[derive(Debug, Clone, Copy)]
 pub struct TrictracState {
-    pub data: [i8; 36], // Représentation vectorielle de l'état du jeu
+    pub data: [f32; 36], // Représentation vectorielle de l'état du jeu
 }
 
 impl State for TrictracState {
@@ -24,14 +24,12 @@ impl State for TrictracState {
 impl TrictracState {
     /// Convertit un GameState en TrictracState
     pub fn from_game_state(game_state: &GameState) -> Self {
-        let state_vec = game_state.to_vec();
-        let mut data = [0; 36];
+        let state_vec = game_state.to_vec_float();
+        let mut data = [0.0; 36];
 
         // Copier les données en s'assurant qu'on ne dépasse pas la taille
         let copy_len = state_vec.len().min(36);
-        for i in 0..copy_len {
-            data[i] = state_vec[i];
-        }
+        data[..copy_len].copy_from_slice(&state_vec[..copy_len]);
 
         TrictracState { data }
     }

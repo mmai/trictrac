@@ -1,10 +1,8 @@
-use burn::module::AutodiffModule;
-use burn::tensor::backend::AutodiffBackend;
 use burn::{
     backend::{ndarray::NdArrayDevice, Autodiff, NdArray},
     module::Module,
     nn::{loss::MseLoss, Linear, LinearConfig},
-    optim::{GradientsParams, Optimizer},
+    optim::Optimizer,
     record::{CompactRecorder, Recorder},
     tensor::Tensor,
 };
@@ -138,6 +136,8 @@ impl BurnDqnAgent {
     /// Sélectionne une action avec epsilon-greedy
     pub fn select_action(&mut self, state: &[f32], valid_actions: &[usize]) -> usize {
         if valid_actions.is_empty() {
+            // Retourne une action par défaut ou une action "nulle" si aucune n'est valide
+            // Dans le contexte du jeu, cela ne devrait pas arriver si la logique de fin de partie est correcte
             return 0;
         }
 
@@ -148,7 +148,8 @@ impl BurnDqnAgent {
         }
 
         // Exploitation : choisir la meilleure action selon le Q-network
-        let state_tensor = Tensor::<MyBackend, 2>::from_floats(state, &self.device);
+        let state_tensor = Tensor::<MyBackend, 2>::from_floats(state, &self.device)
+            .reshape([1, self.config.state_size]);
         let q_values = self.q_network.forward(state_tensor);
 
         // Convertir en vecteur pour traitement
@@ -177,9 +178,9 @@ impl BurnDqnAgent {
     }
 
     /// Entraîne le réseau sur un batch d'expériences
-    pub fn train_step<B: AutodiffBackend, M: AutodiffModule<B>>(
+    pub fn train_step(
         &mut self,
-        optimizer: &mut impl Optimizer<M, B>,
+        optimizer: &mut impl Optimizer<DqnNetwork<MyBackend>, MyBackend>,
     ) -> Option<f32> {
         if self.replay_buffer.len() < self.config.batch_size {
             return None;
@@ -189,8 +190,9 @@ impl BurnDqnAgent {
         let batch = self.sample_batch();
 
         // Préparer les tenseurs d'état
-        let states: Vec<&[f32]> = batch.iter().map(|exp| exp.state.as_slice()).collect();
-        let state_tensor = Tensor::<MyBackend, 2>::from_floats(states, &self.device);
+        let states: Vec<f32> = batch.iter().flat_map(|exp| exp.state.clone()).collect();
+        let state_tensor = Tensor::<MyBackend, 2>::from_floats(states.as_slice(), &self.device)
+            .reshape([self.config.batch_size, self.config.state_size]);
 
         // Calculer les Q-values actuelles
         let current_q_values = self.q_network.forward(state_tensor);
@@ -208,8 +210,8 @@ impl BurnDqnAgent {
         // Backpropagation (version simplifiée)
         let grads = loss.backward();
         // Gradients linked to each parameter of the model.
-        // let grads = GradientsParams::from_grads(grads, &self.q_network);
-        self.q_network = optimizer.step(self.config.learning_rate, self.q_network, grads);
+        let grads = burn::optim::GradientsParams::from_grads(grads, &self.q_network);
+        self.q_network = optimizer.step(self.config.learning_rate, self.q_network.clone(), grads);
 
         // Mise à jour du réseau cible
         self.step_count += 1;

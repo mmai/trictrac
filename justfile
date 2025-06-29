@@ -19,5 +19,6 @@ pythonlib:
   pip install --no-deps --force-reinstall --prefix .devenv/state/venv target/wheels/*.whl
 trainbot:
   #python ./store/python/trainModel.py
-  # cargo run --bin=train_dqn
-  cargo run --bin=train_burn_rl
+  # cargo run --bin=train_dqn # ok
+  # cargo run --bin=train_burn_rl # doesn't save model
+  cargo run --bin=train_dqn_full

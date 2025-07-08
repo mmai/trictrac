@@ -1,4 +1,4 @@
-use bot::strategy::burn_environment::{TrictracAction, TrictracEnvironment};
+use bot::burnrl::environment::{TrictracAction, TrictracEnvironment};
 use bot::strategy::dqn_common::get_valid_actions;
 use burn_rl::base::Environment;
 use rand::Rng;
@@ -224,4 +224,3 @@ fn print_help() {
     println!("  - Pour l'instant, implémente seulement une politique epsilon-greedy simple");
     println!("  - L'intégration avec un vrai agent DQN peut être ajoutée plus tard");
 }
-

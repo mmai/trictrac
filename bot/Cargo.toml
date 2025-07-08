@@ -6,12 +6,16 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [[bin]]
+name = "train_dqn_burn"
+path = "src/burnrl/main.rs"
+
+[[bin]]
 name = "train_dqn"
 path = "src/bin/train_dqn.rs"
 
-[[bin]]
-name = "train_burn_rl"
-path = "src/bin/train_burn_rl.rs"
+# [[bin]]
+# name = "train_burn_rl"
+# path = "src/bin/train_burn_rl.rs"
 
 [[bin]]
 name = "train_dqn_full"

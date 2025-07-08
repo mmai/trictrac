@@ -1,5 +1,5 @@
+use bot::burnrl::environment::{TrictracAction, TrictracEnvironment};
 use bot::strategy::burn_dqn_agent::{BurnDqnAgent, DqnConfig, Experience};
-use bot::strategy::burn_environment::{TrictracAction, TrictracEnvironment};
 use bot::strategy::dqn_common::get_valid_actions;
 use burn::optim::AdamConfig;
 use burn_rl::base::Environment;
@@ -130,10 +130,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let valid_indices: Vec<usize> = (0..valid_actions.len()).collect();
 
             // Sélectionner une action avec l'agent DQN
-            let action_index = agent.select_action(
-                &current_state_data,
-                &valid_indices,
-            );
+            let action_index = agent.select_action(&current_state_data, &valid_indices);
             let action = TrictracAction {
                 index: action_index as u32,
             };

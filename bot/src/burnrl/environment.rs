@@ -1,3 +1,4 @@
+use crate::strategy::dqn_common;
 use burn::{prelude::Backend, tensor::Tensor};
 use burn_rl::base::{Action, Environment, Snapshot, State};
 use rand::{thread_rng, Rng};
@@ -57,9 +58,7 @@ impl Action for TrictracAction {
     }
 
     fn size() -> usize {
-        // Utiliser l'espace d'actions compactes pour réduire la complexité
-        // Maximum estimé basé sur les actions contextuelles
-        1000 // Estimation conservative, sera ajusté dynamiquement
+        1252
     }
 }
 
@@ -205,8 +204,8 @@ impl TrictracEnvironment {
         &self,
         action: TrictracAction,
         game_state: &GameState,
-    ) -> Option<super::dqn_common::TrictracAction> {
-        use super::dqn_common::get_valid_actions;
+    ) -> Option<dqn_common::TrictracAction> {
+        use dqn_common::get_valid_actions;
 
         // Obtenir les actions valides dans le contexte actuel
         let valid_actions = get_valid_actions(game_state);
@@ -223,9 +222,9 @@ impl TrictracEnvironment {
     /// Exécute une action Trictrac dans le jeu
     fn execute_action(
         &mut self,
-        action: super::dqn_common::TrictracAction,
+        action: dqn_common::TrictracAction,
     ) -> Result<f32, Box<dyn std::error::Error>> {
-        use super::dqn_common::TrictracAction;
+        use dqn_common::TrictracAction;
 
         let mut reward = 0.0;
 
@@ -320,7 +319,7 @@ impl TrictracEnvironment {
         // Si c'est le tour de l'adversaire, jouer automatiquement
         if self.game.active_player_id == self.opponent_id && self.game.stage != Stage::Ended {
             // Utiliser la stratégie default pour l'adversaire
-            use super::default::DefaultStrategy;
+            use crate::strategy::default::DefaultStrategy;
             use crate::BotStrategy;
 
             let mut default_strategy = DefaultStrategy::default();

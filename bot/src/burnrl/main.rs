@@ -12,24 +12,22 @@ fn main() {
     println!("> Entraînement");
     let num_episodes = 3;
     let agent = dqn_model::run::<Env, Backend>(num_episodes, false); //true);
-    println!("> Sauvegarde");
-    save(&agent);
 
-    // cette ligne sert à extraire le "cerveau" de l'agent entraîné,
-    // sans les données nécessaires à l'entraînement
     let valid_agent = agent.valid();
+
+    println!("> Sauvegarde du modèle de validation");
+    save_model(valid_agent.model().as_ref().unwrap());
 
     println!("> Test");
     demo_model::<Env>(valid_agent);
 }
 
-fn save(agent: &DQN<Env, Backend, dqn_model::Net<Backend>>) {
+fn save_model(model: &dqn_model::Net<NdArray<ElemType>>) {
     let path = "models/burn_dqn".to_string();
-    let inference_network = agent.model().clone().into_record();
     let recorder = CompactRecorder::new();
     let model_path = format!("{}_model.burn", path);
-    println!("Modèle sauvegardé : {}", model_path);
+    println!("Modèle de validation sauvegardé : {}", model_path);
     recorder
-        .record(inference_network, model_path.into())
+        .record(model.clone().into_record(), model_path.into())
         .unwrap();
 }

@@ -70,7 +70,8 @@ type MyAgent<E, B> = DQN<E, B, Net<B>>;
 pub fn run<E: Environment, B: AutodiffBackend>(
     num_episodes: usize,
     visualized: bool,
-) -> impl Agent<E> {
+) -> DQN<E, B, Net<B>> {
+    // ) -> impl Agent<E> {
     let mut env = E::new(visualized);
 
     let model = Net::<B>::new(
@@ -138,16 +139,5 @@ pub fn run<E: Environment, B: AutodiffBackend>(
             }
         }
     }
-
-    // Save
-    let path = "models/burn_dqn".to_string();
-    let inference_network = agent.model().clone().into_record();
-    let recorder = CompactRecorder::new();
-    let model_path = format!("{}_model.burn", path);
-    println!("Modèle sauvegardé : {}", model_path);
-    recorder
-        .record(inference_network, model_path.into())
-        .unwrap();
-
-    agent.valid()
+    agent
 }

@@ -1,10 +1,16 @@
 # Backlog
 
-position dans tutoriel :
-
 ## DONE
 
 ## TODO
+
+- bot burn
+  - train = `just trainbot`
+    - durée d'entrainement selon params ?
+  - save
+  - load and run against default bot
+  - many configs, save models selon config
+  - retrain against himself ?
 
 ### Doc
 

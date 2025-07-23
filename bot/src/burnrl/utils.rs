@@ -12,6 +12,7 @@ pub fn demo_model<E: Environment>(agent: impl Agent<E>) {
         if let Some(action) = agent.react(&state) {
             let snapshot = env.step(action);
             state = *snapshot.state();
+            // println!("{:?}", state);
             done = snapshot.done();
         }
     }

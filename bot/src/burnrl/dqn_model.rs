@@ -2,6 +2,7 @@ use crate::burnrl::utils::soft_update_linear;
 use burn::module::Module;
 use burn::nn::{Linear, LinearConfig};
 use burn::optim::AdamWConfig;
+use burn::record::{CompactRecorder, Recorder};
 use burn::tensor::activation::relu;
 use burn::tensor::backend::{AutodiffBackend, Backend};
 use burn::tensor::Tensor;
@@ -137,6 +138,16 @@ pub fn run<E: Environment, B: AutodiffBackend>(
             }
         }
     }
+
+    // Save
+    let path = "models/burn_dqn".to_string();
+    let inference_network = agent.model().clone().into_record();
+    let recorder = CompactRecorder::new();
+    let model_path = format!("{}_model.burn", path);
+    println!("Modèle sauvegardé : {}", model_path);
+    recorder
+        .record(inference_network, model_path.into())
+        .unwrap();
 
     agent.valid()
 }

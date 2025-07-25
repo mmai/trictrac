@@ -610,7 +610,9 @@ impl GameState {
 
     fn inc_roll_count(&mut self, player_id: PlayerId) {
         self.players.get_mut(&player_id).map(|p| {
-            p.dice_roll_count += 1;
+            if p.dice_roll_count < u8::MAX {
+                p.dice_roll_count += 1;
+            }
             p
         });
     }

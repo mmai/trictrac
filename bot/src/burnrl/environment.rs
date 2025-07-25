@@ -92,6 +92,7 @@ impl Environment for TrictracEnvironment {
     type RewardType = f32;
 
     const MAX_STEPS: usize = 1000; // Limite max pour éviter les parties infinies
+                                   // const MAX_STEPS: usize = 5; // Limite max pour éviter les parties infinies
 
     fn new(visualized: bool) -> Self {
         let mut game = GameState::new(false);
@@ -139,6 +140,7 @@ impl Environment for TrictracEnvironment {
 
         // Convertir l'action burn-rl vers une action Trictrac
         let trictrac_action = self.convert_action(action, &self.game);
+        // println!("chosen  action: {:?} ->  {:?}", action, trictrac_action);
 
         let mut reward = 0.0;
         let mut terminated = false;
@@ -201,6 +203,15 @@ impl Environment for TrictracEnvironment {
 impl TrictracEnvironment {
     /// Convertit une action burn-rl vers une action Trictrac
     fn convert_action(
+        &self,
+        action: TrictracAction,
+        game_state: &GameState,
+    ) -> Option<dqn_common::TrictracAction> {
+        dqn_common::TrictracAction::from_action_index(action.index.try_into().unwrap())
+    }
+
+    /// Convertit l'index d'une action au sein des actions valides vers une action Trictrac
+    fn convert_valid_action_index(
         &self,
         action: TrictracAction,
         game_state: &GameState,

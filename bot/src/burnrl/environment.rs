@@ -103,6 +103,9 @@ impl Environment for TrictracEnvironment {
         let player1_id = 1;
         let player2_id = 2;
 
+        // Commencer la partie
+        game.consume(&GameEvent::BeginGame { goes_first: 1 });
+
         let current_state = TrictracState::from_game_state(&game);
         TrictracEnvironment {
             game,
@@ -140,7 +143,6 @@ impl Environment for TrictracEnvironment {
 
         // Convertir l'action burn-rl vers une action Trictrac
         let trictrac_action = self.convert_action(action, &self.game);
-        // println!("chosen  action: {:?} ->  {:?}", action, trictrac_action);
 
         let mut reward = 0.0;
         let mut terminated = false;

@@ -71,7 +71,7 @@ impl TrictracAction {
             encoded -= 625
         }
         let from1 = encoded / 25;
-        let from2 = encoded % 25;
+        let from2 = 1 + encoded % 25;
         (dice_order, from1, from2)
     }
 
@@ -377,4 +377,31 @@ pub fn sample_valid_action(game_state: &crate::GameState) -> Option<TrictracActi
     let valid_actions = get_valid_actions(game_state);
     let mut rng = thread_rng();
     valid_actions.choose(&mut rng).cloned()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn to_action_index() {
+        let action = TrictracAction::Move {
+            dice_order: true,
+            from1: 3,
+            from2: 4,
+        };
+        let index = action.to_action_index();
+        assert_eq!(Some(action), TrictracAction::from_action_index(index));
+        assert_eq!(81, index);
+    }
+
+    #[test]
+    fn from_action_index() {
+        let action = TrictracAction::Move {
+            dice_order: true,
+            from1: 3,
+            from2: 4,
+        };
+        assert_eq!(Some(action), TrictracAction::from_action_index(81));
+    }
 }

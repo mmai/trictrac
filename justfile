@@ -20,6 +20,4 @@ pythonlib:
 trainbot:
   #python ./store/python/trainModel.py
   # cargo run --bin=train_dqn # ok
-  # cargo run --bin=train_burn_rl # doesn't save model
-  # cargo run --bin=train_dqn_full
   cargo run --bin=train_dqn_burn

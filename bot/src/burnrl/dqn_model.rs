@@ -9,6 +9,7 @@ use burn::tensor::Tensor;
 use burn_rl::agent::DQN;
 use burn_rl::agent::{DQNModel, DQNTrainingConfig};
 use burn_rl::base::{Action, Agent, ElemType, Environment, Memory, Model, State};
+use std::time::{Duration, SystemTime};
 
 #[derive(Module, Debug)]
 pub struct Net<B: Backend> {
@@ -99,6 +100,7 @@ pub fn run<E: Environment, B: AutodiffBackend>(
         let mut episode_reward: ElemType = 0.0;
         let mut episode_duration = 0_usize;
         let mut state = env.state();
+        let mut now = SystemTime::now();
 
         while !episode_done {
             let eps_threshold =
@@ -131,9 +133,13 @@ pub fn run<E: Environment, B: AutodiffBackend>(
                 episode_done = true;
 
                 println!(
-                    "{{\"episode\": {}, \"reward\": {:.4}, \"duration\": {}}}",
-                    episode, episode_reward, episode_duration
+                    "{{\"episode\": {}, \"reward\": {:.4}, \"steps count\": {}, \"duration\": {}}}",
+                    episode,
+                    episode_reward,
+                    episode_duration,
+                    now.elapsed().unwrap().as_secs()
                 );
+                now = SystemTime::now();
             } else {
                 state = *snapshot.state();
             }

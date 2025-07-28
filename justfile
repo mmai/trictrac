@@ -21,3 +21,10 @@ trainbot:
   #python ./store/python/trainModel.py
   # cargo run --bin=train_dqn # ok
   cargo run --bin=train_dqn_burn
+debugtrainbot:
+  cargo build --bin=train_dqn_burn
+  RUST_BACKTRACE=1 LD_LIBRARY_PATH=./target/debug  ./target/debug/train_dqn_burn
+profiletrainbot:
+  echo '1' | sudo tee /proc/sys/kernel/perf_event_paranoid
+  cargo build --profile profiling --bin=train_dqn_burn
+  LD_LIBRARY_PATH=./target/debug  samply record ./target/profiling/train_dqn_burn

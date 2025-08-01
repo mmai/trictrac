@@ -1,15 +1,14 @@
-use crate::burnrl::utils::soft_update_linear;
+use crate::dqn::burnrl::utils::soft_update_linear;
 use burn::module::Module;
 use burn::nn::{Linear, LinearConfig};
 use burn::optim::AdamWConfig;
-use burn::record::{CompactRecorder, Recorder};
 use burn::tensor::activation::relu;
 use burn::tensor::backend::{AutodiffBackend, Backend};
 use burn::tensor::Tensor;
 use burn_rl::agent::DQN;
 use burn_rl::agent::{DQNModel, DQNTrainingConfig};
-use burn_rl::base::{Action, Agent, ElemType, Environment, Memory, Model, State};
-use std::time::{Duration, SystemTime};
+use burn_rl::base::{Action, ElemType, Environment, Memory, Model, State};
+use std::time::SystemTime;
 
 #[derive(Module, Debug)]
 pub struct Net<B: Backend> {

@@ -9,7 +9,10 @@ shell:
 runcli:
 	RUST_LOG=info cargo run --bin=client_cli
 runclibots:
-	RUST_LOG=info cargo run --bin=client_cli -- --bot dummy,ai
+	RUST_LOG=info cargo run --bin=client_cli -- --bot dqn,dummy
+match:
+  cargo build --release --bin=client_cli
+  LD_LIBRARY_PATH=./target/release  ./target/release/client_cli -- --bot dummy,dqn
 profile:
   echo '1' | sudo tee /proc/sys/kernel/perf_event_paranoid
   cargo build --profile profiling
@@ -29,4 +32,4 @@ debugtrainbot:
 profiletrainbot:
   echo '1' | sudo tee /proc/sys/kernel/perf_event_paranoid
   cargo build --profile profiling --bin=train_dqn_burn
-  LD_LIBRARY_PATH=./target/debug  samply record ./target/profiling/train_dqn_burn
+  LD_LIBRARY_PATH=./target/profiling  samply record ./target/profiling/train_dqn_burn

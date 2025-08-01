@@ -1,9 +1,5 @@
-pub mod burn_dqn_agent;
-pub mod burn_dqn_strategy;
 pub mod client;
 pub mod default;
 pub mod dqn;
-pub mod dqn_common;
-pub mod dqn_trainer;
 pub mod erroneous_moves;
 pub mod stable_baselines3;

@@ -1,4 +1,4 @@
-use crate::strategy::dqn_common;
+use crate::dqn::dqn_common;
 use burn::{prelude::Backend, tensor::Tensor};
 use burn_rl::base::{Action, Environment, Snapshot, State};
 use rand::{thread_rng, Rng};

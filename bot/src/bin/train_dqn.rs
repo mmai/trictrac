@@ -1,5 +1,5 @@
-use bot::strategy::dqn_common::{DqnConfig, TrictracAction};
-use bot::strategy::dqn_trainer::DqnTrainer;
+use bot::dqn::dqn_common::{DqnConfig, TrictracAction};
+use bot::dqn::simple::dqn_trainer::DqnTrainer;
 use std::env;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

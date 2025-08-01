@@ -1,5 +1,5 @@
-use crate::burnrl::environment::{TrictracAction, TrictracEnvironment};
-use crate::strategy::dqn_common::get_valid_action_indices;
+use crate::dqn::burnrl::environment::{TrictracAction, TrictracEnvironment};
+use crate::dqn::dqn_common::get_valid_action_indices;
 use burn::module::{Param, ParamId};
 use burn::nn::Linear;
 use burn::tensor::backend::Backend;

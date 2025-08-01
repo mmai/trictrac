@@ -1,7 +1,7 @@
 use std::cmp::{max, min};
 
 use serde::{Deserialize, Serialize};
-use store::{CheckerMove, Dice, GameEvent, PlayerId};
+use store::{CheckerMove, Dice};
 
 /// Types d'actions possibles dans le jeu
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -259,7 +259,6 @@ impl SimpleNeuralNetwork {
 
 /// Obtient les actions valides pour l'état de jeu actuel
 pub fn get_valid_actions(game_state: &crate::GameState) -> Vec<TrictracAction> {
-    use crate::PointsRules;
     use store::TurnStage;
 
     let mut valid_actions = Vec::new();

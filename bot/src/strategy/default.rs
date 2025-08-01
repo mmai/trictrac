@@ -1,4 +1,4 @@
-use crate::{BotStrategy, CheckerMove, Color, GameState, PlayerId, PointsRules};
+use crate::{BotStrategy, CheckerMove, Color, GameState, PlayerId};
 use store::MoveRules;
 
 #[derive(Debug)]

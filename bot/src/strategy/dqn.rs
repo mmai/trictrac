@@ -1,8 +1,8 @@
-use crate::{BotStrategy, CheckerMove, Color, GameState, PlayerId, PointsRules};
+use crate::{BotStrategy, CheckerMove, Color, GameState, PlayerId};
 use std::path::Path;
 use store::MoveRules;
 
-use super::dqn_common::{
+use crate::dqn::dqn_common::{
     get_valid_actions, sample_valid_action, SimpleNeuralNetwork, TrictracAction,
 };
 

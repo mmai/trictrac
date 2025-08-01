@@ -20,7 +20,9 @@ pythonlib:
 trainbot:
   #python ./store/python/trainModel.py
   # cargo run --bin=train_dqn # ok
-  cargo run --bin=train_dqn_burn
+  cargo build --release --bin=train_dqn_burn
+  LD_LIBRARY_PATH=./target/release  ./target/release/train_dqn_burn
+  # cargo run --bin=train_dqn_burn # utilise debug (why ?)
 debugtrainbot:
   cargo build --bin=train_dqn_burn
   RUST_BACKTRACE=1 LD_LIBRARY_PATH=./target/debug  ./target/debug/train_dqn_burn

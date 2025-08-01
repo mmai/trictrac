@@ -564,6 +564,7 @@ impl Board {
         }
         let checker_color = self.get_checkers_color(field)?;
         if Some(color) != checker_color {
+            println!("field invalid : {:?}, {:?}, {:?}", color, field, self);
             return Err(Error::FieldInvalid);
         }
         let unit = match color {

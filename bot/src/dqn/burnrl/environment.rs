@@ -91,8 +91,7 @@ impl Environment for TrictracEnvironment {
     type ActionType = TrictracAction;
     type RewardType = f32;
 
-    const MAX_STEPS: usize = 1000; // Limite max pour éviter les parties infinies
-                                   // const MAX_STEPS: usize = 5; // Limite max pour éviter les parties infinies
+    const MAX_STEPS: usize = 700; // Limite max pour éviter les parties infinies
 
     fn new(visualized: bool) -> Self {
         let mut game = GameState::new(false);
@@ -260,7 +259,7 @@ impl TrictracEnvironment {
             // }
             TrictracAction::Go => {
                 // Continuer après avoir gagné un trou
-                reward += 0.2;
+                reward += 0.4;
                 Some(GameEvent::Go {
                     player_id: self.active_player_id,
                 })
@@ -289,7 +288,7 @@ impl TrictracEnvironment {
                 let checker_move1 = store::CheckerMove::new(from1, to1).unwrap_or_default();
                 let checker_move2 = store::CheckerMove::new(from2, to2).unwrap_or_default();
 
-                reward += 0.2;
+                reward += 0.4;
                 Some(GameEvent::Move {
                     player_id: self.active_player_id,
                     moves: (checker_move1, checker_move2),

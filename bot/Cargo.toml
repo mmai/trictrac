@@ -7,7 +7,7 @@ edition = "2021"
 
 [[bin]]
 name = "train_dqn_burn"
-path = "src/burnrl/main.rs"
+path = "src/dqn/burnrl/main.rs"
 
 [[bin]]
 name = "train_dqn"

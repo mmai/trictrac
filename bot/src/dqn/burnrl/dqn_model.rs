@@ -58,17 +58,35 @@ impl<B: Backend> DQNModel<B> for Net<B> {
 }
 
 #[allow(unused)]
-const MEMORY_SIZE: usize = 4096;
-const DENSE_SIZE: usize = 128;
-const EPS_DECAY: f64 = 1000.0;
-const EPS_START: f64 = 0.9;
-const EPS_END: f64 = 0.05;
+const MEMORY_SIZE: usize = 8192;
+
+pub struct DqnConfig {
+    pub num_episodes: usize,
+    // pub memory_size: usize,
+    pub dense_size: usize,
+    pub eps_start: f64,
+    pub eps_end: f64,
+    pub eps_decay: f64,
+}
+
+impl Default for DqnConfig {
+    fn default() -> Self {
+        Self {
+            num_episodes: 1000,
+            // memory_size: 8192,
+            dense_size: 256,
+            eps_start: 0.9,
+            eps_end: 0.05,
+            eps_decay: 1000.0,
+        }
+    }
+}
 
 type MyAgent<E, B> = DQN<E, B, Net<B>>;
 
 #[allow(unused)]
 pub fn run<E: Environment, B: AutodiffBackend>(
-    num_episodes: usize,
+    conf: &DqnConfig,
     visualized: bool,
 ) -> DQN<E, B, Net<B>> {
     // ) -> impl Agent<E> {
@@ -76,7 +94,7 @@ pub fn run<E: Environment, B: AutodiffBackend>(
 
     let model = Net::<B>::new(
         <<E as Environment>::StateType as State>::size(),
-        DENSE_SIZE,
+        conf.dense_size,
         <<E as Environment>::ActionType as Action>::size(),
     );
 
@@ -94,7 +112,7 @@ pub fn run<E: Environment, B: AutodiffBackend>(
 
     let mut step = 0_usize;
 
-    for episode in 0..num_episodes {
+    for episode in 0..conf.num_episodes {
         let mut episode_done = false;
         let mut episode_reward: ElemType = 0.0;
         let mut episode_duration = 0_usize;
@@ -102,8 +120,8 @@ pub fn run<E: Environment, B: AutodiffBackend>(
         let mut now = SystemTime::now();
 
         while !episode_done {
-            let eps_threshold =
-                EPS_END + (EPS_START - EPS_END) * f64::exp(-(step as f64) / EPS_DECAY);
+            let eps_threshold = conf.eps_end
+                + (conf.eps_start - conf.eps_end) * f64::exp(-(step as f64) / conf.eps_decay);
             let action =
                 DQN::<E, B, Net<B>>::react_with_exploration(&policy_net, state, eps_threshold);
             let snapshot = env.step(action);

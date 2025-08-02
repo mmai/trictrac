@@ -93,6 +93,18 @@ impl MoveRules {
     /// ---- moves_possibles : First of three checks for moves
     fn moves_possible(&self, moves: &(CheckerMove, CheckerMove)) -> bool {
         let color = &Color::White;
+
+        let move0_from = moves.0.get_from();
+        if 0 < move0_from && move0_from == moves.1.get_from() {
+            if let Ok((field_count, Some(field_color))) = self.board.get_field_checkers(move0_from)
+            {
+                if color != field_color || field_count < 2 {
+                    info!("Move not physically possible");
+                    return false;
+                }
+            }
+        }
+
         if let Ok(chained_move) = moves.0.chain(moves.1) {
             // Check intermediary move and chained_move : "Tout d'une"
             if !self.board.passage_possible(color, &moves.0)
@@ -1005,7 +1017,7 @@ mod tests {
 
     #[test]
     fn moves_possible() {
-        let state = MoveRules::default();
+        let mut state = MoveRules::default();
 
         // Chained moves
         let moves = (
@@ -1018,6 +1030,17 @@ mod tests {
         let moves = (
             CheckerMove::new(1, 5).unwrap(),
             CheckerMove::new(6, 9).unwrap(),
+        );
+        assert!(!state.moves_possible(&moves));
+
+        // Can't move the same checker twice
+        state.board.set_positions([
+            3, 3, 1, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ]);
+        state.dice.values = (2, 1);
+        let moves = (
+            CheckerMove::new(3, 5).unwrap(),
+            CheckerMove::new(3, 4).unwrap(),
         );
         assert!(!state.moves_possible(&moves));
 

@@ -46,7 +46,14 @@ impl BotStrategy for ClientStrategy {
     }
 
     fn calculate_adv_points(&self) -> u8 {
-        self.calculate_points()
+        let dice_roll_count = self
+            .get_game()
+            .players
+            .get(&self.player_id)
+            .unwrap()
+            .dice_roll_count;
+        let points_rules = PointsRules::new(&Color::White, &self.game.board, self.game.dice);
+        points_rules.get_points(dice_roll_count).1
     }
 
     fn choose_go(&self) -> bool {

@@ -357,8 +357,8 @@ impl TrictracEnv {
                     &self.game_state.board,
                     self.game_state.dice,
                 );
-                let points = points_rules.get_points(dice_roll_count).0;
-                reward -= 0.3 * points as f32; // Récompense proportionnelle aux points
+                let (points, adv_points) = points_rules.get_points(dice_roll_count);
+                reward -= 0.3 * (points - adv_points) as f32; // Récompense proportionnelle aux points
 
                 GameEvent::Mark {
                     player_id: self.opponent_player_id,

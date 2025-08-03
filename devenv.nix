@@ -13,6 +13,7 @@
 
     # dev tools
     pkgs.samply # code profiler
+    pkgs.feedgnuplot # to visualize bots training results
 
     # for bevy
     pkgs.alsa-lib

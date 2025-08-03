@@ -9,7 +9,8 @@ shell:
 runcli:
 	RUST_LOG=info cargo run --bin=client_cli
 runclibots:
-	RUST_LOG=info cargo run --bin=client_cli -- --bot dqn,dummy
+	#RUST_LOG=info cargo run --bin=client_cli -- --bot dqn,dummy
+	RUST_LOG=info cargo run --bin=client_cli -- --bot dummy,dqn
 match:
   cargo build --release --bin=client_cli
   LD_LIBRARY_PATH=./target/release  ./target/release/client_cli -- --bot dummy,dqn
@@ -24,7 +25,8 @@ trainbot:
   #python ./store/python/trainModel.py
   # cargo run --bin=train_dqn # ok
   cargo build --release --bin=train_dqn_burn
-  LD_LIBRARY_PATH=./target/release  ./target/release/train_dqn_burn
+  #LD_LIBRARY_PATH=./target/release  ./target/release/train_dqn_burn
+  LD_LIBRARY_PATH=./target/release  ./target/release/train_dqn_burn | tee >&2 | sed s/,//g | awk '{print $4}' | feedgnuplot --lines --points --unset grid
   # cargo run --bin=train_dqn_burn # utilise debug (why ?)
 debugtrainbot:
   cargo build --bin=train_dqn_burn

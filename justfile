@@ -24,10 +24,12 @@ pythonlib:
 trainbot:
   #python ./store/python/trainModel.py
   # cargo run --bin=train_dqn # ok
-  cargo build --release --bin=train_dqn_burn
-  #LD_LIBRARY_PATH=./target/release  ./target/release/train_dqn_burn
-  LD_LIBRARY_PATH=./target/release  ./target/release/train_dqn_burn | tee >&2 | sed s/,//g | awk '{print $4}' | feedgnuplot --lines --points --unset grid
   # cargo run --bin=train_dqn_burn # utilise debug (why ?)
+  cargo build --release --bin=train_dqn_burn
+  LD_LIBRARY_PATH=./target/release  ./target/release/train_dqn_burn | tee /tmp/train.out
+plottrainbot:
+  cat /tmp/train.out | awk -F '[ ,]' '{print $5}' | feedgnuplot --lines --points --unset grid
+  #tail -f /tmp/train.out | awk -F '[ ,]' '{print $5}' | feedgnuplot --lines --points --unset grid
 debugtrainbot:
   cargo build --bin=train_dqn_burn
   RUST_BACKTRACE=1 LD_LIBRARY_PATH=./target/debug  ./target/debug/train_dqn_burn

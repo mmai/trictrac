@@ -9,7 +9,7 @@ type Backend = Autodiff<NdArray<ElemType>>;
 type Env = environment::TrictracEnvironment;
 
 fn main() {
-    println!("> Entraînement");
+    // println!("> Entraînement");
     let conf = dqn_model::DqnConfig {
         num_episodes: 40,
         // memory_size: 8192, // must be set in  dqn_model.rs with the MEMORY_SIZE constant

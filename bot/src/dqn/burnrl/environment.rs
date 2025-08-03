@@ -91,7 +91,7 @@ impl Environment for TrictracEnvironment {
     type ActionType = TrictracAction;
     type RewardType = f32;
 
-    const MAX_STEPS: usize = 1000; // Limite max pour éviter les parties infinies
+    const MAX_STEPS: usize = 700; // Limite max pour éviter les parties infinies
 
     fn new(visualized: bool) -> Self {
         let mut game = GameState::new(false);

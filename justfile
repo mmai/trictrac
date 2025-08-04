@@ -9,8 +9,8 @@ shell:
 runcli:
 	RUST_LOG=info cargo run --bin=client_cli
 runclibots:
-	#RUST_LOG=info cargo run --bin=client_cli -- --bot dqn,dummy
-	RUST_LOG=info cargo run --bin=client_cli -- --bot dummy,dqn
+	RUST_LOG=info cargo run --bin=client_cli -- --bot dqn,dummy
+	# RUST_LOG=info cargo run --bin=client_cli -- --bot dummy,dqn
 match:
   cargo build --release --bin=client_cli
   LD_LIBRARY_PATH=./target/release  ./target/release/client_cli -- --bot dummy,dqn

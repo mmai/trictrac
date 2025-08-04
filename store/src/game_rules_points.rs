@@ -5,6 +5,7 @@ use crate::player::Color;
 use crate::CheckerMove;
 use crate::Error;
 
+use log::info;
 use serde::{Deserialize, Serialize};
 use std::cmp;
 use std::collections::HashMap;
@@ -158,9 +159,9 @@ impl PointsRules {
         self.move_rules.dice = dice;
     }
 
-    pub fn update_positions(&mut self, positions: [i8; 24]) {
-        self.board.set_positions(positions);
-        self.move_rules.board.set_positions(positions);
+    pub fn update_positions(&mut self, color: &Color, positions: [i8; 24]) {
+        self.board.set_positions(color, positions);
+        self.move_rules.board.set_positions(color, positions);
     }
 
     fn get_jans(&self, board_ini: &Board, dice_rolls_count: u8) -> PossibleJans {
@@ -381,6 +382,7 @@ impl PointsRules {
 
     pub fn get_result_jans(&self, dice_rolls_count: u8) -> (PossibleJans, (u8, u8)) {
         let jans = self.get_jans(&self.board, dice_rolls_count);
+        info!("jans : {jans:?}");
         let points_jans = jans.clone();
         (jans, self.get_jans_points(points_jans))
     }
@@ -481,9 +483,12 @@ mod tests {
     #[test]
     fn get_jans_by_dice_order() {
         let mut rules = PointsRules::default();
-        rules.board.set_positions([
-            2, 0, -1, -1, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        ]);
+        rules.board.set_positions(
+            &Color::White,
+            [
+                2, 0, -1, -1, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+        );
 
         let jans = get_jans_by_ordered_dice(&rules.board, &[2, 3], None, false);
         assert_eq!(1, jans.len());
@@ -495,9 +500,12 @@ mod tests {
 
         // On peut passer par une dame battue pour battre une autre dame
         // mais pas par une case remplie par l'adversaire
-        rules.board.set_positions([
-            2, 0, -1, -2, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        ]);
+        rules.board.set_positions(
+            &Color::White,
+            [
+                2, 0, -1, -2, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+        );
 
         let mut jans = get_jans_by_ordered_dice(&rules.board, &[2, 3], None, false);
         let jans_revert_dices = get_jans_by_ordered_dice(&rules.board, &[3, 2], None, false);
@@ -506,25 +514,34 @@ mod tests {
         jans.merge(jans_revert_dices);
         assert_eq!(2, jans.get(&Jan::TrueHitSmallJan).unwrap().len());
 
-        rules.board.set_positions([
-            2, 0, -1, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        ]);
+        rules.board.set_positions(
+            &Color::White,
+            [
+                2, 0, -1, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+        );
 
         let jans = get_jans_by_ordered_dice(&rules.board, &[2, 3], None, false);
         assert_eq!(1, jans.len());
         assert_eq!(2, jans.get(&Jan::TrueHitSmallJan).unwrap().len());
 
-        rules.board.set_positions([
-            2, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        ]);
+        rules.board.set_positions(
+            &Color::White,
+            [
+                2, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+        );
 
         let jans = get_jans_by_ordered_dice(&rules.board, &[2, 3], None, false);
         assert_eq!(1, jans.len());
         assert_eq!(1, jans.get(&Jan::TrueHitSmallJan).unwrap().len());
 
-        rules.board.set_positions([
-            2, 0, 1, 1, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        ]);
+        rules.board.set_positions(
+            &Color::White,
+            [
+                2, 0, 1, 1, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+        );
 
         let jans = get_jans_by_ordered_dice(&rules.board, &[2, 3], None, false);
         assert_eq!(1, jans.len());
@@ -533,25 +550,34 @@ mod tests {
         // corners handling
 
         // deux dés bloqués (coin de repos et coin de l'adversaire)
-        rules.board.set_positions([
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        ]);
+        rules.board.set_positions(
+            &Color::White,
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+        );
         // le premier dé traité est le dernier du vecteur : 1
         let jans = get_jans_by_ordered_dice(&rules.board, &[2, 1], None, false);
         // println!("jans (dés bloqués) : {:?}", jans.get(&Jan::TrueHit));
         assert_eq!(0, jans.len());
 
         // dé dans son coin de repos : peut tout de même battre à vrai
-        rules.board.set_positions([
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        ]);
+        rules.board.set_positions(
+            &Color::White,
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+        );
         let jans = get_jans_by_ordered_dice(&rules.board, &[3, 3], None, false);
         assert_eq!(1, jans.len());
 
         // premier dé bloqué, mais tout d'une possible en commençant par le second
-        rules.board.set_positions([
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        ]);
+        rules.board.set_positions(
+            &Color::White,
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+        );
         let mut jans = get_jans_by_ordered_dice(&rules.board, &[3, 1], None, false);
         let jans_revert_dices = get_jans_by_ordered_dice(&rules.board, &[1, 3], None, false);
         assert_eq!(1, jans_revert_dices.len());
@@ -569,169 +595,274 @@ mod tests {
         // ----- Jan de récompense
         //  Battre à vrai une dame située dans la table des petits jans : 4 + 4 + 4 = 12
         let mut rules = PointsRules::default();
-        rules.update_positions([
-            2, 0, -1, -1, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        ]);
+        rules.update_positions(
+            &Color::White,
+            [
+                2, 0, -1, -1, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+        );
         rules.set_dice(Dice { values: (2, 3) });
+        assert_eq!(12, rules.get_points(5).0);
+
+        // Calcul des points pour noir
+        let mut board = Board::new();
+        board.set_positions(
+            &Color::White,
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, -2,
+            ],
+        );
+        let mut rules = PointsRules::new(&Color::Black, &board, Dice { values: (2, 3) });
         assert_eq!(12, rules.get_points(5).0);
 
         //  Battre à vrai une dame située dans la table des grands jans : 2 + 2 = 4
         let mut rules = PointsRules::default();
-        rules.update_positions([
-            2, 0, 0, -1, 2, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        ]);
+        rules.update_positions(
+            &Color::White,
+            [
+                2, 0, 0, -1, 2, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+        );
         rules.set_dice(Dice { values: (2, 4) });
         assert_eq!(4, rules.get_points(5).0);
         //  Battre à vrai une dame située dans la table des grands jans : 2
         let mut rules = PointsRules::default();
-        rules.update_positions([
-            2, 0, -2, -1, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        ]);
+        rules.update_positions(
+            &Color::White,
+            [
+                2, 0, -2, -1, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+        );
         rules.set_dice(Dice { values: (2, 4) });
         assert_eq!((2, 2), rules.get_points(5));
 
         //  Battre à vrai le coin adverse par doublet : 6
-        rules.update_positions([
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        ]);
+        rules.update_positions(
+            &Color::White,
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+        );
         rules.set_dice(Dice { values: (2, 2) });
         assert_eq!(6, rules.get_points(5).0);
 
         //  Cas de battage du coin de repos adverse impossible
-        rules.update_positions([
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        ]);
+        rules.update_positions(
+            &Color::White,
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+        );
         rules.set_dice(Dice { values: (1, 1) });
         assert_eq!(0, rules.get_points(5).0);
 
         // ---- Jan de remplissage
         // Faire un petit jan : 4
-        rules.update_positions([
-            3, 1, 2, 2, 3, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        ]);
+        rules.update_positions(
+            &Color::White,
+            [
+                3, 1, 2, 2, 3, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+        );
         rules.set_dice(Dice { values: (2, 1) });
         assert_eq!(1, rules.get_jans(&rules.board, 5).len());
         assert_eq!(4, rules.get_points(5).0);
 
         // Faire un petit jan avec un doublet : 6
-        rules.update_positions([
-            2, 3, 1, 2, 2, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        ]);
+        rules.update_positions(
+            &Color::White,
+            [
+                2, 3, 1, 2, 2, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+        );
         rules.set_dice(Dice { values: (1, 1) });
         assert_eq!(6, rules.get_points(5).0);
 
         // Faire un petit jan avec 2 moyens : 6 + 6 = 12
-        rules.update_positions([
-            3, 3, 1, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        ]);
+        rules.update_positions(
+            &Color::White,
+            [
+                3, 3, 1, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+        );
         rules.set_dice(Dice { values: (1, 1) });
         assert_eq!(12, rules.get_points(5).0);
 
         // Conserver un jan avec un doublet : 6
-        rules.update_positions([
-            3, 3, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        ]);
+        rules.update_positions(
+            &Color::White,
+            [
+                3, 3, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+        );
         rules.set_dice(Dice { values: (1, 1) });
         assert_eq!(6, rules.get_points(5).0);
 
+        // Conserver un jan
+        rules.update_positions(
+            &Color::White,
+            [
+                2, 2, 2, 2, 2, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -3, -1, -2, -3, -5, 0, -1,
+            ],
+        );
+        rules.set_dice(Dice { values: (3, 1) });
+        assert_eq!((4, 0), rules.get_points(8));
+
+        // Conserver un jan (black)
+        let mut board = Board::new();
+        board.set_positions(
+            &Color::Black,
+            [
+                1, 0, 5, 3, 2, 1, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -4, -2, -2, -2, -2, -2,
+            ],
+        );
+        let rules = PointsRules::new(&Color::Black, &board, Dice { values: (3, 1) });
+        assert_eq!((4, 0), rules.get_points(8));
+
         // ----  Sorties
         // Sortir toutes ses dames avant l'adversaire (simple)
-        rules.update_positions([
-            0, 0, -2, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,
-        ]);
+        let mut rules = PointsRules::default();
+        rules.update_positions(
+            &Color::White,
+            [
+                0, 0, -2, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,
+            ],
+        );
         rules.set_dice(Dice { values: (3, 1) });
         assert_eq!(4, rules.get_points(5).0);
 
         // Sortir toutes ses dames avant l'adversaire (doublet)
-        rules.update_positions([
-            0, 0, -2, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0,
-        ]);
+        rules.update_positions(
+            &Color::White,
+            [
+                0, 0, -2, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0,
+            ],
+        );
         rules.set_dice(Dice { values: (2, 2) });
         assert_eq!(6, rules.get_points(5).0);
 
         // ---- JANS  RARES
         // Jan de six tables
-        rules.update_positions([
-            10, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0,
-        ]);
+        rules.update_positions(
+            &Color::White,
+            [
+                10, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0,
+            ],
+        );
         rules.set_dice(Dice { values: (2, 3) });
         assert_eq!(0, rules.get_points(5).0);
-        rules.update_positions([
-            10, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0,
-        ]);
+        rules.update_positions(
+            &Color::White,
+            [
+                10, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0,
+            ],
+        );
         rules.set_dice(Dice { values: (2, 3) });
         assert_eq!(4, rules.get_points(3).0);
-        rules.update_positions([
-            10, 1, 0, 0, 1, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0,
-        ]);
+        rules.update_positions(
+            &Color::White,
+            [
+                10, 1, 0, 0, 1, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0,
+            ],
+        );
         rules.set_dice(Dice { values: (2, 3) });
         assert_eq!(0, rules.get_points(3).0);
-        rules.update_positions([
-            10, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0,
-        ]);
+        rules.update_positions(
+            &Color::White,
+            [
+                10, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0,
+            ],
+        );
         rules.set_dice(Dice { values: (2, 3) });
         assert_eq!(0, rules.get_points(3).0);
 
         // Jan de deux tables
-        rules.update_positions([
-            13, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0,
-        ]);
+        rules.update_positions(
+            &Color::White,
+            [
+                13, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0,
+            ],
+        );
         rules.set_dice(Dice { values: (2, 2) });
         assert_eq!(6, rules.get_points(5).0);
-        rules.update_positions([
-            12, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0,
-        ]);
+        rules.update_positions(
+            &Color::White,
+            [
+                12, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0,
+            ],
+        );
         rules.set_dice(Dice { values: (2, 2) });
         assert_eq!(0, rules.get_points(5).0);
 
         // Contre jan de deux tables
-        rules.update_positions([
-            13, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, -2, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0,
-        ]);
+        rules.update_positions(
+            &Color::White,
+            [
+                13, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, -2, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0,
+            ],
+        );
         rules.set_dice(Dice { values: (2, 2) });
         assert_eq!((0, 6), rules.get_points(5));
 
         // Jan de mézéas
-        rules.update_positions([
-            13, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0,
-        ]);
+        rules.update_positions(
+            &Color::White,
+            [
+                13, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0,
+            ],
+        );
         rules.set_dice(Dice { values: (1, 1) });
         assert_eq!(6, rules.get_points(5).0);
-        rules.update_positions([
-            13, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0,
-        ]);
+        rules.update_positions(
+            &Color::White,
+            [
+                13, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0,
+            ],
+        );
         rules.set_dice(Dice { values: (1, 2) });
         assert_eq!(4, rules.get_points(5).0);
 
         // Contre jan de mézéas
-        rules.update_positions([
-            13, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, -2, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0,
-        ]);
+        rules.update_positions(
+            &Color::White,
+            [
+                13, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, -2, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0,
+            ],
+        );
         rules.set_dice(Dice { values: (1, 1) });
         assert_eq!((0, 6), rules.get_points(5));
 
         // ---- JANS QUI NE PEUT
         //  Battre à faux une dame située dans la table des petits jans
         let mut rules = PointsRules::default();
-        rules.update_positions([
-            2, 0, -2, -2, 0, -1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        ]);
+        rules.update_positions(
+            &Color::White,
+            [
+                2, 0, -2, -2, 0, -1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+        );
         rules.set_dice(Dice { values: (2, 3) });
         assert_eq!((0, 4), rules.get_points(5));
 
         //  Battre à faux une dame située dans la table des grands jans
         let mut rules = PointsRules::default();
-        rules.update_positions([
-            2, 0, -2, -1, -2, 0, -1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        ]);
+        rules.update_positions(
+            &Color::White,
+            [
+                2, 0, -2, -1, -2, 0, -1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+        );
         rules.set_dice(Dice { values: (2, 4) });
         assert_eq!((0, 2), rules.get_points(5));
 
         // Pour chaque dé non jouable (dame impuissante)
         let mut rules = PointsRules::default();
-        rules.update_positions([
-            2, 0, -2, -2, -2, 0, -2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        ]);
+        rules.update_positions(
+            &Color::White,
+            [
+                2, 0, -2, -2, -2, 0, -2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+        );
         rules.set_dice(Dice { values: (2, 4) });
         assert_eq!((0, 4), rules.get_points(5));
     }

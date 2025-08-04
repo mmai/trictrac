@@ -114,7 +114,7 @@ impl fmt::Display for Board {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut s = String::new();
         s.push_str(&format!("{:?}", self.positions));
-        write!(f, "{}", s)
+        write!(f, "{s}")
     }
 }
 
@@ -132,8 +132,13 @@ impl Board {
     }
 
     /// Globally set pieces on board ( for tests )
-    pub fn set_positions(&mut self, positions: [i8; 24]) {
-        self.positions = positions;
+    pub fn set_positions(&mut self, color: &Color, positions: [i8; 24]) {
+        let mut new_positions = positions;
+        if color == &Color::Black {
+            new_positions = new_positions.map(|c| 0 - c);
+            new_positions.reverse();
+        }
+        self.positions = new_positions;
     }
 
     pub fn count_checkers(&self, color: Color, from: Field, to: Field) -> u8 {
@@ -672,9 +677,12 @@ mod tests {
     #[test]
     fn is_quarter_fillable() {
         let mut board = Board::new();
-        board.set_positions([
-            15, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -15,
-        ]);
+        board.set_positions(
+            &Color::White,
+            [
+                15, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -15,
+            ],
+        );
         assert!(board.is_quarter_fillable(Color::Black, 1));
         assert!(!board.is_quarter_fillable(Color::Black, 12));
         assert!(board.is_quarter_fillable(Color::Black, 13));
@@ -683,25 +691,34 @@ mod tests {
         assert!(board.is_quarter_fillable(Color::White, 12));
         assert!(!board.is_quarter_fillable(Color::White, 13));
         assert!(board.is_quarter_fillable(Color::White, 24));
-        board.set_positions([
-            5, 0, 0, 0, 0, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -8, 0, 0, 0, 0, 0, -5,
-        ]);
+        board.set_positions(
+            &Color::White,
+            [
+                5, 0, 0, 0, 0, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -8, 0, 0, 0, 0, 0, -5,
+            ],
+        );
         assert!(board.is_quarter_fillable(Color::Black, 13));
         assert!(!board.is_quarter_fillable(Color::Black, 24));
         assert!(!board.is_quarter_fillable(Color::White, 1));
         assert!(board.is_quarter_fillable(Color::White, 12));
-        board.set_positions([
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, -12, 0, 0, 0, 0, 1, 0,
-        ]);
+        board.set_positions(
+            &Color::White,
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, -12, 0, 0, 0, 0, 1, 0,
+            ],
+        );
         assert!(board.is_quarter_fillable(Color::Black, 16));
     }
 
     #[test]
     fn get_quarter_filling_candidate() {
         let mut board = Board::new();
-        board.set_positions([
-            3, 1, 2, 2, 3, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        ]);
+        board.set_positions(
+            &Color::White,
+            [
+                3, 1, 2, 2, 3, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+        );
         assert_eq!(vec![2], board.get_quarter_filling_candidate(Color::White));
     }
 }

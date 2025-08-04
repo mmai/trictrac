@@ -13,8 +13,8 @@ impl Default for DefaultStrategy {
         let game = GameState::default();
         Self {
             game,
-            player_id: 2,
-            color: Color::Black,
+            player_id: 1,
+            color: Color::White,
         }
     }
 }

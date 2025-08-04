@@ -91,7 +91,8 @@ impl fmt::Display for GameState {
         s.push_str(&format!("Dice: {:?}\n", self.dice));
         // s.push_str(&format!("Who plays: {}\n", self.who_plays().map(|player| &player.name ).unwrap_or("")));
         s.push_str(&format!("Board: {:?}\n", self.board));
-        write!(f, "{}", s)
+        // s.push_str(&format!("History: {:?}\n", self.history));
+        write!(f, "{s}")
     }
 }
 
@@ -372,22 +373,30 @@ impl GameState {
             }
             Go { player_id } => {
                 if !self.players.contains_key(player_id) {
-                    error!("Player {} unknown", player_id);
+                    error!("Player {player_id} unknown");
                     return false;
                 }
                 // Check player is currently the one making their move
                 if self.active_player_id != *player_id {
+                    error!("Player not active : {}", self.active_player_id);
                     return false;
                 }
                 // Check the player can leave (ie the game is in the KeepOrLeaveChoice stage)
                 if self.turn_stage != TurnStage::HoldOrGoChoice {
+                    error!("bad stage {:?}", self.turn_stage);
+                    error!(
+                        "black player points : {:?}",
+                        self.get_black_player()
+                            .map(|player| (player.points, player.holes))
+                    );
+                    // error!("history {:?}", self.history);
                     return false;
                 }
             }
             Move { player_id, moves } => {
                 // Check player exists
                 if !self.players.contains_key(player_id) {
-                    error!("Player {} unknown", player_id);
+                    error!("Player {player_id} unknown");
                     return false;
                 }
                 // Check player is currently the one making their move
@@ -512,12 +521,15 @@ impl GameState {
                 self.inc_roll_count(self.active_player_id);
                 self.turn_stage = TurnStage::MarkPoints;
                 (self.dice_jans, self.dice_points) = self.get_rollresult_jans(dice);
+                info!("points from result : {:?}", self.dice_points);
                 if !self.schools_enabled {
                     // Schools are not enabled. We mark points automatically
                     // the points earned by the opponent will be marked on its turn
                     let new_hole = self.mark_points(self.active_player_id, self.dice_points.0);
                     if new_hole {
-                        if self.get_active_player().unwrap().holes > 12 {
+                        let holes_count = self.get_active_player().unwrap().holes;
+                        info!("new hole  -> {holes_count:?}");
+                        if holes_count > 12 {
                             self.stage = Stage::Ended;
                         } else {
                             self.turn_stage = TurnStage::HoldOrGoChoice;
@@ -594,6 +606,10 @@ impl GameState {
 
     fn get_rollresult_jans(&self, dice: &Dice) -> (PossibleJans, (u8, u8)) {
         let player = &self.players.get(&self.active_player_id).unwrap();
+        info!(
+            "get rollresult for {:?} {:?} {:?} (roll count {:?})",
+            player.color, self.board, dice, player.dice_roll_count
+        );
         let points_rules = PointsRules::new(&player.color, &self.board, *dice);
         points_rules.get_result_jans(player.dice_roll_count)
     }
@@ -636,10 +652,11 @@ impl GameState {
             p.points = sum_points % 12;
             p.holes += holes;
 
-            if points > 0 && p.holes > 15 {
+            // if points > 0 && p.holes > 15 {
+            if points > 0 {
                 info!(
-                    "player {:?}  holes : {:?} added points : {:?}",
-                    player_id, p.holes, points
+                    "player {player_id:?}  holes : {:?} (+{holes:?}) points : {:?} (+{points:?} - {jeux:?})",
+                    p.holes, p.points
                 )
             }
             p
@@ -731,6 +748,58 @@ impl GameEvent {
                 moves: _,
             } => Some(*player_id),
             _ => None,
+        }
+    }
+
+    pub fn get_mirror(&self) -> Self {
+        // let mut mirror = self.clone();
+        let mirror_player_id = if let Some(player_id) = self.player_id() {
+            if player_id == 1 {
+                2
+            } else {
+                1
+            }
+        } else {
+            0
+        };
+
+        match self {
+            Self::PlayerJoined { player_id: _, name } => Self::PlayerJoined {
+                player_id: mirror_player_id,
+                name: name.clone(),
+            },
+            Self::PlayerDisconnected { player_id: _ } => GameEvent::PlayerDisconnected {
+                player_id: mirror_player_id,
+            },
+            Self::Roll { player_id: _ } => GameEvent::Roll {
+                player_id: mirror_player_id,
+            },
+            Self::RollResult { player_id: _, dice } => GameEvent::RollResult {
+                player_id: mirror_player_id,
+                dice: *dice,
+            },
+            Self::Mark {
+                player_id: _,
+                points,
+            } => GameEvent::Mark {
+                player_id: mirror_player_id,
+                points: *points,
+            },
+            Self::Go { player_id: _ } => GameEvent::Go {
+                player_id: mirror_player_id,
+            },
+            Self::Move {
+                player_id: _,
+                moves: (move1, move2),
+            } => Self::Move {
+                player_id: mirror_player_id,
+                moves: (move1.mirror(), move2.mirror()),
+            },
+            Self::BeginGame { goes_first } => GameEvent::BeginGame {
+                goes_first: (if *goes_first == 1 { 2 } else { 1 }),
+            },
+            Self::EndGame { reason } => GameEvent::EndGame { reason: *reason },
+            Self::PlayError => GameEvent::PlayError,
         }
     }
 }

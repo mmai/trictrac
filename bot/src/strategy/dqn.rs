@@ -19,8 +19,8 @@ impl Default for DqnStrategy {
     fn default() -> Self {
         Self {
             game: GameState::default(),
-            player_id: 2,
-            color: Color::Black,
+            player_id: 1,
+            color: Color::White,
             model: None,
         }
     }

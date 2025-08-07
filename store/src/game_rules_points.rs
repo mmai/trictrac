@@ -144,7 +144,9 @@ impl PointsRules {
         } else {
             board.clone()
         };
-        let move_rules = MoveRules::new(color, &board, dice);
+        // the board is already reverted for black, so we pretend color is white
+        let move_rules = MoveRules::new(&Color::White, &board, dice);
+        // let move_rules = MoveRules::new(color, &board, dice);
 
         // let move_rules = MoveRules::new(color, &self.board, dice, moves);
         Self {
@@ -591,6 +593,20 @@ mod tests {
     }
 
     #[test]
+    fn get_result_jans() {
+        let mut board = Board::new();
+        board.set_positions(
+            &Color::White,
+            [
+                0, 0, 5, 2, 4, 3, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -3, -2, -2, -2, -2, -2, -2,
+            ],
+        );
+        let points_rules = PointsRules::new(&Color::Black, &board, Dice { values: (2, 4) });
+        let jans = points_rules.get_result_jans(8);
+        assert!(jans.0.len() > 0);
+    }
+
+    #[test]
     fn get_points() {
         // ----- Jan de récompense
         //  Battre à vrai une dame située dans la table des petits jans : 4 + 4 + 4 = 12
@@ -711,7 +727,7 @@ mod tests {
         // Conserver un jan (black)
         let mut board = Board::new();
         board.set_positions(
-            &Color::Black,
+            &Color::White,
             [
                 1, 0, 5, 3, 2, 1, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -4, -2, -2, -2, -2, -2,
             ],

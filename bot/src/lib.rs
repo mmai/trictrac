@@ -1,11 +1,12 @@
 pub mod dqn;
 pub mod strategy;
 
-use log::{error, info};
+use log::{debug, error};
 use store::{CheckerMove, Color, GameEvent, GameState, PlayerId, PointsRules, Stage, TurnStage};
 pub use strategy::default::DefaultStrategy;
 pub use strategy::dqn::DqnStrategy;
 pub use strategy::erroneous_moves::ErroneousStrategy;
+pub use strategy::random::RandomStrategy;
 pub use strategy::stable_baselines3::StableBaselines3Strategy;
 
 pub trait BotStrategy: std::fmt::Debug {
@@ -64,7 +65,7 @@ impl Bot {
     }
 
     pub fn handle_event(&mut self, event: &GameEvent) -> Option<GameEvent> {
-        info!(">>>> {:?} BOT handle", self.color);
+        debug!(">>>> {:?} BOT handle", self.color);
         let game = self.strategy.get_mut_game();
         let internal_event = if self.color == Color::Black {
             &event.get_mirror()
@@ -76,7 +77,7 @@ impl Bot {
         let turn_stage = game.turn_stage;
         game.consume(internal_event);
         if game.stage == Stage::Ended {
-            info!("<<<< end {:?} BOT handle", self.color);
+            debug!("<<<< end {:?} BOT handle", self.color);
             return None;
         }
         let active_player_id = if self.color == Color::Black {
@@ -91,7 +92,7 @@ impl Bot {
         if active_player_id == self.player_id {
             let player_points = game.who_plays().map(|p| (p.points, p.holes));
             if self.color == Color::Black {
-                info!( " input (internal) evt : {internal_event:?}, points : {init_player_points:?}, stage : {turn_stage:?}");
+                debug!( " input (internal) evt : {internal_event:?}, points : {init_player_points:?}, stage : {turn_stage:?}");
             }
             let internal_event = match game.turn_stage {
                 TurnStage::MarkAdvPoints => Some(GameEvent::Mark {
@@ -120,15 +121,15 @@ impl Bot {
                 _ => None,
             };
             return if self.color == Color::Black {
-                info!("   bot (internal) evt : {internal_event:?} ; points : {player_points:?}");
-                info!("<<<< end {:?} BOT handle", self.color);
+                debug!("   bot (internal) evt : {internal_event:?} ; points : {player_points:?}");
+                debug!("<<<< end {:?} BOT handle", self.color);
                 internal_event.map(|evt| evt.get_mirror())
             } else {
-                info!("<<<< end {:?} BOT handle", self.color);
+                debug!("<<<< end {:?} BOT handle", self.color);
                 internal_event
             };
         }
-        info!("<<<< end {:?} BOT handle", self.color);
+        debug!("<<<< end {:?} BOT handle", self.color);
         None
     }
 

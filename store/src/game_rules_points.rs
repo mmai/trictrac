@@ -5,7 +5,7 @@ use crate::player::Color;
 use crate::CheckerMove;
 use crate::Error;
 
-use log::info;
+use log::debug;
 use serde::{Deserialize, Serialize};
 use std::cmp;
 use std::collections::HashMap;
@@ -384,7 +384,7 @@ impl PointsRules {
 
     pub fn get_result_jans(&self, dice_rolls_count: u8) -> (PossibleJans, (u8, u8)) {
         let jans = self.get_jans(&self.board, dice_rolls_count);
-        info!("jans : {jans:?}");
+        debug!("jans : {jans:?}");
         let points_jans = jans.clone();
         (jans, self.get_jans_points(points_jans))
     }

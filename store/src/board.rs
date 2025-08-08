@@ -37,7 +37,7 @@ impl Default for CheckerMove {
 
 impl CheckerMove {
     pub fn to_display_string(self) -> String {
-        format!("{:?} ", self)
+        format!("{self:?} ")
     }
 
     pub fn new(from: Field, to: Field) -> Result<Self, Error> {
@@ -569,7 +569,7 @@ impl Board {
         }
         let checker_color = self.get_checkers_color(field)?;
         if Some(color) != checker_color {
-            println!("field invalid : {:?}, {:?}, {:?}", color, field, self);
+            println!("field invalid : {color:?}, {field:?}, {self:?}");
             return Err(Error::FieldInvalid);
         }
         let unit = match color {

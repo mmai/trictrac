@@ -1,4 +1,5 @@
 use crate::{BotStrategy, CheckerMove, Color, GameState, PlayerId};
+use log::info;
 use std::path::Path;
 use store::MoveRules;
 
@@ -31,9 +32,10 @@ impl DqnStrategy {
         Self::default()
     }
 
-    pub fn new_with_model<P: AsRef<Path>>(model_path: P) -> Self {
+    pub fn new_with_model<P: AsRef<Path> + std::fmt::Debug>(model_path: P) -> Self {
         let mut strategy = Self::new();
-        if let Ok(model) = SimpleNeuralNetwork::load(model_path) {
+        if let Ok(model) = SimpleNeuralNetwork::load(&model_path) {
+            info!("Loading model {model_path:?}");
             strategy.model = Some(model);
         }
         strategy

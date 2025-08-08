@@ -4,7 +4,7 @@ use crate::dice::Dice;
 use crate::game_rules_moves::MoveRules;
 use crate::game_rules_points::{PointsRules, PossibleJans};
 use crate::player::{Color, Player, PlayerId};
-use log::{error, info};
+use log::{debug, error, info};
 
 // use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -521,14 +521,14 @@ impl GameState {
                 self.inc_roll_count(self.active_player_id);
                 self.turn_stage = TurnStage::MarkPoints;
                 (self.dice_jans, self.dice_points) = self.get_rollresult_jans(dice);
-                info!("points from result : {:?}", self.dice_points);
+                debug!("points from result : {:?}", self.dice_points);
                 if !self.schools_enabled {
                     // Schools are not enabled. We mark points automatically
                     // the points earned by the opponent will be marked on its turn
                     let new_hole = self.mark_points(self.active_player_id, self.dice_points.0);
                     if new_hole {
                         let holes_count = self.get_active_player().unwrap().holes;
-                        info!("new hole  -> {holes_count:?}");
+                        debug!("new hole  -> {holes_count:?}");
                         if holes_count > 12 {
                             self.stage = Stage::Ended;
                         } else {
@@ -606,7 +606,7 @@ impl GameState {
 
     fn get_rollresult_jans(&self, dice: &Dice) -> (PossibleJans, (u8, u8)) {
         let player = &self.players.get(&self.active_player_id).unwrap();
-        info!(
+        debug!(
             "get rollresult for {:?} {:?} {:?} (roll count {:?})",
             player.color, self.board, dice, player.dice_roll_count
         );
@@ -654,7 +654,7 @@ impl GameState {
 
             // if points > 0 && p.holes > 15 {
             if points > 0 {
-                info!(
+                debug!(
                     "player {player_id:?}  holes : {:?} (+{holes:?}) points : {:?} (+{points:?} - {jeux:?})",
                     p.holes, p.points
                 )

@@ -1,4 +1,7 @@
-use bot::{BotStrategy, DefaultStrategy, DqnStrategy, ErroneousStrategy, StableBaselines3Strategy};
+use bot::{
+    BotStrategy, DefaultStrategy, DqnStrategy, ErroneousStrategy, RandomStrategy,
+    StableBaselines3Strategy,
+};
 use itertools::Itertools;
 
 use crate::game_runner::GameRunner;
@@ -32,13 +35,15 @@ impl App {
                             "dummy" => {
                                 Some(Box::new(DefaultStrategy::default()) as Box<dyn BotStrategy>)
                             }
+                            "random" => {
+                                Some(Box::new(RandomStrategy::default()) as Box<dyn BotStrategy>)
+                            }
                             "erroneous" => {
                                 Some(Box::new(ErroneousStrategy::default()) as Box<dyn BotStrategy>)
                             }
                             "ai" => Some(Box::new(StableBaselines3Strategy::default())
                                 as Box<dyn BotStrategy>),
-                            "dqn" => Some(Box::new(DqnStrategy::default())
-                                as Box<dyn BotStrategy>),
+                            "dqn" => Some(Box::new(DqnStrategy::default()) as Box<dyn BotStrategy>),
                             s if s.starts_with("ai:") => {
                                 let path = s.trim_start_matches("ai:");
                                 Some(Box::new(StableBaselines3Strategy::new(path))

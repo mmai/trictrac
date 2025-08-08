@@ -1,5 +1,5 @@
 use bot::{Bot, BotStrategy};
-use log::{error, info};
+use log::{debug, error};
 use store::{CheckerMove, DiceRoller, GameEvent, GameState, PlayerId, TurnStage};
 
 // Application Game
@@ -63,19 +63,19 @@ impl GameRunner {
             return None;
         }
         let valid_event = if self.state.validate(event) {
-            info!(
+            debug!(
                 "--------------- new valid event {event:?} (stage {:?}) -----------",
                 self.state.turn_stage
             );
             self.state.consume(event);
-            info!(
+            debug!(
                 " --> stage {:?} ; active player points {:?}",
                 self.state.turn_stage,
                 self.state.who_plays().map(|p| p.points)
             );
             event
         } else {
-            info!("{}", self.state);
+            debug!("{}", self.state);
             error!("event not valid : {event:?}");
             panic!("crash and burn");
             &GameEvent::PlayError

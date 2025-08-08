@@ -114,50 +114,48 @@ impl BotStrategy for DqnStrategy {
 
     fn choose_move(&self) -> (CheckerMove, CheckerMove) {
         // Utiliser le DQN pour choisir le mouvement
-        if let Some(action) = self.get_dqn_action() {
-            if let TrictracAction::Move {
-                dice_order,
-                from1,
-                from2,
-            } = action
-            {
-                let dicevals = self.game.dice.values;
-                let (mut dice1, mut dice2) = if dice_order {
-                    (dicevals.0, dicevals.1)
-                } else {
-                    (dicevals.1, dicevals.0)
-                };
+        if let Some(TrictracAction::Move {
+            dice_order,
+            from1,
+            from2,
+        }) = self.get_dqn_action()
+        {
+            let dicevals = self.game.dice.values;
+            let (mut dice1, mut dice2) = if dice_order {
+                (dicevals.0, dicevals.1)
+            } else {
+                (dicevals.1, dicevals.0)
+            };
 
-                if from1 == 0 {
-                    // empty move
-                    dice1 = 0;
-                }
-                let mut to1 = from1 + dice1 as usize;
-                if 24 < to1 {
-                    // sortie
-                    to1 = 0;
-                }
-                if from2 == 0 {
-                    // empty move
-                    dice2 = 0;
-                }
-                let mut to2 = from2 + dice2 as usize;
-                if 24 < to2 {
-                    // sortie
-                    to2 = 0;
-                }
-
-                let checker_move1 = CheckerMove::new(from1, to1).unwrap_or_default();
-                let checker_move2 = CheckerMove::new(from2, to2).unwrap_or_default();
-
-                let chosen_move = if self.color == Color::White {
-                    (checker_move1, checker_move2)
-                } else {
-                    (checker_move1.mirror(), checker_move2.mirror())
-                };
-
-                return chosen_move;
+            if from1 == 0 {
+                // empty move
+                dice1 = 0;
             }
+            let mut to1 = from1 + dice1 as usize;
+            if 24 < to1 {
+                // sortie
+                to1 = 0;
+            }
+            if from2 == 0 {
+                // empty move
+                dice2 = 0;
+            }
+            let mut to2 = from2 + dice2 as usize;
+            if 24 < to2 {
+                // sortie
+                to2 = 0;
+            }
+
+            let checker_move1 = CheckerMove::new(from1, to1).unwrap_or_default();
+            let checker_move2 = CheckerMove::new(from2, to2).unwrap_or_default();
+
+            let chosen_move = if self.color == Color::White {
+                (checker_move1, checker_move2)
+            } else {
+                (checker_move1.mirror(), checker_move2.mirror())
+            };
+
+            return chosen_move;
         }
 
         // Fallback : utiliser la stratégie par défaut

@@ -1,12 +1,45 @@
-use crate::dqn::burnrl::environment::{TrictracAction, TrictracEnvironment};
+use crate::dqn::burnrl::{
+    dqn_model,
+    environment::{TrictracAction, TrictracEnvironment},
+};
 use crate::dqn::dqn_common::get_valid_action_indices;
-use burn::module::{Param, ParamId};
+use burn::backend::{ndarray::NdArrayDevice, Autodiff, NdArray};
+use burn::module::{Module, Param, ParamId};
 use burn::nn::Linear;
+use burn::record::{CompactRecorder, Recorder};
 use burn::tensor::backend::Backend;
 use burn::tensor::cast::ToElement;
 use burn::tensor::Tensor;
 use burn_rl::agent::{DQNModel, DQN};
-use burn_rl::base::{ElemType, Environment, State};
+use burn_rl::base::{Action, ElemType, Environment, State};
+
+pub fn save_model(model: &dqn_model::Net<NdArray<ElemType>>, path: &String) {
+    let recorder = CompactRecorder::new();
+    let model_path = format!("{path}_model.mpk");
+    println!("Modèle de validation sauvegardé : {model_path}");
+    recorder
+        .record(model.clone().into_record(), model_path.into())
+        .unwrap();
+}
+
+pub fn load_model(dense_size: usize, path: &String) -> dqn_model::Net<NdArray<ElemType>> {
+    let model_path = format!("{path}_model.mpk");
+    println!("Chargement du modèle depuis : {model_path}");
+
+    let device = NdArrayDevice::default();
+    let recorder = CompactRecorder::new();
+
+    let record = recorder
+        .load(model_path.into(), &device)
+        .expect("Impossible de charger le modèle");
+
+    dqn_model::Net::new(
+        <TrictracEnvironment as Environment>::StateType::size(),
+        dense_size,
+        <TrictracEnvironment as Environment>::ActionType::size(),
+    )
+    .load_record(record)
+}
 
 pub fn demo_model<B: Backend, M: DQNModel<B>>(agent: DQN<TrictracEnvironment, B, M>) {
     let mut env = TrictracEnvironment::new(true);

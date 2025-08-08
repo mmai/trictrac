@@ -141,7 +141,7 @@ impl Environment for TrictracEnvironment {
         self.step_count += 1;
 
         // Convertir l'action burn-rl vers une action Trictrac
-        let trictrac_action = self.convert_action(action, &self.game);
+        let trictrac_action = Self::convert_action(action);
 
         let mut reward = 0.0;
         let mut terminated = false;
@@ -203,11 +203,7 @@ impl Environment for TrictracEnvironment {
 
 impl TrictracEnvironment {
     /// Convertit une action burn-rl vers une action Trictrac
-    fn convert_action(
-        &self,
-        action: TrictracAction,
-        game_state: &GameState,
-    ) -> Option<dqn_common::TrictracAction> {
+    pub fn convert_action(action: TrictracAction) -> Option<dqn_common::TrictracAction> {
         dqn_common::TrictracAction::from_action_index(action.index.try_into().unwrap())
     }
 

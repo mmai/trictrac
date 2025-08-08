@@ -5,6 +5,7 @@ use log::{debug, error};
 use store::{CheckerMove, Color, GameEvent, GameState, PlayerId, PointsRules, Stage, TurnStage};
 pub use strategy::default::DefaultStrategy;
 pub use strategy::dqn::DqnStrategy;
+pub use strategy::dqnburn::DqnBurnStrategy;
 pub use strategy::erroneous_moves::ErroneousStrategy;
 pub use strategy::random::RandomStrategy;
 pub use strategy::stable_baselines3::StableBaselines3Strategy;

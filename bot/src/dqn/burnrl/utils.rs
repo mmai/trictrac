@@ -22,23 +22,21 @@ pub fn save_model(model: &dqn_model::Net<NdArray<ElemType>>, path: &String) {
         .unwrap();
 }
 
-pub fn load_model(dense_size: usize, path: &String) -> dqn_model::Net<NdArray<ElemType>> {
+pub fn load_model(dense_size: usize, path: &String) -> Option<dqn_model::Net<NdArray<ElemType>>> {
     let model_path = format!("{path}_model.mpk");
-    println!("Chargement du modèle depuis : {model_path}");
+    // println!("Chargement du modèle depuis : {model_path}");
 
-    let device = NdArrayDevice::default();
-    let recorder = CompactRecorder::new();
-
-    let record = recorder
-        .load(model_path.into(), &device)
-        .expect("Impossible de charger le modèle");
-
-    dqn_model::Net::new(
-        <TrictracEnvironment as Environment>::StateType::size(),
-        dense_size,
-        <TrictracEnvironment as Environment>::ActionType::size(),
-    )
-    .load_record(record)
+    CompactRecorder::new()
+        .load(model_path.into(), &NdArrayDevice::default())
+        .map(|record| {
+            dqn_model::Net::new(
+                <TrictracEnvironment as Environment>::StateType::size(),
+                dense_size,
+                <TrictracEnvironment as Environment>::ActionType::size(),
+            )
+            .load_record(record)
+        })
+        .ok()
 }
 
 pub fn demo_model<B: Backend, M: DQNModel<B>>(agent: DQN<TrictracEnvironment, B, M>) {

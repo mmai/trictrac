@@ -31,7 +31,7 @@ fn main() {
 
     println!("> Chargement du modèle pour test");
     let loaded_model = load_model(conf.dense_size, &path);
-    let loaded_agent = DQN::new(loaded_model);
+    let loaded_agent = DQN::new(loaded_model.unwrap());
 
     println!("> Test avec le modèle chargé");
     demo_model(loaded_agent);

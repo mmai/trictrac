@@ -22,8 +22,8 @@ pythonlib:
   maturin build -m store/Cargo.toml --release
   pip install --no-deps --force-reinstall --prefix .devenv/state/venv target/wheels/*.whl
 trainsimple:
-  cargo build --release --bin=train_dqn
-  LD_LIBRARY_PATH=./target/release ./target/release/train_dqn | tee /tmp/train.out
+  cargo build --release --bin=train_dqn_simple
+  LD_LIBRARY_PATH=./target/release ./target/release/train_dqn_simple | tee /tmp/train.out
 trainbot:
   #python ./store/python/trainModel.py
   # cargo run --bin=train_dqn # ok

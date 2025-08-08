@@ -9,8 +9,9 @@ shell:
 runcli:
 	RUST_LOG=info cargo run --bin=client_cli
 runclibots:
-	#RUST_LOG=info cargo run --bin=client_cli -- --bot dqn,dummy
-	RUST_LOG=info cargo run --bin=client_cli -- --bot dummy,dqn
+	cargo run --bin=client_cli -- --bot random,dqnburn:./models/burn_dqn_model.mpk
+	#cargo run --bin=client_cli -- --bot dqn:./models/dqn_model_final.json,dummy
+	# RUST_LOG=info cargo run --bin=client_cli -- --bot dummy,dqn
 match:
   cargo build --release --bin=client_cli
   LD_LIBRARY_PATH=./target/release  ./target/release/client_cli -- --bot dummy,dqn
@@ -21,6 +22,9 @@ profile:
 pythonlib:
   maturin build -m store/Cargo.toml --release
   pip install --no-deps --force-reinstall --prefix .devenv/state/venv target/wheels/*.whl
+trainsimple:
+  cargo build --release --bin=train_dqn_simple
+  LD_LIBRARY_PATH=./target/release ./target/release/train_dqn_simple | tee /tmp/train.out
 trainbot:
   #python ./store/python/trainModel.py
   # cargo run --bin=train_dqn # ok

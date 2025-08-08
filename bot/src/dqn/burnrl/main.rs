@@ -1,9 +1,10 @@
-use bot::dqn::burnrl::{dqn_model, environment, utils::demo_model};
-use burn::backend::{ndarray::NdArrayDevice, Autodiff, NdArray};
-use burn::module::Module;
-use burn::record::{CompactRecorder, Recorder};
+use bot::dqn::burnrl::{
+    dqn_model, environment,
+    utils::{demo_model, load_model, save_model},
+};
+use burn::backend::{Autodiff, NdArray};
 use burn_rl::agent::DQN;
-use burn_rl::base::{Action, Agent, ElemType, Environment, State};
+use burn_rl::base::ElemType;
 
 type Backend = Autodiff<NdArray<ElemType>>;
 type Env = environment::TrictracEnvironment;
@@ -25,44 +26,13 @@ fn main() {
 
     println!("> Sauvegarde du modèle de validation");
 
-    let path = "models/burn_dqn_50".to_string();
+    let path = "models/burn_dqn_40".to_string();
     save_model(valid_agent.model().as_ref().unwrap(), &path);
-
-    // println!("> Test avec le modèle entraîné");
-    // demo_model::<Env>(valid_agent);
 
     println!("> Chargement du modèle pour test");
     let loaded_model = load_model(conf.dense_size, &path);
-    let loaded_agent = DQN::new(loaded_model);
+    let loaded_agent = DQN::new(loaded_model.unwrap());
 
     println!("> Test avec le modèle chargé");
     demo_model(loaded_agent);
-}
-
-fn save_model(model: &dqn_model::Net<NdArray<ElemType>>, path: &String) {
-    let recorder = CompactRecorder::new();
-    let model_path = format!("{}_model.mpk", path);
-    println!("Modèle de validation sauvegardé : {}", model_path);
-    recorder
-        .record(model.clone().into_record(), model_path.into())
-        .unwrap();
-}
-
-fn load_model(dense_size: usize, path: &String) -> dqn_model::Net<NdArray<ElemType>> {
-    let model_path = format!("{}_model.mpk", path);
-    println!("Chargement du modèle depuis : {}", model_path);
-
-    let device = NdArrayDevice::default();
-    let recorder = CompactRecorder::new();
-
-    let record = recorder
-        .load(model_path.into(), &device)
-        .expect("Impossible de charger le modèle");
-
-    dqn_model::Net::new(
-        <environment::TrictracEnvironment as Environment>::StateType::size(),
-        dense_size,
-        <environment::TrictracEnvironment as Environment>::ActionType::size(),
-    )
-    .load_record(record)
 }

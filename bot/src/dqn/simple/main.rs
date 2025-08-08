@@ -1,4 +1,5 @@
-use bot::dqn::dqn_common::{DqnConfig, TrictracAction};
+use bot::dqn::dqn_common::TrictracAction;
+use bot::dqn::simple::dqn_model::DqnConfig;
 use bot::dqn::simple::dqn_trainer::DqnTrainer;
 use std::env;
 

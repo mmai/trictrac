@@ -1,4 +1,7 @@
-use bot::{BotStrategy, DefaultStrategy, DqnStrategy, ErroneousStrategy, StableBaselines3Strategy};
+use bot::{
+    BotStrategy, DefaultStrategy, DqnBurnStrategy, DqnStrategy, ErroneousStrategy, RandomStrategy,
+    StableBaselines3Strategy,
+};
 use itertools::Itertools;
 
 use crate::game_runner::GameRunner;
@@ -22,23 +25,28 @@ pub struct App {
 impl App {
     // Constructs a new instance of [`App`].
     pub fn new(args: AppArgs) -> Self {
-        let bot_strategies: Vec<Box<dyn BotStrategy>> =
-            args.bot
-                .as_deref()
-                .map(|str_bots| {
-                    str_bots
+        let bot_strategies: Vec<Box<dyn BotStrategy>> = args
+            .bot
+            .as_deref()
+            .map(|str_bots| {
+                str_bots
                         .split(",")
                         .filter_map(|s| match s.trim() {
                             "dummy" => {
                                 Some(Box::new(DefaultStrategy::default()) as Box<dyn BotStrategy>)
+                            }
+                            "random" => {
+                                Some(Box::new(RandomStrategy::default()) as Box<dyn BotStrategy>)
                             }
                             "erroneous" => {
                                 Some(Box::new(ErroneousStrategy::default()) as Box<dyn BotStrategy>)
                             }
                             "ai" => Some(Box::new(StableBaselines3Strategy::default())
                                 as Box<dyn BotStrategy>),
-                            "dqn" => Some(Box::new(DqnStrategy::default())
-                                as Box<dyn BotStrategy>),
+                            "dqn" => Some(Box::new(DqnStrategy::default()) as Box<dyn BotStrategy>),
+                            "dqnburn" => {
+                                Some(Box::new(DqnBurnStrategy::default()) as Box<dyn BotStrategy>)
+                            }
                             s if s.starts_with("ai:") => {
                                 let path = s.trim_start_matches("ai:");
                                 Some(Box::new(StableBaselines3Strategy::new(path))
@@ -49,11 +57,16 @@ impl App {
                                 Some(Box::new(DqnStrategy::new_with_model(path))
                                     as Box<dyn BotStrategy>)
                             }
+                            s if s.starts_with("dqnburn:") => {
+                                let path = s.trim_start_matches("dqnburn:");
+                                Some(Box::new(DqnBurnStrategy::new_with_model(&format!("{path}")))
+                                    as Box<dyn BotStrategy>)
+                            }
                             _ => None,
                         })
                         .collect()
-                })
-                .unwrap_or_default();
+            })
+            .unwrap_or_default();
         let schools_enabled = false;
         let should_quit = bot_strategies.len() > 1;
         Self {

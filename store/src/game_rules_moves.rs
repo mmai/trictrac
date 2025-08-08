@@ -625,18 +625,24 @@ mod tests {
     #[test]
     fn can_take_corner_by_effect() {
         let mut rules = MoveRules::default();
-        rules.board.set_positions([
-            10, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -15,
-        ]);
+        rules.board.set_positions(
+            &Color::White,
+            [
+                10, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -15,
+            ],
+        );
         rules.dice.values = (4, 4);
         assert!(rules.can_take_corner_by_effect());
 
         rules.dice.values = (5, 5);
         assert!(!rules.can_take_corner_by_effect());
 
-        rules.board.set_positions([
-            10, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -15,
-        ]);
+        rules.board.set_positions(
+            &Color::White,
+            [
+                10, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -15,
+            ],
+        );
         rules.dice.values = (4, 4);
         assert!(!rules.can_take_corner_by_effect());
     }
@@ -645,9 +651,12 @@ mod tests {
     fn prise_en_puissance() {
         let mut state = MoveRules::default();
         // prise par puissance ok
-        state.board.set_positions([
-            10, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -15,
-        ]);
+        state.board.set_positions(
+            &Color::White,
+            [
+                10, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -15,
+            ],
+        );
         state.dice.values = (5, 5);
         let moves = (
             CheckerMove::new(8, 12).unwrap(),
@@ -658,25 +667,34 @@ mod tests {
         assert!(state.moves_allowed(&moves).is_ok());
 
         // opponent corner must be empty
-        state.board.set_positions([
-            10, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, -2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -13,
-        ]);
+        state.board.set_positions(
+            &Color::White,
+            [
+                10, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, -2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -13,
+            ],
+        );
         assert!(!state.is_move_by_puissance(&moves));
         assert!(!state.moves_follows_dices(&moves));
 
         // Si on a la possibilité de prendre son coin à la fois par effet, c'est à dire naturellement, et aussi par puissance, on doit le prendre par effet
-        state.board.set_positions([
-            5, 0, 0, 0, 0, 0, 5, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -15,
-        ]);
+        state.board.set_positions(
+            &Color::White,
+            [
+                5, 0, 0, 0, 0, 0, 5, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -15,
+            ],
+        );
         assert_eq!(
             Err(MoveError::CornerByEffectPossible),
             state.moves_allowed(&moves)
         );
 
         // on a déjà pris son coin : on ne peux plus y deplacer des dames par puissance
-        state.board.set_positions([
-            8, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -15,
-        ]);
+        state.board.set_positions(
+            &Color::White,
+            [
+                8, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -15,
+            ],
+        );
         assert!(!state.is_move_by_puissance(&moves));
         assert!(!state.moves_follows_dices(&moves));
     }
@@ -685,9 +703,12 @@ mod tests {
     fn exit() {
         let mut state = MoveRules::default();
         // exit ok
-        state.board.set_positions([
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0,
-        ]);
+        state.board.set_positions(
+            &Color::White,
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0,
+            ],
+        );
         state.dice.values = (5, 5);
         let moves = (
             CheckerMove::new(20, 0).unwrap(),
@@ -697,9 +718,12 @@ mod tests {
         assert!(state.moves_allowed(&moves).is_ok());
 
         // toutes les dames doivent être dans le jan de retour
-        state.board.set_positions([
-            0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0,
-        ]);
+        state.board.set_positions(
+            &Color::White,
+            [
+                0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0,
+            ],
+        );
         state.dice.values = (5, 5);
         let moves = (
             CheckerMove::new(20, 0).unwrap(),
@@ -711,9 +735,12 @@ mod tests {
         );
 
         // on ne peut pas sortir une dame avec un nombre excédant si on peut en jouer une avec un nombre défaillant
-        state.board.set_positions([
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 3, 0, 0, 2, 0,
-        ]);
+        state.board.set_positions(
+            &Color::White,
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 3, 0, 0, 2, 0,
+            ],
+        );
         state.dice.values = (5, 5);
         let moves = (
             CheckerMove::new(20, 0).unwrap(),
@@ -725,9 +752,12 @@ mod tests {
         );
 
         // on doit jouer le nombre excédant le plus éloigné
-        state.board.set_positions([
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0,
-        ]);
+        state.board.set_positions(
+            &Color::White,
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0,
+            ],
+        );
         state.dice.values = (5, 5);
         let moves = (
             CheckerMove::new(20, 0).unwrap(),
@@ -741,9 +771,12 @@ mod tests {
         assert!(state.moves_allowed(&moves).is_ok());
 
         // Cas de la dernière dame
-        state.board.set_positions([
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0,
-        ]);
+        state.board.set_positions(
+            &Color::White,
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0,
+            ],
+        );
         state.dice.values = (5, 5);
         let moves = (
             CheckerMove::new(23, 0).unwrap(),
@@ -756,9 +789,12 @@ mod tests {
     #[test]
     fn move_check_opponent_fillable_quarter() {
         let mut state = MoveRules::default();
-        state.board.set_positions([
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1, 0,
-        ]);
+        state.board.set_positions(
+            &Color::White,
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1, 0,
+            ],
+        );
         state.dice.values = (5, 5);
         let moves = (
             CheckerMove::new(11, 16).unwrap(),
@@ -766,9 +802,12 @@ mod tests {
         );
         assert!(state.moves_allowed(&moves).is_ok());
 
-        state.board.set_positions([
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, -12, 0, 0, 0, 0, 1, 0,
-        ]);
+        state.board.set_positions(
+            &Color::White,
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, -12, 0, 0, 0, 0, 1, 0,
+            ],
+        );
         state.dice.values = (5, 5);
         let moves = (
             CheckerMove::new(11, 16).unwrap(),
@@ -779,9 +818,12 @@ mod tests {
             state.moves_allowed(&moves)
         );
 
-        state.board.set_positions([
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, -12, 0, 0, 0, 0, 1, 0,
-        ]);
+        state.board.set_positions(
+            &Color::White,
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, -12, 0, 0, 0, 0, 1, 0,
+            ],
+        );
         state.dice.values = (5, 5);
         let moves = (
             CheckerMove::new(11, 16).unwrap(),
@@ -789,9 +831,12 @@ mod tests {
         );
         assert!(state.moves_allowed(&moves).is_ok());
 
-        state.board.set_positions([
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1, -12,
-        ]);
+        state.board.set_positions(
+            &Color::White,
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1, -12,
+            ],
+        );
         state.dice.values = (5, 5);
         let moves = (
             CheckerMove::new(11, 16).unwrap(),
@@ -806,9 +851,12 @@ mod tests {
     #[test]
     fn move_check_fillable_quarter() {
         let mut state = MoveRules::default();
-        state.board.set_positions([
-            3, 3, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1, 0,
-        ]);
+        state.board.set_positions(
+            &Color::White,
+            [
+                3, 3, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1, 0,
+            ],
+        );
         state.dice.values = (5, 4);
         let moves = (
             CheckerMove::new(1, 6).unwrap(),
@@ -821,9 +869,12 @@ mod tests {
         );
         assert_eq!(Err(MoveError::MustFillQuarter), state.moves_allowed(&moves));
 
-        state.board.set_positions([
-            2, 3, 2, 2, 3, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        ]);
+        state.board.set_positions(
+            &Color::White,
+            [
+                2, 3, 2, 2, 3, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+        );
         state.dice.values = (2, 3);
         let moves = (
             CheckerMove::new(6, 8).unwrap(),
@@ -840,9 +891,12 @@ mod tests {
     #[test]
     fn move_play_all_dice() {
         let mut state = MoveRules::default();
-        state.board.set_positions([
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0,
-        ]);
+        state.board.set_positions(
+            &Color::White,
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0,
+            ],
+        );
         state.dice.values = (1, 3);
         let moves = (
             CheckerMove::new(22, 0).unwrap(),
@@ -861,9 +915,12 @@ mod tests {
     fn move_opponent_rest_corner_rules() {
         // fill with 2 checkers : forbidden
         let mut state = MoveRules::default();
-        state.board.set_positions([
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        ]);
+        state.board.set_positions(
+            &Color::White,
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+        );
         state.dice.values = (1, 1);
         let moves = (
             CheckerMove::new(12, 13).unwrap(),
@@ -891,9 +948,12 @@ mod tests {
     fn move_rest_corner_enter() {
         // direct
         let mut state = MoveRules::default();
-        state.board.set_positions([
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        ]);
+        state.board.set_positions(
+            &Color::White,
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+        );
         state.dice.values = (2, 1);
         let moves = (
             CheckerMove::new(10, 12).unwrap(),
@@ -915,9 +975,12 @@ mod tests {
     #[test]
     fn move_rest_corner_blocked() {
         let mut state = MoveRules::default();
-        state.board.set_positions([
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        ]);
+        state.board.set_positions(
+            &Color::White,
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+        );
         state.dice.values = (2, 1);
         let moves = (
             CheckerMove::new(0, 0).unwrap(),
@@ -926,9 +989,12 @@ mod tests {
         assert!(state.moves_follows_dices(&moves));
         assert!(state.moves_allowed(&moves).is_ok());
 
-        state.board.set_positions([
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0,
-        ]);
+        state.board.set_positions(
+            &Color::White,
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0,
+            ],
+        );
         state.dice.values = (2, 1);
         let moves = (
             CheckerMove::new(23, 24).unwrap(),
@@ -949,9 +1015,12 @@ mod tests {
     #[test]
     fn move_rest_corner_exit() {
         let mut state = MoveRules::default();
-        state.board.set_positions([
-            1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, -1, -1, 0, 0, 0, 0, 0, 0,
-        ]);
+        state.board.set_positions(
+            &Color::White,
+            [
+                1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, -1, -1, 0, 0, 0, 0, 0, 0,
+            ],
+        );
         state.dice.values = (2, 3);
         let moves = (
             CheckerMove::new(12, 14).unwrap(),
@@ -967,9 +1036,12 @@ mod tests {
     fn move_rest_corner_toutdune() {
         let mut state = MoveRules::default();
         // We can't go to the occupied rest corner as an intermediary step
-        state.board.set_positions([
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, -2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        ]);
+        state.board.set_positions(
+            &Color::White,
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, -2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+        );
         state.dice.values = (2, 1);
         let moves = (
             CheckerMove::new(11, 13).unwrap(),
@@ -978,9 +1050,12 @@ mod tests {
         assert!(!state.moves_possible(&moves));
 
         // We can use the empty rest corner as an intermediary step
-        state.board.set_positions([
-            2, 2, 2, 2, 2, 2, 2, 1, 0, 0, 0, 0, 0, -2, 0, 0, 0, -2, 0, -2, -2, -2, -2, -3,
-        ]);
+        state.board.set_positions(
+            &Color::White,
+            [
+                2, 2, 2, 2, 2, 2, 2, 1, 0, 0, 0, 0, 0, -2, 0, 0, 0, -2, 0, -2, -2, -2, -2, -3,
+            ],
+        );
         state.dice.values = (6, 5);
         let moves = (
             CheckerMove::new(8, 13).unwrap(),
@@ -994,9 +1069,12 @@ mod tests {
     #[test]
     fn move_play_stronger_dice() {
         let mut state = MoveRules::default();
-        state.board.set_positions([
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, -1, -1, -1, 0, 0, 0, 0, 0, 0,
-        ]);
+        state.board.set_positions(
+            &Color::White,
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, -1, -1, -1, 0, 0, 0, 0, 0, 0,
+            ],
+        );
         state.dice.values = (2, 3);
         let moves = (
             CheckerMove::new(12, 14).unwrap(),
@@ -1034,9 +1112,12 @@ mod tests {
         assert!(!state.moves_possible(&moves));
 
         // Can't move the same checker twice
-        state.board.set_positions([
-            3, 3, 1, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        ]);
+        state.board.set_positions(
+            &Color::White,
+            [
+                3, 3, 1, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+        );
         state.dice.values = (2, 1);
         let moves = (
             CheckerMove::new(3, 5).unwrap(),
@@ -1056,9 +1137,12 @@ mod tests {
     #[test]
     fn filling_moves_sequences() {
         let mut state = MoveRules::default();
-        state.board.set_positions([
-            3, 3, 1, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        ]);
+        state.board.set_positions(
+            &Color::White,
+            [
+                3, 3, 1, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+        );
         state.dice.values = (2, 1);
         let filling_moves_sequences = state.get_quarter_filling_moves_sequences();
         // println!(
@@ -1067,17 +1151,23 @@ mod tests {
         // );
         assert_eq!(2, filling_moves_sequences.len());
 
-        state.board.set_positions([
-            3, 2, 3, 2, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        ]);
+        state.board.set_positions(
+            &Color::White,
+            [
+                3, 2, 3, 2, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+        );
         state.dice.values = (2, 2);
         let filling_moves_sequences = state.get_quarter_filling_moves_sequences();
         // println!("{:?}", filling_moves_sequences);
         assert_eq!(2, filling_moves_sequences.len());
 
-        state.board.set_positions([
-            3, 1, 2, 2, 3, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        ]);
+        state.board.set_positions(
+            &Color::White,
+            [
+                3, 1, 2, 2, 3, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+        );
         state.dice.values = (2, 1);
         let filling_moves_sequences = state.get_quarter_filling_moves_sequences();
         // println!(
@@ -1087,9 +1177,12 @@ mod tests {
         assert_eq!(2, filling_moves_sequences.len());
 
         // positions
-        state.board.set_positions([
-            2, 2, 2, 2, 2, 2, 2, 1, 0, 0, 0, 0, 0, -2, 0, 0, 0, -2, 0, -2, -2, -2, -2, -3,
-        ]);
+        state.board.set_positions(
+            &Color::White,
+            [
+                2, 2, 2, 2, 2, 2, 2, 1, 0, 0, 0, 0, 0, -2, 0, 0, 0, -2, 0, -2, -2, -2, -2, -3,
+            ],
+        );
         state.dice.values = (6, 5);
         let filling_moves_sequences = state.get_quarter_filling_moves_sequences();
         assert_eq!(1, filling_moves_sequences.len());
@@ -1099,19 +1192,46 @@ mod tests {
     fn scoring_filling_moves_sequences() {
         let mut state = MoveRules::default();
 
-        state.board.set_positions([
-            3, 1, 2, 2, 3, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        ]);
+        state.board.set_positions(
+            &Color::White,
+            [
+                3, 1, 2, 2, 3, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+        );
         state.dice.values = (2, 1);
         assert_eq!(1, state.get_scoring_quarter_filling_moves_sequences().len());
 
-        state.board.set_positions([
-            2, 3, 3, 3, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        ]);
+        state.board.set_positions(
+            &Color::White,
+            [
+                2, 3, 3, 3, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+        );
         state.dice.values = (2, 1);
         let filling_moves_sequences = state.get_scoring_quarter_filling_moves_sequences();
         // println!("{:?}", filling_moves_sequences);
         assert_eq!(3, filling_moves_sequences.len());
+
+        // preserve filling
+        state.board.set_positions(
+            &Color::White,
+            [
+                2, 2, 2, 2, 2, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -3, -1, -2, -3, -5, 0, -1,
+            ],
+        );
+        state.dice.values = (3, 1);
+        assert_eq!(1, state.get_scoring_quarter_filling_moves_sequences().len());
+
+        // preserve filling (black)
+        let mut state = MoveRules::new(&Color::Black, &Board::default(), Dice::default());
+        state.board.set_positions(
+            &Color::Black,
+            [
+                1, 0, 5, 3, 2, 1, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -4, -2, -2, -2, -2, -2,
+            ],
+        );
+        state.dice.values = (3, 1);
+        assert_eq!(1, state.get_scoring_quarter_filling_moves_sequences().len());
     }
 
     // prise de coin par puissance et conservation de jan #18
@@ -1120,9 +1240,12 @@ mod tests {
     fn corner_by_effect_and_filled_corner() {
         let mut state = MoveRules::default();
 
-        state.board.set_positions([
-            2, 2, 2, 2, 2, 2, 2, 1, 0, 0, 0, 0, 0, -2, 0, 0, 0, -2, 0, -2, -2, -2, -2, -3,
-        ]);
+        state.board.set_positions(
+            &Color::White,
+            [
+                2, 2, 2, 2, 2, 2, 2, 1, 0, 0, 0, 0, 0, -2, 0, 0, 0, -2, 0, -2, -2, -2, -2, -3,
+            ],
+        );
         state.dice.values = (6, 5);
 
         let moves = (
@@ -1155,9 +1278,12 @@ mod tests {
     fn get_possible_moves_sequences() {
         let mut state = MoveRules::default();
 
-        state.board.set_positions([
-            2, 0, -2, -2, 0, -1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        ]);
+        state.board.set_positions(
+            &Color::White,
+            [
+                2, 0, -2, -2, 0, -1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+        );
         state.dice.values = (2, 3);
         let moves = (
             CheckerMove::new(9, 11).unwrap(),

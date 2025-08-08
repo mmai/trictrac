@@ -1,21 +1,26 @@
+use burn::backend::NdArray;
+use burn::tensor::cast::ToElement;
+use burn_rl::base::{ElemType, Model, State};
+
 use crate::{BotStrategy, CheckerMove, Color, GameState, PlayerId};
 use log::info;
-use std::path::Path;
 use store::MoveRules;
 
-use crate::dqn::dqn_common::{get_valid_actions, sample_valid_action, TrictracAction};
-use crate::dqn::simple::dqn_model::SimpleNeuralNetwork;
+use crate::dqn::burnrl::{dqn_model, environment, utils};
+use crate::dqn::dqn_common::{get_valid_action_indices, sample_valid_action, TrictracAction};
+
+type DqnBurnNetwork = dqn_model::Net<NdArray<ElemType>>;
 
 /// Stratégie DQN pour le bot - ne fait que charger et utiliser un modèle pré-entraîné
 #[derive(Debug)]
-pub struct DqnStrategy {
+pub struct DqnBurnStrategy {
     pub game: GameState,
     pub player_id: PlayerId,
     pub color: Color,
-    pub model: Option<SimpleNeuralNetwork>,
+    pub model: Option<DqnBurnNetwork>,
 }
 
-impl Default for DqnStrategy {
+impl Default for DqnBurnStrategy {
     fn default() -> Self {
         Self {
             game: GameState::default(),
@@ -26,49 +31,46 @@ impl Default for DqnStrategy {
     }
 }
 
-impl DqnStrategy {
+impl DqnBurnStrategy {
     pub fn new() -> Self {
         Self::default()
     }
 
-    pub fn new_with_model<P: AsRef<Path> + std::fmt::Debug>(model_path: P) -> Self {
+    pub fn new_with_model(model_path: &String) -> Self {
+        info!("Loading model {model_path:?}");
         let mut strategy = Self::new();
-        if let Ok(model) = SimpleNeuralNetwork::load(&model_path) {
-            info!("Loading model {model_path:?}");
-            strategy.model = Some(model);
-        }
+        strategy.model = utils::load_model(256, model_path);
         strategy
     }
 
     /// Utilise le modèle DQN pour choisir une action valide
     fn get_dqn_action(&self) -> Option<TrictracAction> {
         if let Some(ref model) = self.model {
-            let state = self.game.to_vec_float();
-            let valid_actions = get_valid_actions(&self.game);
-
-            if valid_actions.is_empty() {
-                return None;
+            let state = environment::TrictracState::from_game_state(&self.game);
+            let valid_actions_indices = get_valid_action_indices(&self.game);
+            if valid_actions_indices.is_empty() {
+                return None; // No valid actions, end of episode
             }
 
             // Obtenir les Q-values pour toutes les actions
-            let q_values = model.forward(&state);
+            let q_values = model.infer(state.to_tensor().unsqueeze());
 
-            // Trouver la meilleure action valide
-            let mut best_action = &valid_actions[0];
-            let mut best_q_value = f32::NEG_INFINITY;
-
-            for action in &valid_actions {
-                let action_index = action.to_action_index();
-                if action_index < q_values.len() {
-                    let q_value = q_values[action_index];
-                    if q_value > best_q_value {
-                        best_q_value = q_value;
-                        best_action = action;
-                    }
+            // Set non valid actions q-values to lowest
+            let mut masked_q_values = q_values.clone();
+            let q_values_vec: Vec<f32> = q_values.into_data().into_vec().unwrap();
+            for (index, q_value) in q_values_vec.iter().enumerate() {
+                if !valid_actions_indices.contains(&index) {
+                    masked_q_values = masked_q_values.clone().mask_fill(
+                        masked_q_values.clone().equal_elem(*q_value),
+                        f32::NEG_INFINITY,
+                    );
                 }
             }
-
-            Some(best_action.clone())
+            // Get best action (highest q-value)
+            let action_index = masked_q_values.argmax(1).into_scalar().to_u32();
+            environment::TrictracEnvironment::convert_action(environment::TrictracAction::from(
+                action_index,
+            ))
         } else {
             // Fallback : action aléatoire valide
             sample_valid_action(&self.game)
@@ -76,7 +78,7 @@ impl DqnStrategy {
     }
 }
 
-impl BotStrategy for DqnStrategy {
+impl BotStrategy for DqnBurnStrategy {
     fn get_game(&self) -> &GameState {
         &self.game
     }

@@ -86,6 +86,7 @@ pub struct TrictracEnvironment {
     pub step_count: usize,
     pub min_steps: f32,
     pub max_steps: usize,
+    pub pointrolls_count: usize,
     pub goodmoves_count: usize,
     pub goodmoves_ratio: f32,
     pub visualized: bool,
@@ -118,6 +119,7 @@ impl Environment for TrictracEnvironment {
             step_count: 0,
             min_steps: 250.0,
             max_steps: 2000,
+            pointrolls_count: 0,
             goodmoves_count: 0,
             goodmoves_ratio: 0.0,
             visualized,
@@ -150,6 +152,7 @@ impl Environment for TrictracEnvironment {
             (100.0 * self.goodmoves_ratio).round() as u32
         );
         self.step_count = 0;
+        self.pointrolls_count = 0;
         self.goodmoves_count = 0;
 
         Snapshot::new(self.current_state, 0.0, false)
@@ -162,12 +165,16 @@ impl Environment for TrictracEnvironment {
         let trictrac_action = Self::convert_action(action);
 
         let mut reward = 0.0;
+        let mut is_rollpoint = false;
         let mut terminated = false;
 
         // Exécuter l'action si c'est le tour de l'agent DQN
         if self.game.active_player_id == self.active_player_id {
             if let Some(action) = trictrac_action {
-                reward = self.execute_action(action);
+                (reward, is_rollpoint) = self.execute_action(action);
+                if is_rollpoint {
+                    self.pointrolls_count += 1;
+                }
                 if reward != Self::ERROR_REWARD {
                     self.goodmoves_count += 1;
                 }
@@ -249,10 +256,11 @@ impl TrictracEnvironment {
     //     &mut self,
     //     action: dqn_common::TrictracAction,
     // ) -> Result<f32, Box<dyn std::error::Error>> {
-    fn execute_action(&mut self, action: dqn_common::TrictracAction) -> f32 {
+    fn execute_action(&mut self, action: dqn_common::TrictracAction) -> (f32, bool) {
         use dqn_common::TrictracAction;
 
         let mut reward = 0.0;
+        let mut is_rollpoint = false;
 
         let event = match action {
             TrictracAction::Roll => {
@@ -330,7 +338,8 @@ impl TrictracEnvironment {
                         let (points, adv_points) = self.game.dice_points;
                         reward += Self::REWARD_RATIO * (points - adv_points) as f32;
                         if points > 0 {
-                            println!("info: rolled for {reward}");
+                            is_rollpoint = true;
+                            // println!("info: rolled for {reward}");
                         }
                         // Récompense proportionnelle aux points
                     }
@@ -343,7 +352,7 @@ impl TrictracEnvironment {
             }
         }
 
-        reward
+        (reward, is_rollpoint)
     }
 
     /// Fait jouer l'adversaire avec une stratégie simple

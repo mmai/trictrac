@@ -164,6 +164,7 @@ pub fn run<E: Environment + AsMut<TrictracEnvironment>, B: AutodiffBackend>(
         let mut episode_duration = 0_usize;
         let mut state = env.state();
         let mut now = SystemTime::now();
+        let mut goodmoves_ratio = 0.0;
 
         while !episode_done {
             let eps_threshold = conf.eps_end
@@ -192,13 +193,17 @@ pub fn run<E: Environment + AsMut<TrictracEnvironment>, B: AutodiffBackend>(
             episode_duration += 1;
 
             if snapshot.done() || episode_duration >= conf.max_steps {
-                env.reset();
-                episode_done = true;
-
+                let envmut = env.as_mut();
                 println!(
-                    "{{\"episode\": {episode}, \"reward\": {episode_reward:.4}, \"steps count\": {episode_duration}, \"threshold\": {eps_threshold:.3}, \"duration\": {}}}",
+                    "{{\"episode\": {episode}, \"reward\": {episode_reward:.4}, \"steps count\": {episode_duration}, \"epsilon\": {eps_threshold:.3}, \"goodmoves\": {}, \"gm%\": {:.1}, \"rollpoints\":{}, \"duration\": {}}}",
+                    envmut.goodmoves_count,
+                    goodmoves_ratio * 100.0,
+                    envmut.pointrolls_count,
                     now.elapsed().unwrap().as_secs(),
                 );
+                goodmoves_ratio = envmut.goodmoves_ratio;
+                env.reset();
+                episode_done = true;
                 now = SystemTime::now();
             } else {
                 state = *snapshot.state();

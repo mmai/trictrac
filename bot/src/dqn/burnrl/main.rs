@@ -14,11 +14,11 @@ fn main() {
     let conf = dqn_model::DqnConfig {
         num_episodes: 40,
         // memory_size: 8192, // must be set in  dqn_model.rs with the MEMORY_SIZE constant
-        // max_steps: 700, // must be set in  environment.rs with the MAX_STEPS constant
+        // max_steps: 600, // must be set in  environment.rs with the MAX_STEPS constant
         dense_size: 256, // neural network complexity
         eps_start: 0.9,  // epsilon initial value (0.9 => more exploration)
         eps_end: 0.05,
-        eps_decay: 3000.0,
+        eps_decay: 1500.0,
     };
     let agent = dqn_model::run::<Env, Backend>(&conf, false); //true);
 

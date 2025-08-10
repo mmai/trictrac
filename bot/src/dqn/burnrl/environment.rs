@@ -7,11 +7,11 @@ use store::{GameEvent, GameState, PlayerId, PointsRules, Stage, TurnStage};
 /// État du jeu Trictrac pour burn-rl
 #[derive(Debug, Clone, Copy)]
 pub struct TrictracState {
-    pub data: [f32; 36], // Représentation vectorielle de l'état du jeu
+    pub data: [i8; 36], // Représentation vectorielle de l'état du jeu
 }
 
 impl State for TrictracState {
-    type Data = [f32; 36];
+    type Data = [i8; 36];
 
     fn to_tensor<B: Backend>(&self) -> Tensor<B, 1> {
         Tensor::from_floats(self.data, &B::Device::default())
@@ -25,8 +25,8 @@ impl State for TrictracState {
 impl TrictracState {
     /// Convertit un GameState en TrictracState
     pub fn from_game_state(game_state: &GameState) -> Self {
-        let state_vec = game_state.to_vec_float();
-        let mut data = [0.0; 36];
+        let state_vec = game_state.to_vec();
+        let mut data = [0; 36];
 
         // Copier les données en s'assurant qu'on ne dépasse pas la taille
         let copy_len = state_vec.len().min(36);
@@ -39,6 +39,7 @@ impl TrictracState {
 /// Actions possibles dans Trictrac pour burn-rl
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct TrictracAction {
+    // u32 as required by burn_rl::base::Action type
     pub index: u32,
 }
 
@@ -82,7 +83,8 @@ pub struct TrictracEnvironment {
     opponent_id: PlayerId,
     current_state: TrictracState,
     episode_reward: f32,
-    step_count: usize,
+    pub step_count: usize,
+    pub goodmoves_count: usize,
     pub visualized: bool,
 }
 
@@ -91,7 +93,7 @@ impl Environment for TrictracEnvironment {
     type ActionType = TrictracAction;
     type RewardType = f32;
 
-    const MAX_STEPS: usize = 700; // Limite max pour éviter les parties infinies
+    const MAX_STEPS: usize = 600; // Limite max pour éviter les parties infinies
 
     fn new(visualized: bool) -> Self {
         let mut game = GameState::new(false);
@@ -113,6 +115,7 @@ impl Environment for TrictracEnvironment {
             current_state,
             episode_reward: 0.0,
             step_count: 0,
+            goodmoves_count: 0,
             visualized,
         }
     }
@@ -132,7 +135,13 @@ impl Environment for TrictracEnvironment {
 
         self.current_state = TrictracState::from_game_state(&self.game);
         self.episode_reward = 0.0;
+        println!(
+            "correct moves: {} ({}%)",
+            self.goodmoves_count,
+            100 * self.goodmoves_count / self.step_count
+        );
         self.step_count = 0;
+        self.goodmoves_count = 0;
 
         Snapshot::new(self.current_state, 0.0, false)
     }
@@ -149,14 +158,9 @@ impl Environment for TrictracEnvironment {
         // Exécuter l'action si c'est le tour de l'agent DQN
         if self.game.active_player_id == self.active_player_id {
             if let Some(action) = trictrac_action {
-                match self.execute_action(action) {
-                    Ok(action_reward) => {
-                        reward = action_reward;
-                    }
-                    Err(_) => {
-                        // Action invalide, pénalité
-                        reward = -1.0;
-                    }
+                reward = self.execute_action(action);
+                if reward != Self::ERROR_REWARD {
+                    self.goodmoves_count += 1;
                 }
             } else {
                 // Action non convertible, pénalité
@@ -202,6 +206,9 @@ impl Environment for TrictracEnvironment {
 }
 
 impl TrictracEnvironment {
+    const ERROR_REWARD: f32 = -1.12121;
+    const REWARD_RATIO: f32 = 1.0;
+
     /// Convertit une action burn-rl vers une action Trictrac
     pub fn convert_action(action: TrictracAction) -> Option<dqn_common::TrictracAction> {
         dqn_common::TrictracAction::from_action_index(action.index.try_into().unwrap())
@@ -228,10 +235,11 @@ impl TrictracEnvironment {
     }
 
     /// Exécute une action Trictrac dans le jeu
-    fn execute_action(
-        &mut self,
-        action: dqn_common::TrictracAction,
-    ) -> Result<f32, Box<dyn std::error::Error>> {
+    // fn execute_action(
+    //     &mut self,
+    //     action: dqn_common::TrictracAction,
+    // ) -> Result<f32, Box<dyn std::error::Error>> {
+    fn execute_action(&mut self, action: dqn_common::TrictracAction) -> f32 {
         use dqn_common::TrictracAction;
 
         let mut reward = 0.0;
@@ -310,16 +318,22 @@ impl TrictracEnvironment {
                     if self.game.validate(&dice_event) {
                         self.game.consume(&dice_event);
                         let (points, adv_points) = self.game.dice_points;
-                        reward += 0.3 * (points - adv_points) as f32; // Récompense proportionnelle aux points
+                        reward += Self::REWARD_RATIO * (points - adv_points) as f32;
+                        if points > 0 {
+                            println!("rolled for {reward}");
+                        }
+                        // Récompense proportionnelle aux points
                     }
                 }
             } else {
                 // Pénalité pour action invalide
-                reward -= 2.0;
+                // on annule les précédents reward
+                // et on indique une valeur reconnaissable pour statistiques
+                reward = Self::ERROR_REWARD;
             }
         }
 
-        Ok(reward)
+        reward
     }
 
     /// Fait jouer l'adversaire avec une stratégie simple
@@ -329,15 +343,14 @@ impl TrictracEnvironment {
         // Si c'est le tour de l'adversaire, jouer automatiquement
         if self.game.active_player_id == self.opponent_id && self.game.stage != Stage::Ended {
             // Utiliser la stratégie default pour l'adversaire
-            use crate::strategy::default::DefaultStrategy;
             use crate::BotStrategy;
 
-            let mut default_strategy = DefaultStrategy::default();
-            default_strategy.set_player_id(self.opponent_id);
+            let mut strategy = crate::strategy::random::RandomStrategy::default();
+            strategy.set_player_id(self.opponent_id);
             if let Some(color) = self.game.player_color_by_id(&self.opponent_id) {
-                default_strategy.set_color(color);
+                strategy.set_color(color);
             }
-            *default_strategy.get_mut_game() = self.game.clone();
+            *strategy.get_mut_game() = self.game.clone();
 
             // Exécuter l'action selon le turn_stage
             let event = match self.game.turn_stage {
@@ -365,7 +378,7 @@ impl TrictracEnvironment {
                     let points_rules =
                         PointsRules::new(&opponent_color, &self.game.board, self.game.dice);
                     let (points, adv_points) = points_rules.get_points(dice_roll_count);
-                    reward -= 0.3 * (points - adv_points) as f32; // Récompense proportionnelle aux points
+                    reward -= Self::REWARD_RATIO * (points - adv_points) as f32; // Récompense proportionnelle aux points
 
                     GameEvent::Mark {
                         player_id: self.opponent_id,
@@ -397,7 +410,7 @@ impl TrictracEnvironment {
                 }
                 TurnStage::Move => GameEvent::Move {
                     player_id: self.opponent_id,
-                    moves: default_strategy.choose_move(),
+                    moves: strategy.choose_move(),
                 },
             };
 

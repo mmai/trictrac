@@ -28,12 +28,10 @@ trainsimple:
 trainbot:
   #python ./store/python/trainModel.py
   # cargo run --bin=train_dqn # ok
-  # cargo run --bin=train_dqn_burn # utilise debug (why ?)
   cargo build --release --bin=train_dqn_burn
   LD_LIBRARY_PATH=./target/release  ./target/release/train_dqn_burn | tee /tmp/train.out
 plottrainbot:
-  cat /tmp/train.out | awk -F '[ ,]' '{print $5}' | feedgnuplot --lines --points --unset grid
-  #tail -f /tmp/train.out | awk -F '[ ,]' '{print $5}' | feedgnuplot --lines --points --unset grid
+  cat /tmp/train.out | grep -v rolled | grep -v correct | awk -F '[ ,]' '{print $5}' | feedgnuplot --lines --points --unset grid --title 'adv = random ; density = 256 ; err_reward = -1 ; reward_ratio = 1 ; decay = 1500 ; max steps = 600' --terminal png > doc/trainbots_stats/train_random_256_1_1_1500_600.png
 debugtrainbot:
   cargo build --bin=train_dqn_burn
   RUST_BACKTRACE=1 LD_LIBRARY_PATH=./target/debug  ./target/debug/train_dqn_burn

@@ -150,11 +150,8 @@ pub fn run<E: Environment, B: AutodiffBackend>(
                 episode_done = true;
 
                 println!(
-                    "{{\"episode\": {}, \"reward\": {:.4}, \"steps count\": {}, \"duration\": {}}}",
-                    episode,
-                    episode_reward,
-                    episode_duration,
-                    now.elapsed().unwrap().as_secs()
+                    "{{\"episode\": {episode}, \"reward\": {episode_reward:.4}, \"steps count\": {episode_duration}, \"threshold\": {eps_threshold}, \"duration\": {}}}",
+                    now.elapsed().unwrap().as_secs(),
                 );
                 now = SystemTime::now();
             } else {

@@ -151,6 +151,7 @@ impl GameState {
 
     /// Get state as a vector (to be used for bot training input) :
     /// length = 36
+    /// i8 for board positions with negative values for blacks
     pub fn to_vec(&self) -> Vec<i8> {
         let state_len = 36;
         let mut state = Vec::with_capacity(state_len);

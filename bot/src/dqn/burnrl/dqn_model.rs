@@ -1,3 +1,4 @@
+use crate::dqn::burnrl::environment::TrictracEnvironment;
 use crate::dqn::burnrl::utils::soft_update_linear;
 use burn::module::Module;
 use burn::nn::{Linear, LinearConfig};
@@ -8,6 +9,7 @@ use burn::tensor::Tensor;
 use burn_rl::agent::DQN;
 use burn_rl::agent::{DQNModel, DQNTrainingConfig};
 use burn_rl::base::{Action, ElemType, Environment, Memory, Model, State};
+use std::fmt;
 use std::time::SystemTime;
 
 #[derive(Module, Debug)]
@@ -61,23 +63,56 @@ impl<B: Backend> DQNModel<B> for Net<B> {
 const MEMORY_SIZE: usize = 8192;
 
 pub struct DqnConfig {
+    pub min_steps: f32,
+    pub max_steps: usize,
     pub num_episodes: usize,
-    // pub memory_size: usize,
     pub dense_size: usize,
     pub eps_start: f64,
     pub eps_end: f64,
     pub eps_decay: f64,
+
+    pub gamma: f32,
+    pub tau: f32,
+    pub learning_rate: f32,
+    pub batch_size: usize,
+    pub clip_grad: f32,
+}
+
+impl fmt::Display for DqnConfig {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut s = String::new();
+        s.push_str(&format!("min_steps={:?}\n", self.min_steps));
+        s.push_str(&format!("max_steps={:?}\n", self.max_steps));
+        s.push_str(&format!("num_episodes={:?}\n", self.num_episodes));
+        s.push_str(&format!("dense_size={:?}\n", self.dense_size));
+        s.push_str(&format!("eps_start={:?}\n", self.eps_start));
+        s.push_str(&format!("eps_end={:?}\n", self.eps_end));
+        s.push_str(&format!("eps_decay={:?}\n", self.eps_decay));
+        s.push_str(&format!("gamma={:?}\n", self.gamma));
+        s.push_str(&format!("tau={:?}\n", self.tau));
+        s.push_str(&format!("learning_rate={:?}\n", self.learning_rate));
+        s.push_str(&format!("batch_size={:?}\n", self.batch_size));
+        s.push_str(&format!("clip_grad={:?}\n", self.clip_grad));
+        write!(f, "{s}")
+    }
 }
 
 impl Default for DqnConfig {
     fn default() -> Self {
         Self {
+            min_steps: 250.0,
+            max_steps: 2000,
             num_episodes: 1000,
-            // memory_size: 8192,
             dense_size: 256,
             eps_start: 0.9,
             eps_end: 0.05,
             eps_decay: 1000.0,
+
+            gamma: 0.999,
+            tau: 0.005,
+            learning_rate: 0.001,
+            batch_size: 32,
+            clip_grad: 100.0,
         }
     }
 }
@@ -85,12 +120,14 @@ impl Default for DqnConfig {
 type MyAgent<E, B> = DQN<E, B, Net<B>>;
 
 #[allow(unused)]
-pub fn run<E: Environment, B: AutodiffBackend>(
+pub fn run<E: Environment + AsMut<TrictracEnvironment>, B: AutodiffBackend>(
     conf: &DqnConfig,
     visualized: bool,
 ) -> DQN<E, B, Net<B>> {
     // ) -> impl Agent<E> {
     let mut env = E::new(visualized);
+    env.as_mut().min_steps = conf.min_steps;
+    env.as_mut().max_steps = conf.max_steps;
 
     let model = Net::<B>::new(
         <<E as Environment>::StateType as State>::size(),
@@ -100,7 +137,16 @@ pub fn run<E: Environment, B: AutodiffBackend>(
 
     let mut agent = MyAgent::new(model);
 
-    let config = DQNTrainingConfig::default();
+    // let config = DQNTrainingConfig::default();
+    let config = DQNTrainingConfig {
+        gamma: conf.gamma,
+        tau: conf.tau,
+        learning_rate: conf.learning_rate,
+        batch_size: conf.batch_size,
+        clip_grad: Some(burn::grad_clipping::GradientClippingConfig::Value(
+            conf.clip_grad,
+        )),
+    };
 
     let mut memory = Memory::<E, B, MEMORY_SIZE>::default();
 
@@ -145,12 +191,12 @@ pub fn run<E: Environment, B: AutodiffBackend>(
             step += 1;
             episode_duration += 1;
 
-            if snapshot.done() || episode_duration >= E::MAX_STEPS {
+            if snapshot.done() || episode_duration >= conf.max_steps {
                 env.reset();
                 episode_done = true;
 
                 println!(
-                    "{{\"episode\": {episode}, \"reward\": {episode_reward:.4}, \"steps count\": {episode_duration}, \"threshold\": {eps_threshold}, \"duration\": {}}}",
+                    "{{\"episode\": {episode}, \"reward\": {episode_reward:.4}, \"steps count\": {episode_duration}, \"threshold\": {eps_threshold:.3}, \"duration\": {}}}",
                     now.elapsed().unwrap().as_secs(),
                 );
                 now = SystemTime::now();

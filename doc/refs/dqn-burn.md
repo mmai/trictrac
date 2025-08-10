@@ -10,8 +10,8 @@ MEMORY_SIZE
 - À quoi ça sert : L'agent interagit avec l'environnement (le jeu de TricTrac) et stocke ses expériences (un état, l'action prise, la récompense obtenue, et l'état suivant) dans cette mémoire. Pour s'entraîner, au
   lieu d'utiliser uniquement la dernière expérience, il pioche un lot (batch) d'expériences aléatoires dans cette mémoire.
 - Pourquoi c'est important :
-  1.  Décorrélation : Ça casse la corrélation entre les expériences successives, ce qui rend l'entraînement plus stable et efficace.
-  2.  Réutilisation : Une même expérience peut être utilisée plusieurs fois pour l'entraînement, ce qui améliore l'efficacité des données.
+  1. Décorrélation : Ça casse la corrélation entre les expériences successives, ce qui rend l'entraînement plus stable et efficace.
+  2. Réutilisation : Une même expérience peut être utilisée plusieurs fois pour l'entraînement, ce qui améliore l'efficacité des données.
 - Dans votre code : const MEMORY_SIZE: usize = 4096; signifie que l'agent gardera en mémoire les 4096 dernières transitions.
 
 DENSE_SIZE
@@ -54,3 +54,53 @@ epsilon (ε) est la probabilité de faire un choix aléatoire (explorer).
 
 En résumé, ces constantes définissent l'architecture du "cerveau" de votre bot (DENSE*SIZE), sa mémoire à court terme (MEMORY_SIZE), et comment il apprend à équilibrer entre suivre sa stratégie et en découvrir de
 nouvelles (EPS*\*).
+
+## Paramètres DQNTrainingConfig
+
+1. `gamma` (Facteur d'actualisation / _Discount Factor_)
+
+   - À quoi ça sert ? Ça détermine l'importance des récompenses futures. Une valeur proche de 1 (ex: 0.99)
+     indique à l'agent qu'une récompense obtenue dans le futur est presque aussi importante qu'une
+     récompense immédiate. Il sera donc "patient" et capable de faire des sacrifices à court terme pour un
+     gain plus grand plus tard.
+   - Intuition : Un gamma de 0 rendrait l'agent "myope", ne se souciant que du prochain coup. Un gamma de
+     0.99 l'encourage à élaborer des stratégies à long terme.
+
+2. `tau` (Taux de mise à jour douce / _Soft Update Rate_)
+
+   - À quoi ça sert ? Pour stabiliser l'apprentissage, les algorithmes DQN utilisent souvent deux réseaux
+     : un réseau principal qui apprend vite et un "réseau cible" (copie du premier) qui évolue lentement.
+     tau contrôle la vitesse à laquelle les connaissances du réseau principal sont transférées vers le
+     réseau cible.
+   - Intuition : Une petite valeur (ex: 0.005) signifie que le réseau cible, qui sert de référence stable,
+     ne se met à jour que très progressivement. C'est comme un "mentor" qui n'adopte pas immédiatement
+     toutes les nouvelles idées de son "élève", ce qui évite de déstabiliser tout l'apprentissage sur un
+     coup de chance (ou de malchance).
+
+3. `learning_rate` (Taux d'apprentissage)
+
+   - À quoi ça sert ? C'est peut-être le plus classique des hyperparamètres. Il définit la "taille du
+     pas" lors de la correction des erreurs. Après chaque prédiction, l'agent compare le résultat à ce
+     qui s'est passé et ajuste ses poids. Le learning_rate détermine l'ampleur de cet ajustement.
+   - Intuition : Trop élevé, et l'agent risque de sur-corriger et de ne jamais converger (comme chercher
+     le fond d'une vallée en faisant des pas de géant). Trop bas, et l'apprentissage sera extrêmement
+     lent.
+
+4. `batch_size` (Taille du lot)
+
+   - À quoi ça sert ? L'agent apprend de ses expériences passées, qu'il stocke dans une "mémoire". Pour
+     chaque session d'entraînement, au lieu d'apprendre d'une seule expérience, il en pioche un lot
+     (batch) au hasard (ex: 32 expériences). Il calcule l'erreur moyenne sur ce lot pour mettre à jour
+     ses poids.
+   - Intuition : Apprendre sur un lot plutôt que sur une seule expérience rend l'apprentissage plus
+     stable et plus général. L'agent se base sur une "moyenne" de situations plutôt que sur un cas
+     particulier qui pourrait être une anomalie.
+
+5. `clip_grad` (Plafonnement du gradient / _Gradient Clipping_)
+   - À quoi ça sert ? C'est une sécurité pour éviter le problème des "gradients qui explosent". Parfois,
+     une expérience très inattendue peut produire une erreur de prédiction énorme, ce qui entraîne une
+     correction (un "gradient") démesurément grande. Une telle correction peut anéantir tout ce que le
+     réseau a appris.
+   - Intuition : clip_grad impose une limite. Si la correction à apporter dépasse un certain seuil, elle
+     est ramenée à cette valeur maximale. C'est un garde-fou qui dit : "OK, on a fait une grosse erreur,
+     mais on va corriger calmement, sans tout casser".

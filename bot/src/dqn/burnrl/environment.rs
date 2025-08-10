@@ -84,7 +84,10 @@ pub struct TrictracEnvironment {
     current_state: TrictracState,
     episode_reward: f32,
     pub step_count: usize,
+    pub min_steps: f32,
+    pub max_steps: usize,
     pub goodmoves_count: usize,
+    pub goodmoves_ratio: f32,
     pub visualized: bool,
 }
 
@@ -92,8 +95,6 @@ impl Environment for TrictracEnvironment {
     type StateType = TrictracState;
     type ActionType = TrictracAction;
     type RewardType = f32;
-
-    const MAX_STEPS: usize = 600; // Limite max pour éviter les parties infinies
 
     fn new(visualized: bool) -> Self {
         let mut game = GameState::new(false);
@@ -115,7 +116,10 @@ impl Environment for TrictracEnvironment {
             current_state,
             episode_reward: 0.0,
             step_count: 0,
+            min_steps: 250.0,
+            max_steps: 2000,
             goodmoves_count: 0,
+            goodmoves_ratio: 0.0,
             visualized,
         }
     }
@@ -135,10 +139,15 @@ impl Environment for TrictracEnvironment {
 
         self.current_state = TrictracState::from_game_state(&self.game);
         self.episode_reward = 0.0;
+        self.goodmoves_ratio = if self.step_count == 0 {
+            0.0
+        } else {
+            self.goodmoves_count as f32 / self.step_count as f32
+        };
         println!(
-            "correct moves: {} ({}%)",
+            "info: correct moves: {} ({}%)",
             self.goodmoves_count,
-            100 * self.goodmoves_count / self.step_count
+            (100.0 * self.goodmoves_ratio).round() as u32
         );
         self.step_count = 0;
         self.goodmoves_count = 0;
@@ -174,12 +183,12 @@ impl Environment for TrictracEnvironment {
         }
 
         // Vérifier si la partie est terminée
-        let done = self.game.stage == Stage::Ended
-            || self.game.determine_winner().is_some()
-            || self.step_count >= Self::MAX_STEPS;
+        let max_steps = self.min_steps
+            + (self.max_steps as f32 - self.min_steps)
+                * f32::exp((self.goodmoves_ratio - 1.0) / 0.25);
+        let done = self.game.stage == Stage::Ended || self.game.determine_winner().is_some();
 
         if done {
-            terminated = true;
             // Récompense finale basée sur le résultat
             if let Some(winner_id) = self.game.determine_winner() {
                 if winner_id == self.active_player_id {
@@ -189,6 +198,7 @@ impl Environment for TrictracEnvironment {
                 }
             }
         }
+        let terminated = done || self.step_count >= max_steps.round() as usize;
 
         // Mettre à jour l'état
         self.current_state = TrictracState::from_game_state(&self.game);
@@ -320,7 +330,7 @@ impl TrictracEnvironment {
                         let (points, adv_points) = self.game.dice_points;
                         reward += Self::REWARD_RATIO * (points - adv_points) as f32;
                         if points > 0 {
-                            println!("rolled for {reward}");
+                            println!("info: rolled for {reward}");
                         }
                         // Récompense proportionnelle aux points
                     }
@@ -419,5 +429,11 @@ impl TrictracEnvironment {
             }
         }
         reward
+    }
+}
+
+impl AsMut<TrictracEnvironment> for TrictracEnvironment {
+    fn as_mut(&mut self) -> &mut Self {
+        self
     }
 }

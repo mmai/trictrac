@@ -59,7 +59,9 @@ impl Action for TrictracAction {
     }
 
     fn size() -> usize {
-        1252
+        // état avec le plus de choix : mouvement
+        // choix premier dé : 16 (15 pions + aucun pion), choix deuxième dé 16, x2 ordre dé
+        64
     }
 }
 
@@ -84,11 +86,8 @@ pub struct TrictracEnvironment {
     current_state: TrictracState,
     episode_reward: f32,
     pub step_count: usize,
-    pub min_steps: f32,
     pub max_steps: usize,
     pub pointrolls_count: usize,
-    pub goodmoves_count: usize,
-    pub goodmoves_ratio: f32,
     pub visualized: bool,
 }
 
@@ -117,11 +116,8 @@ impl Environment for TrictracEnvironment {
             current_state,
             episode_reward: 0.0,
             step_count: 0,
-            min_steps: 250.0,
             max_steps: 2000,
             pointrolls_count: 0,
-            goodmoves_count: 0,
-            goodmoves_ratio: 0.0,
             visualized,
         }
     }
@@ -141,19 +137,8 @@ impl Environment for TrictracEnvironment {
 
         self.current_state = TrictracState::from_game_state(&self.game);
         self.episode_reward = 0.0;
-        self.goodmoves_ratio = if self.step_count == 0 {
-            0.0
-        } else {
-            self.goodmoves_count as f32 / self.step_count as f32
-        };
-        println!(
-            "info: correct moves: {} ({}%)",
-            self.goodmoves_count,
-            (100.0 * self.goodmoves_ratio).round() as u32
-        );
         self.step_count = 0;
         self.pointrolls_count = 0;
-        self.goodmoves_count = 0;
 
         Snapshot::new(self.current_state, 0.0, false)
     }
@@ -162,11 +147,10 @@ impl Environment for TrictracEnvironment {
         self.step_count += 1;
 
         // Convertir l'action burn-rl vers une action Trictrac
-        let trictrac_action = Self::convert_action(action);
-
+        // let trictrac_action = Self::convert_action(action);
+        let trictrac_action = self.convert_valid_action_index(action);
         let mut reward = 0.0;
-        let mut is_rollpoint = false;
-        let mut terminated = false;
+        let is_rollpoint: bool;
 
         // Exécuter l'action si c'est le tour de l'agent DQN
         if self.game.active_player_id == self.active_player_id {
@@ -175,12 +159,9 @@ impl Environment for TrictracEnvironment {
                 if is_rollpoint {
                     self.pointrolls_count += 1;
                 }
-                if reward != Self::ERROR_REWARD {
-                    self.goodmoves_count += 1;
-                }
             } else {
                 // Action non convertible, pénalité
-                reward = -0.5;
+                reward = -1.0;
             }
         }
 
@@ -190,22 +171,19 @@ impl Environment for TrictracEnvironment {
         }
 
         // Vérifier si la partie est terminée
-        let max_steps = self.min_steps
-            + (self.max_steps as f32 - self.min_steps)
-                * f32::exp((self.goodmoves_ratio - 1.0) / 0.25);
         let done = self.game.stage == Stage::Ended || self.game.determine_winner().is_some();
 
         if done {
             // Récompense finale basée sur le résultat
             if let Some(winner_id) = self.game.determine_winner() {
                 if winner_id == self.active_player_id {
-                    reward += 50.0; // Victoire
+                    reward += 100.0; // Victoire
                 } else {
-                    reward -= 25.0; // Défaite
+                    reward -= 100.0; // Défaite
                 }
             }
         }
-        let terminated = done || self.step_count >= max_steps.round() as usize;
+        let terminated = done || self.step_count >= self.max_steps;
 
         // Mettre à jour l'état
         self.current_state = TrictracState::from_game_state(&self.game);
@@ -235,12 +213,11 @@ impl TrictracEnvironment {
     fn convert_valid_action_index(
         &self,
         action: TrictracAction,
-        game_state: &GameState,
     ) -> Option<dqn_common::TrictracAction> {
         use dqn_common::get_valid_actions;
 
         // Obtenir les actions valides dans le contexte actuel
-        let valid_actions = get_valid_actions(game_state);
+        let valid_actions = get_valid_actions(&self.game);
 
         if valid_actions.is_empty() {
             return None;
@@ -265,7 +242,6 @@ impl TrictracEnvironment {
         let event = match action {
             TrictracAction::Roll => {
                 // Lancer les dés
-                reward += 0.1;
                 Some(GameEvent::Roll {
                     player_id: self.active_player_id,
                 })
@@ -281,7 +257,6 @@ impl TrictracEnvironment {
             // }
             TrictracAction::Go => {
                 // Continuer après avoir gagné un trou
-                reward += 0.2;
                 Some(GameEvent::Go {
                     player_id: self.active_player_id,
                 })
@@ -310,7 +285,6 @@ impl TrictracEnvironment {
                 let checker_move1 = store::CheckerMove::new(from1, to1).unwrap_or_default();
                 let checker_move2 = store::CheckerMove::new(from2, to2).unwrap_or_default();
 
-                reward += 0.2;
                 Some(GameEvent::Move {
                     player_id: self.active_player_id,
                     moves: (checker_move1, checker_move2),

@@ -1,4 +1,4 @@
-use bot::dqn::burnrl::{
+use bot::dqn::burnrl_valid::{
     dqn_model, environment,
     utils::{demo_model, load_model, save_model},
 };
@@ -15,12 +15,11 @@ fn main() {
     // See also MEMORY_SIZE in dqn_model.rs : 8192
     let conf = dqn_model::DqnConfig {
         //                   defaults
-        num_episodes: 40, // 40
-        min_steps: 500.0, // 1000 min of max steps by episode (mise à jour par la fonction)
-        max_steps: 3000,  // 1000 max steps by episode
-        dense_size: 256,  // 128  neural network complexity (default 128)
-        eps_start: 0.9,   // 0.9  epsilon initial value (0.9 => more exploration)
-        eps_end: 0.05,    // 0.05
+        num_episodes: 100, // 40
+        max_steps: 1000,   // 1000 max steps by episode
+        dense_size: 256,   // 128  neural network complexity (default 128)
+        eps_start: 0.9,    // 0.9  epsilon initial value (0.9 => more exploration)
+        eps_end: 0.05,     // 0.05
         // eps_decay higher = epsilon decrease slower
         // used in : epsilon = eps_end + (eps_start - eps_end) * e^(-step / eps_decay);
         // epsilon is updated at the start of each episode
@@ -41,7 +40,7 @@ fn main() {
 
     println!("> Sauvegarde du modèle de validation");
 
-    let path = "models/burn_dqn_40".to_string();
+    let path = "bot/models/burn_dqn_valid_40".to_string();
     save_model(valid_agent.model().as_ref().unwrap(), &path);
 
     println!("> Chargement du modèle pour test");

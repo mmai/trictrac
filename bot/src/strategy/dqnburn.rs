@@ -128,6 +128,7 @@ impl BotStrategy for DqnBurnStrategy {
                 (dicevals.1, dicevals.0)
             };
 
+            assert_eq!(self.color, Color::White);
             let from1 = self
                 .game
                 .board
@@ -138,14 +139,16 @@ impl BotStrategy for DqnBurnStrategy {
                 // empty move
                 dice1 = 0;
             }
-            let mut to1 = if self.color == Color::White {
-                from1 + dice1 as usize
+            let mut to1 = from1;
+            if self.color == Color::White {
+                to1 += dice1 as usize;
+                if 24 < to1 {
+                    // sortie
+                    to1 = 0;
+                }
             } else {
-                from1 - dice1 as usize
-            };
-            if 24 < to1 || to1 < 0 {
-                // sortie
-                to1 = 0;
+                let fto1 = to1 as i16 - dice1 as i16;
+                to1 = if fto1 < 0 { 0 } else { fto1 as usize };
             }
 
             let checker_move1 = store::CheckerMove::new(from1, to1).unwrap_or_default();
@@ -159,17 +162,28 @@ impl BotStrategy for DqnBurnStrategy {
                 // empty move
                 dice2 = 0;
             }
-            let mut to2 = from2 + dice2 as usize;
-            if 24 < to2 {
-                // sortie
-                to2 = 0;
+            let mut to2 = from2;
+            if self.color == Color::White {
+                to2 += dice2 as usize;
+                if 24 < to2 {
+                    // sortie
+                    to2 = 0;
+                }
+            } else {
+                let fto2 = to2 as i16 - dice2 as i16;
+                to2 = if fto2 < 0 { 0 } else { fto2 as usize };
             }
 
             // Gestion prise de coin par puissance
-            let opp_rest_field = 13;
+            let opp_rest_field = if self.color == Color::White { 13 } else { 12 };
             if to1 == opp_rest_field && to2 == opp_rest_field {
-                to1 -= 1;
-                to2 -= 1;
+                if self.color == Color::White {
+                    to1 -= 1;
+                    to2 -= 1;
+                } else {
+                    to1 += 1;
+                    to2 += 1;
+                }
             }
 
             let checker_move1 = CheckerMove::new(from1, to1).unwrap_or_default();
@@ -178,6 +192,7 @@ impl BotStrategy for DqnBurnStrategy {
             let chosen_move = if self.color == Color::White {
                 (checker_move1, checker_move2)
             } else {
+                // XXX : really ?
                 (checker_move1.mirror(), checker_move2.mirror())
             };
 

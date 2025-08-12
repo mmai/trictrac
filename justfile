@@ -28,9 +28,10 @@ trainsimple:
 trainbot:
   #python ./store/python/trainModel.py
   # cargo run --bin=train_dqn # ok
-  ./bot/scripts/trainValid.sh
+  # ./bot/scripts/trainValid.sh
+  ./bot/scripts/train.sh
 plottrainbot:
-  ./bot/scripts/trainValid.sh plot
+  ./bot/scripts/train.sh plot
 debugtrainbot:
   cargo build --bin=train_dqn_burn
   RUST_BACKTRACE=1 LD_LIBRARY_PATH=./target/debug  ./target/debug/train_dqn_burn

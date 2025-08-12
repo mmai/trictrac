@@ -71,7 +71,7 @@ impl TrictracAction {
             encoded -= 256
         }
         let checker1 = encoded / 16;
-        let checker2 = 1 + encoded % 16;
+        let checker2 = encoded % 16;
         (dice_order, checker1, checker2)
     }
 
@@ -251,7 +251,7 @@ mod tests {
         };
         let index = action.to_action_index();
         assert_eq!(Some(action), TrictracAction::from_action_index(index));
-        assert_eq!(81, index);
+        assert_eq!(54, index);
     }
 
     #[test]
@@ -261,6 +261,6 @@ mod tests {
             checker1: 3,
             checker2: 4,
         };
-        assert_eq!(Some(action), TrictracAction::from_action_index(81));
+        assert_eq!(Some(action), TrictracAction::from_action_index(54));
     }
 }

@@ -17,7 +17,7 @@ fn main() {
         //                   defaults
         num_episodes: 40, // 40
         min_steps: 500.0, // 1000 min of max steps by episode (mise à jour par la fonction)
-        max_steps: 3000,  // 1000 max steps by episode
+        max_steps: 1000,  // 1000 max steps by episode
         dense_size: 256,  // 128  neural network complexity (default 128)
         eps_start: 0.9,   // 0.9  epsilon initial value (0.9 => more exploration)
         eps_end: 0.05,    // 0.05

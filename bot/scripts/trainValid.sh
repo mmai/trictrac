@@ -17,7 +17,7 @@ train() {
 }
 
 plot() {
-  NAME=$(ls "$LOGS_DIR" | tail -n 1)
+  NAME=$(ls -rt "$LOGS_DIR" | tail -n 1)
   LOGS="$LOGS_DIR/$NAME"
   cfgs=$(head -n $CFG_SIZE "$LOGS")
   for cfg in $cfgs; do

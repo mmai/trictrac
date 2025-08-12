@@ -1,4 +1,4 @@
-use crate::dqn::dqn_common;
+use crate::dqn::dqn_common_big;
 use burn::{prelude::Backend, tensor::Tensor};
 use burn_rl::base::{Action, Environment, Snapshot, State};
 use rand::{thread_rng, Rng};
@@ -205,16 +205,16 @@ impl TrictracEnvironment {
     const REWARD_RATIO: f32 = 1.0;
 
     /// Convertit une action burn-rl vers une action Trictrac
-    pub fn convert_action(action: TrictracAction) -> Option<dqn_common::TrictracAction> {
-        dqn_common::TrictracAction::from_action_index(action.index.try_into().unwrap())
+    pub fn convert_action(action: TrictracAction) -> Option<dqn_common_big::TrictracAction> {
+        dqn_common_big::TrictracAction::from_action_index(action.index.try_into().unwrap())
     }
 
     /// Convertit l'index d'une action au sein des actions valides vers une action Trictrac
     fn convert_valid_action_index(
         &self,
         action: TrictracAction,
-    ) -> Option<dqn_common::TrictracAction> {
-        use dqn_common::get_valid_actions;
+    ) -> Option<dqn_common_big::TrictracAction> {
+        use dqn_common_big::get_valid_actions;
 
         // Obtenir les actions valides dans le contexte actuel
         let valid_actions = get_valid_actions(&self.game);
@@ -231,10 +231,10 @@ impl TrictracEnvironment {
     /// Exécute une action Trictrac dans le jeu
     // fn execute_action(
     //     &mut self,
-    //     action: dqn_common::TrictracAction,
+    //     action: dqn_common_big::TrictracAction,
     // ) -> Result<f32, Box<dyn std::error::Error>> {
-    fn execute_action(&mut self, action: dqn_common::TrictracAction) -> (f32, bool) {
-        use dqn_common::TrictracAction;
+    fn execute_action(&mut self, action: dqn_common_big::TrictracAction) -> (f32, bool) {
+        use dqn_common_big::TrictracAction;
 
         let mut reward = 0.0;
         let mut is_rollpoint = false;

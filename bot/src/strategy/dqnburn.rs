@@ -117,8 +117,8 @@ impl BotStrategy for DqnBurnStrategy {
         // Utiliser le DQN pour choisir le mouvement
         if let Some(TrictracAction::Move {
             dice_order,
-            from1,
-            from2,
+            checker1,
+            checker2,
         }) = self.get_dqn_action()
         {
             let dicevals = self.game.dice.values;
@@ -128,15 +128,33 @@ impl BotStrategy for DqnBurnStrategy {
                 (dicevals.1, dicevals.0)
             };
 
+            let from1 = self
+                .game
+                .board
+                .get_checker_field(&self.color, checker1 as u8)
+                .unwrap_or(0);
+
             if from1 == 0 {
                 // empty move
                 dice1 = 0;
             }
-            let mut to1 = from1 + dice1 as usize;
-            if 24 < to1 {
+            let mut to1 = if self.color == Color::White {
+                from1 + dice1 as usize
+            } else {
+                from1 - dice1 as usize
+            };
+            if 24 < to1 || to1 < 0 {
                 // sortie
                 to1 = 0;
             }
+
+            let checker_move1 = store::CheckerMove::new(from1, to1).unwrap_or_default();
+
+            let mut tmp_board = self.game.board.clone();
+            tmp_board.move_checker(&self.color, checker_move1);
+            let from2 = tmp_board
+                .get_checker_field(&self.color, checker2 as u8)
+                .unwrap_or(0);
             if from2 == 0 {
                 // empty move
                 dice2 = 0;
@@ -145,6 +163,13 @@ impl BotStrategy for DqnBurnStrategy {
             if 24 < to2 {
                 // sortie
                 to2 = 0;
+            }
+
+            // Gestion prise de coin par puissance
+            let opp_rest_field = 13;
+            if to1 == opp_rest_field && to2 == opp_rest_field {
+                to1 -= 1;
+                to2 -= 1;
             }
 
             let checker_move1 = CheckerMove::new(from1, to1).unwrap_or_default();

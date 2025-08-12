@@ -13,8 +13,8 @@ pub enum TrictracAction {
     /// Effectuer un mouvement de pions
     Move {
         dice_order: bool, // true = utiliser dice[0] en premier, false = dice[1] en premier
-        checker1: usize, // premier pion à déplacer en numérotant depuis la colonne de départ (0-15) 0 : aucun pion
-        checker2: usize, // deuxième pion (0-15)
+        from1: usize,     // position de départ du premier pion (0-24)
+        from2: usize,     // position de départ du deuxième pion (0-24)
     },
     // Marquer les points : à activer si support des écoles
     // Mark,
@@ -28,19 +28,19 @@ impl TrictracAction {
             TrictracAction::Go => 1,
             TrictracAction::Move {
                 dice_order,
-                checker1,
-                checker2,
+                from1,
+                from2,
             } => {
                 // Encoder les mouvements dans l'espace d'actions
                 // Indices 2+ pour les mouvements
-                // de 2 à 513 (2 à  257 pour dé 1 en premier, 258 à 513 pour dé 2 en premier)
+                // de 2 à 1251 (2 à  626 pour dé 1 en premier, 627 à 1251 pour dé 2 en premier)
                 let mut start = 2;
                 if !dice_order {
-                    // 16 * 16 = 256
-                    start += 256;
+                    // 25 * 25 = 625
+                    start += 625;
                 }
-                start + checker1 * 16 + checker2
-            } // TrictracAction::Mark => 514,
+                start + from1 * 25 + from2
+            } // TrictracAction::Mark => 1252,
         }
     }
 
@@ -48,15 +48,15 @@ impl TrictracAction {
     pub fn from_action_index(index: usize) -> Option<TrictracAction> {
         match index {
             0 => Some(TrictracAction::Roll),
+            // 1252 => Some(TrictracAction::Mark),
             1 => Some(TrictracAction::Go),
-            // 514 => Some(TrictracAction::Mark),
-            i if i >= 2 => {
-                let move_code = i - 2;
-                let (dice_order, checker1, checker2) = Self::decode_move(move_code);
+            i if i >= 3 => {
+                let move_code = i - 3;
+                let (dice_order, from1, from2) = Self::decode_move(move_code);
                 Some(TrictracAction::Move {
                     dice_order,
-                    checker1,
-                    checker2,
+                    from1,
+                    from2,
                 })
             }
             _ => None,
@@ -66,13 +66,13 @@ impl TrictracAction {
     /// Décode un entier en paire de mouvements
     fn decode_move(code: usize) -> (bool, usize, usize) {
         let mut encoded = code;
-        let dice_order = code < 256;
+        let dice_order = code < 626;
         if !dice_order {
-            encoded -= 256
+            encoded -= 625
         }
-        let checker1 = encoded / 16;
-        let checker2 = 1 + encoded % 16;
-        (dice_order, checker1, checker2)
+        let from1 = encoded / 25;
+        let from2 = 1 + encoded % 25;
+        (dice_order, from1, from2)
     }
 
     /// Retourne la taille de l'espace d'actions total
@@ -80,7 +80,7 @@ impl TrictracAction {
         // 1 (Roll) + 1 (Go) + mouvements possibles
         // Pour les mouvements : 2*25*25 = 1250 (choix du dé + position 0-24 pour chaque from)
         // Mais on peut optimiser en limitant aux positions valides (1-24)
-        2 + (2 * 16 * 16) // = 514
+        2 + (2 * 25 * 25) // = 1252
     }
 
     // pub fn to_game_event(&self, player_id: PlayerId, dice: Dice) -> GameEvent {
@@ -136,8 +136,7 @@ pub fn get_valid_actions(game_state: &crate::GameState) -> Vec<TrictracAction> {
                     valid_actions.push(checker_moves_to_trictrac_action(
                         &move1,
                         &move2,
-                        &color,
-                        &game_state,
+                        &game_state.dice,
                     ));
                 }
             }
@@ -151,8 +150,7 @@ pub fn get_valid_actions(game_state: &crate::GameState) -> Vec<TrictracAction> {
                     valid_actions.push(checker_moves_to_trictrac_action(
                         &move1,
                         &move2,
-                        &color,
-                        &game_state,
+                        &game_state.dice,
                     ));
                 }
             }
@@ -166,14 +164,12 @@ pub fn get_valid_actions(game_state: &crate::GameState) -> Vec<TrictracAction> {
 fn checker_moves_to_trictrac_action(
     move1: &CheckerMove,
     move2: &CheckerMove,
-    color: &store::Color,
-    state: &crate::GameState,
+    dice: &Dice,
 ) -> TrictracAction {
     let to1 = move1.get_to();
     let to2 = move2.get_to();
     let from1 = move1.get_from();
     let from2 = move2.get_from();
-    let dice = state.dice;
 
     let mut diff_move1 = if to1 > 0 {
         // Mouvement sans sortie
@@ -207,17 +203,10 @@ fn checker_moves_to_trictrac_action(
         // prise par puissance
         diff_move1 += 1;
     }
-    let dice_order = diff_move1 == dice.values.0 as usize;
-
-    let checker1 = state.board.get_field_checker(color, from1) as usize;
-    let mut tmp_board = state.board.clone();
-    // should not raise an error for a valid action
-    tmp_board.move_checker(color, *move1);
-    let checker2 = tmp_board.get_field_checker(color, from2) as usize;
     TrictracAction::Move {
-        dice_order,
-        checker1,
-        checker2,
+        dice_order: diff_move1 == dice.values.0 as usize,
+        from1: move1.get_from(),
+        from2: move2.get_from(),
     }
 }
 
@@ -246,8 +235,8 @@ mod tests {
     fn to_action_index() {
         let action = TrictracAction::Move {
             dice_order: true,
-            checker1: 3,
-            checker2: 4,
+            from1: 3,
+            from2: 4,
         };
         let index = action.to_action_index();
         assert_eq!(Some(action), TrictracAction::from_action_index(index));
@@ -258,8 +247,8 @@ mod tests {
     fn from_action_index() {
         let action = TrictracAction::Move {
             dice_order: true,
-            checker1: 3,
-            checker2: 4,
+            from1: 3,
+            from2: 4,
         };
         assert_eq!(Some(action), TrictracAction::from_action_index(81));
     }

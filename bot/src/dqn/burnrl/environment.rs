@@ -59,7 +59,7 @@ impl Action for TrictracAction {
     }
 
     fn size() -> usize {
-        1252
+        514
     }
 }
 
@@ -288,8 +288,8 @@ impl TrictracEnvironment {
             }
             TrictracAction::Move {
                 dice_order,
-                from1,
-                from2,
+                checker1,
+                checker2,
             } => {
                 // Effectuer un mouvement
                 let (dice1, dice2) = if dice_order {
@@ -297,7 +297,21 @@ impl TrictracEnvironment {
                 } else {
                     (self.game.dice.values.1, self.game.dice.values.0)
                 };
+
+                let color = &store::Color::White;
+                let from1 = self
+                    .game
+                    .board
+                    .get_checker_field(color, checker1 as u8)
+                    .unwrap_or(0);
                 let mut to1 = from1 + dice1 as usize;
+                let checker_move1 = store::CheckerMove::new(from1, to1).unwrap_or_default();
+
+                let mut tmp_board = self.game.board.clone();
+                tmp_board.move_checker(color, checker_move1);
+                let from2 = tmp_board
+                    .get_checker_field(color, checker2 as u8)
+                    .unwrap_or(0);
                 let mut to2 = from2 + dice2 as usize;
 
                 // Gestion prise de coin par puissance

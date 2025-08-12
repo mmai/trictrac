@@ -158,6 +158,42 @@ impl Board {
             .unsigned_abs()
     }
 
+    // get the number of the last checker in a field
+    pub fn get_field_checker(&self, color: &Color, field: Field) -> u8 {
+        assert_eq!(color, &Color::White); // sinon ajouter la gestion des noirs avec mirror
+        let mut total_count: u8 = 0;
+        for (i, checker_count) in self.positions.iter().enumerate() {
+            // count white checkers (checker_count > 0)
+            if *checker_count > 0 {
+                total_count += *checker_count as u8;
+                if field == i + 1 {
+                    return total_count;
+                }
+            }
+        }
+        0
+    }
+
+    // get the field of the nth checker
+    pub fn get_checker_field(&self, color: &Color, checker_pos: u8) -> Option<Field> {
+        assert_eq!(color, &Color::White); // sinon ajouter la gestion des noirs avec mirror
+        if checker_pos == 0 {
+            return None;
+        }
+        let mut total_count: u8 = 0;
+        for (i, checker_count) in self.positions.iter().enumerate() {
+            // count white checkers (checker_count > 0)
+            if *checker_count > 0 {
+                total_count += *checker_count as u8;
+            }
+            // return the current field if it contains the checker
+            if checker_pos <= total_count {
+                return Some(i + 1);
+            }
+        }
+        None
+    }
+
     pub fn to_vec(&self) -> Vec<i8> {
         self.positions.to_vec()
     }
@@ -720,5 +756,33 @@ mod tests {
             ],
         );
         assert_eq!(vec![2], board.get_quarter_filling_candidate(Color::White));
+    }
+
+    #[test]
+    fn get_checker_field() {
+        let mut board = Board::new();
+        board.set_positions(
+            &Color::White,
+            [
+                3, 1, 2, 2, 3, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+        );
+        assert_eq!(None, board.get_checker_field(&Color::White, 0));
+        assert_eq!(Some(3), board.get_checker_field(&Color::White, 5));
+        assert_eq!(Some(3), board.get_checker_field(&Color::White, 6));
+        assert_eq!(None, board.get_checker_field(&Color::White, 14));
+    }
+
+    #[test]
+    fn get_field_checker() {
+        let mut board = Board::new();
+        board.set_positions(
+            &Color::White,
+            [
+                3, 1, 2, 2, 3, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+        );
+        assert_eq!(4, board.get_field_checker(&Color::White, 2));
+        assert_eq!(6, board.get_field_checker(&Color::White, 3));
     }
 }

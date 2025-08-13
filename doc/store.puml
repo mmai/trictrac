@@ -1,0 +1,172 @@
+@startuml
+
+class "CheckerMove" {
+    - from: Field
+    - to: Field
+    + to_display_string()
+    + new(from: Field, to: Field)
+    + mirror()
+    + chain(cmove: Self)
+    + get_from()
+    + get_to()
+    + is_exit()
+    + doable_with_dice(dice: usize)
+}
+
+class "Board" {
+    - positions: [i8;24]
+    + new()
+    + mirror()
+    + set_positions(positions: [ i8 ; 24 ])
+    + count_checkers(color: Color, from: Field, to: Field)
+    + to_vec()
+    + to_gnupg_pos_id()
+    + to_display_grid(col_size: usize)
+    + set(color: & Color, field: Field, amount: i8)
+    + blocked(color: & Color, field: Field)
+    + passage_blocked(color: & Color, field: Field)
+    + get_field_checkers(field: Field)
+    + get_checkers_color(field: Field)
+    + is_field_in_small_jan(field: Field)
+    + get_color_fields(color: Color)
+    + get_color_corner(color: & Color)
+    + get_possible_moves(color: Color, dice: u8, with_excedants: bool, check_rest_corner_exit: bool, forbid_exits: bool)
+    + passage_possible(color: & Color, cmove: & CheckerMove)
+    + move_possible(color: & Color, cmove: & CheckerMove)
+    + any_quarter_filled(color: Color)
+    + is_quarter_filled(color: Color, field: Field)
+    + get_quarter_filling_candidate(color: Color)
+    + is_quarter_fillable(color: Color, field: Field)
+    - get_quarter_fields(field: Field)
+    + move_checker(color: & Color, cmove: CheckerMove)
+    + remove_checker(color: & Color, field: Field)
+    + add_checker(color: & Color, field: Field)
+}
+
+class "MoveRules" {
+    + board: Board
+    + dice: Dice
+    + new(color: & Color, board: & Board, dice: Dice)
+    + set_board(color: & Color, board: & Board)
+    - get_board_from_color(color: & Color, board: & Board)
+    + moves_follow_rules(moves: & ( CheckerMove , CheckerMove ))
+    - moves_possible(moves: & ( CheckerMove , CheckerMove ))
+    - moves_follows_dices(moves: & ( CheckerMove , CheckerMove ))
+    - get_move_compatible_dices(cmove: & CheckerMove)
+    + moves_allowed(moves: & ( CheckerMove , CheckerMove ))
+    - check_opponent_can_fill_quarter_rule(moves: & ( CheckerMove , CheckerMove ))
+    - check_must_fill_quarter_rule(moves: & ( CheckerMove , CheckerMove ))
+    - check_corner_rules(moves: & ( CheckerMove , CheckerMove ))
+    - has_checkers_outside_last_quarter()
+    - check_exit_rules(moves: & ( CheckerMove , CheckerMove ))
+    + get_possible_moves_sequences(with_excedents: bool, ignored_rules: Vec < TricTracRule >)
+    + get_scoring_quarter_filling_moves_sequences()
+    - get_sequence_origin_from_destination(sequence: ( CheckerMove , CheckerMove ), destination: Field)
+    + get_quarter_filling_moves_sequences()
+    - get_possible_moves_sequences_by_dices(dice1: u8, dice2: u8, with_excedents: bool, ignore_empty: bool, ignored_rules: Vec < TricTracRule >)
+    - _get_direct_exit_moves(state: & GameState)
+    - is_move_by_puissance(moves: & ( CheckerMove , CheckerMove ))
+    - can_take_corner_by_effect()
+}
+
+class "DiceRoller" {
+    - rng: StdRng
+    + new(opt_seed: Option < u64 >)
+    + roll()
+}
+
+class "Dice" {
+    + values: (u8,u8)
+    + to_bits_string()
+    + to_display_string()
+    + is_double()
+}
+
+class "GameState" {
+    + stage: Stage
+    + turn_stage: TurnStage
+    + board: Board
+    + active_player_id: PlayerId
+    + players: HashMap<PlayerId,Player>
+    + history: Vec<GameEvent>
+    + dice: Dice
+    + dice_points: (u8,u8)
+    + dice_moves: (CheckerMove,CheckerMove)
+    + dice_jans: PossibleJans
+    - roll_first: bool
+    + schools_enabled: bool
+    + new(schools_enabled: bool)
+    - set_schools_enabled(schools_enabled: bool)
+    - get_active_player()
+    - get_opponent_id()
+    + to_vec_float()
+    + to_vec()
+    + to_string_id()
+    + who_plays()
+    + get_white_player()
+    + get_black_player()
+    + player_id_by_color(color: Color)
+    + player_id(player: & Player)
+    + player_color_by_id(player_id: & PlayerId)
+    + validate(event: & GameEvent)
+    + init_player(player_name: & str)
+    - add_player(player_id: PlayerId, player: Player)
+    + switch_active_player()
+    + consume(valid_event: & GameEvent)
+    - new_pick_up()
+    - get_rollresult_jans(dice: & Dice)
+    + determine_winner()
+    - inc_roll_count(player_id: PlayerId)
+    - mark_points(player_id: PlayerId, points: u8)
+}
+
+class "Player" {
+    + name: String
+    + color: Color
+    + points: u8
+    + holes: u8
+    + can_bredouille: bool
+    + can_big_bredouille: bool
+    + dice_roll_count: u8
+    + new(name: String, color: Color)
+    + to_bits_string()
+    + to_vec()
+}
+
+class "PointsRules" {
+    + board: Board
+    + dice: Dice
+    + move_rules: MoveRules
+    + new(color: & Color, board: & Board, dice: Dice)
+    + set_dice(dice: Dice)
+    + update_positions(positions: [ i8 ; 24 ])
+    - get_jans(board_ini: & Board, dice_rolls_count: u8)
+    + get_jans_points(jans: HashMap < Jan , Vec < ( CheckerMove , CheckerMove ) > >)
+    + get_points(dice_rolls_count: u8)
+    + get_result_jans(dice_rolls_count: u8)
+}
+
+
+
+
+"MoveRules" <-- "Board"
+"MoveRules" <-- "Dice"
+
+
+
+
+
+
+"GameState" <-- "Board"
+"HashMap<PlayerId,Player>" <-- "Player"
+"GameState" <-- "HashMap<PlayerId,Player>"
+"GameState" <-- "Dice"
+
+
+
+
+"PointsRules" <-- "Board"
+"PointsRules" <-- "Dice"
+"PointsRules" <-- "MoveRules"
+
+@enduml

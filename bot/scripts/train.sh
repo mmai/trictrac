@@ -4,20 +4,23 @@ ROOT="$(cd "$(dirname "$0")" && pwd)/../.."
 LOGS_DIR="$ROOT/bot/models/logs"
 
 CFG_SIZE=12
+# BINBOT=train_dqn_burn
+BINBOT=train_dqn_burn_big
+# BINBOT=train_dqn_burn_before
 OPPONENT="random"
 
 PLOT_EXT="png"
 
 train() {
-  cargo build --release --bin=train_dqn_burn
-  NAME="train_$(date +%Y-%m-%d_%H:%M:%S)"
+  cargo build --release --bin=$BINBOT
+  NAME=$BINBOT"_$(date +%Y-%m-%d_%H:%M:%S)"
   LOGS="$LOGS_DIR/$NAME.out"
   mkdir -p "$LOGS_DIR"
-  LD_LIBRARY_PATH="$ROOT/target/release" "$ROOT/target/release/train_dqn_burn" | tee "$LOGS"
+  LD_LIBRARY_PATH="$ROOT/target/release" "$ROOT/target/release/$BINBOT" | tee "$LOGS"
 }
 
 plot() {
-  NAME=$(ls -rt "$LOGS_DIR" | tail -n 1)
+  NAME=$(ls -rt "$LOGS_DIR" | grep $BINBOT | tail -n 1)
   LOGS="$LOGS_DIR/$NAME"
   cfgs=$(head -n $CFG_SIZE "$LOGS")
   for cfg in $cfgs; do

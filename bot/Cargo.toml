@@ -14,10 +14,6 @@ name = "train_dqn_burn_big"
 path = "src/dqn/burnrl_big/main.rs"
 
 [[bin]]
-name = "train_dqn_burn_before"
-path = "src/dqn/burnrl_before/main.rs"
-
-[[bin]]
 name = "train_dqn_burn"
 path = "src/dqn/burnrl/main.rs"
 

@@ -348,7 +348,7 @@ impl GameState {
                     return false;
                 }
                 // Check the turn stage
-                if self.turn_stage != TurnStage::RollWaiting {
+                if self.turn_stage != TurnStage::RollDice {
                     error!("bad stage {:?}", self.turn_stage);
                     return false;
                 }
@@ -363,7 +363,7 @@ impl GameState {
                     return false;
                 }
                 // Check the turn stage
-                if self.turn_stage != TurnStage::RollDice {
+                if self.turn_stage != TurnStage::RollWaiting {
                     error!("bad stage {:?}", self.turn_stage);
                     return false;
                 }

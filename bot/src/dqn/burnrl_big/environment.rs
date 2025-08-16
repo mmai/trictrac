@@ -171,6 +171,7 @@ impl Environment for TrictracEnvironment {
         let mut has_played = false;
         if self.game.active_player_id == self.active_player_id {
             if let Some(action) = trictrac_action {
+                let str_action = format!("{action:?}");
                 (reward, is_rollpoint) = self.execute_action(action);
                 if is_rollpoint {
                     self.pointrolls_count += 1;
@@ -178,6 +179,7 @@ impl Environment for TrictracEnvironment {
                 if reward != Self::ERROR_REWARD {
                     has_played = true;
                     self.goodmoves_count += 1;
+                    // println!("{str_action}");
                 }
             } else {
                 // Action non convertible, pénalité
@@ -186,14 +188,8 @@ impl Environment for TrictracEnvironment {
         }
 
         // Faire jouer l'adversaire (stratégie simple)
-        if has_played {
-            if self.goodmoves_count > 10 {
-                println!("{:?}", self.game.history);
-                panic!("end debug");
-            }
-        }
         while self.game.active_player_id == self.opponent_id && self.game.stage != Stage::Ended {
-            print!(":");
+            // print!(":");
             reward += self.play_opponent_if_needed();
         }
 
@@ -343,7 +339,7 @@ impl TrictracEnvironment {
                             values: dice_values,
                         },
                     };
-                    print!("o");
+                    // print!("o");
                     if self.game.validate(&dice_event) {
                         self.game.consume(&dice_event);
                         let (points, adv_points) = self.game.dice_points;
@@ -368,7 +364,7 @@ impl TrictracEnvironment {
 
     /// Fait jouer l'adversaire avec une stratégie simple
     fn play_opponent_if_needed(&mut self) -> f32 {
-        print!("z?");
+        // print!("z?");
         let mut reward = 0.0;
 
         // Si c'est le tour de l'adversaire, jouer automatiquement
@@ -445,9 +441,9 @@ impl TrictracEnvironment {
 
             if self.game.validate(&event) {
                 self.game.consume(&event);
-                print!(".");
+                // print!(".");
                 if calculate_points {
-                    print!("x");
+                    // print!("x");
                     let dice_roll_count = self
                         .game
                         .players

@@ -139,6 +139,9 @@ impl App {
         //     &self.game.state.board,
         //     dice,
         // );
+        self.game.handle_event(&GameEvent::Roll {
+            player_id: self.game.player_id.unwrap(),
+        });
         self.game.handle_event(&GameEvent::RollResult {
             player_id: self.game.player_id.unwrap(),
             dice,

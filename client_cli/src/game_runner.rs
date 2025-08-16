@@ -77,7 +77,7 @@ impl GameRunner {
         } else {
             debug!("{}", self.state);
             error!("event not valid : {event:?}");
-            panic!("crash and burn");
+            panic!("crash and burn {} \nevt not valid {event:?}", self.state);
             &GameEvent::PlayError
         };
 

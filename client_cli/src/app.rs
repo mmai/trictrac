@@ -329,6 +329,7 @@ Player      :: holes :: points
             seed: Some(1327),
             bot: Some("dummy".into()),
         });
+        println!("avant : {}", app.display());
         app.input("roll");
         app.input("1 3");
         app.input("1 4");

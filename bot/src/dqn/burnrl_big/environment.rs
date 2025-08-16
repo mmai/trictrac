@@ -187,10 +187,6 @@ impl Environment for TrictracEnvironment {
 
         // Faire jouer l'adversaire (stratégie simple)
         if has_played {
-            print!(
-                "?({},{:?}) ",
-                self.game.active_player_id, self.game.turn_stage
-            );
             if self.goodmoves_count > 10 {
                 println!("{:?}", self.game.history);
                 panic!("end debug");
@@ -222,7 +218,6 @@ impl Environment for TrictracEnvironment {
         // Mettre à jour l'état
         self.current_state = TrictracState::from_game_state(&self.game);
         self.episode_reward += reward;
-
         if self.visualized && terminated {
             println!(
                 "Episode terminé. Récompense totale: {:.2}, Étapes: {}",
@@ -373,6 +368,7 @@ impl TrictracEnvironment {
 
     /// Fait jouer l'adversaire avec une stratégie simple
     fn play_opponent_if_needed(&mut self) -> f32 {
+        print!("z?");
         let mut reward = 0.0;
 
         // Si c'est le tour de l'adversaire, jouer automatiquement

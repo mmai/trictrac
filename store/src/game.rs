@@ -338,13 +338,33 @@ impl GameState {
                     return false;
                 }
             }
-            Roll { player_id } | RollResult { player_id, dice: _ } => {
+            Roll { player_id } => {
                 // Check player exists
                 if !self.players.contains_key(player_id) {
                     return false;
                 }
                 // Check player is currently the one making their move
                 if self.active_player_id != *player_id {
+                    return false;
+                }
+                // Check the turn stage
+                if self.turn_stage != TurnStage::RollWaiting {
+                    error!("bad stage {:?}", self.turn_stage);
+                    return false;
+                }
+            }
+            RollResult { player_id, dice: _ } => {
+                // Check player exists
+                if !self.players.contains_key(player_id) {
+                    return false;
+                }
+                // Check player is currently the one making their move
+                if self.active_player_id != *player_id {
+                    return false;
+                }
+                // Check the turn stage
+                if self.turn_stage != TurnStage::RollDice {
+                    error!("bad stage {:?}", self.turn_stage);
                     return false;
                 }
             }

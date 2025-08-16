@@ -117,11 +117,15 @@ pub fn get_valid_actions(game_state: &crate::GameState) -> Vec<TrictracAction> {
 
     if let Some(color) = player_color {
         match game_state.turn_stage {
-            TurnStage::RollDice | TurnStage::RollWaiting => {
+            TurnStage::RollDice => {
                 valid_actions.push(TrictracAction::Roll);
             }
-            TurnStage::MarkPoints | TurnStage::MarkAdvPoints => {
+            TurnStage::MarkPoints | TurnStage::MarkAdvPoints | TurnStage::RollWaiting => {
                 // valid_actions.push(TrictracAction::Mark);
+                panic!(
+                    "get_valid_actions not implemented for turn stage {:?}",
+                    game_state.turn_stage
+                );
             }
             TurnStage::HoldOrGoChoice => {
                 valid_actions.push(TrictracAction::Go);
@@ -134,10 +138,7 @@ pub fn get_valid_actions(game_state: &crate::GameState) -> Vec<TrictracAction> {
                 assert_eq!(color, store::Color::White);
                 for (move1, move2) in possible_moves {
                     valid_actions.push(checker_moves_to_trictrac_action(
-                        &move1,
-                        &move2,
-                        &color,
-                        &game_state,
+                        &move1, &move2, &color, game_state,
                     ));
                 }
             }
@@ -149,10 +150,7 @@ pub fn get_valid_actions(game_state: &crate::GameState) -> Vec<TrictracAction> {
                 assert_eq!(color, store::Color::White);
                 for (move1, move2) in possible_moves {
                     valid_actions.push(checker_moves_to_trictrac_action(
-                        &move1,
-                        &move2,
-                        &color,
-                        &game_state,
+                        &move1, &move2, &color, game_state,
                     ));
                 }
             }

@@ -168,6 +168,7 @@ impl Environment for TrictracEnvironment {
         let is_rollpoint;
 
         // Exécuter l'action si c'est le tour de l'agent DQN
+        let mut has_played = false;
         if self.game.active_player_id == self.active_player_id {
             if let Some(action) = trictrac_action {
                 (reward, is_rollpoint) = self.execute_action(action);
@@ -175,6 +176,7 @@ impl Environment for TrictracEnvironment {
                     self.pointrolls_count += 1;
                 }
                 if reward != Self::ERROR_REWARD {
+                    has_played = true;
                     self.goodmoves_count += 1;
                 }
             } else {
@@ -184,7 +186,18 @@ impl Environment for TrictracEnvironment {
         }
 
         // Faire jouer l'adversaire (stratégie simple)
+        if has_played {
+            print!(
+                "?({},{:?}) ",
+                self.game.active_player_id, self.game.turn_stage
+            );
+            if self.goodmoves_count > 10 {
+                println!("{:?}", self.game.history);
+                panic!("end debug");
+            }
+        }
         while self.game.active_player_id == self.opponent_id && self.game.stage != Stage::Ended {
+            print!(":");
             reward += self.play_opponent_if_needed();
         }
 
@@ -260,11 +273,13 @@ impl TrictracEnvironment {
 
         let mut reward = 0.0;
         let mut is_rollpoint = false;
+        let mut need_roll = false;
 
         let event = match action {
             TrictracAction::Roll => {
                 // Lancer les dés
                 reward += 0.1;
+                need_roll = true;
                 Some(GameEvent::Roll {
                     player_id: self.active_player_id,
                 })
@@ -323,7 +338,8 @@ impl TrictracEnvironment {
                 self.game.consume(&event);
 
                 // Simuler le résultat des dés après un Roll
-                if matches!(action, TrictracAction::Roll) {
+                // if matches!(action, TrictracAction::Roll) {
+                if need_roll {
                     let mut rng = thread_rng();
                     let dice_values = (rng.gen_range(1..=6), rng.gen_range(1..=6));
                     let dice_event = GameEvent::RollResult {
@@ -332,6 +348,7 @@ impl TrictracEnvironment {
                             values: dice_values,
                         },
                     };
+                    print!("o");
                     if self.game.validate(&dice_event) {
                         self.game.consume(&dice_event);
                         let (points, adv_points) = self.game.dice_points;
@@ -380,7 +397,7 @@ impl TrictracEnvironment {
                 TurnStage::RollWaiting => {
                     let mut rng = thread_rng();
                     let dice_values = (rng.gen_range(1..=6), rng.gen_range(1..=6));
-                    // calculate_points = true; // comment to replicate burnrl_before
+                    calculate_points = true; // comment to replicate burnrl_before
                     GameEvent::RollResult {
                         player_id: self.opponent_id,
                         dice: store::Dice {
@@ -432,7 +449,9 @@ impl TrictracEnvironment {
 
             if self.game.validate(&event) {
                 self.game.consume(&event);
+                print!(".");
                 if calculate_points {
+                    print!("x");
                     let dice_roll_count = self
                         .game
                         .players
@@ -443,7 +462,11 @@ impl TrictracEnvironment {
                         PointsRules::new(&opponent_color, &self.game.board, self.game.dice);
                     let (points, adv_points) = points_rules.get_points(dice_roll_count);
                     // Récompense proportionnelle aux points
-                    reward -= Self::REWARD_RATIO * (points - adv_points) as f32;
+                    let adv_reward = Self::REWARD_RATIO * (points - adv_points) as f32;
+                    reward -= adv_reward;
+                    // if adv_reward != 0.0 {
+                    //     println!("info: opponent : {adv_reward} -> {reward}");
+                    // }
                 }
             }
         }

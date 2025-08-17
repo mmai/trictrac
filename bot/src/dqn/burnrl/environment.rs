@@ -309,27 +309,29 @@ impl TrictracEnvironment {
                 let mut tmp_board = self.game.board.clone();
                 let move_result = tmp_board.move_checker(color, checker_move1);
                 if move_result.is_err() {
-                    panic!("Error while moving checker {move_result:?}")
+                    None
+                    // panic!("Error while moving checker {move_result:?}")
+                } else {
+                    let from2 = tmp_board
+                        .get_checker_field(color, checker2 as u8)
+                        .unwrap_or(0);
+                    let mut to2 = from2 + dice2 as usize;
+
+                    // Gestion prise de coin par puissance
+                    let opp_rest_field = 13;
+                    if to1 == opp_rest_field && to2 == opp_rest_field {
+                        to1 -= 1;
+                        to2 -= 1;
+                    }
+
+                    let checker_move1 = store::CheckerMove::new(from1, to1).unwrap_or_default();
+                    let checker_move2 = store::CheckerMove::new(from2, to2).unwrap_or_default();
+
+                    Some(GameEvent::Move {
+                        player_id: self.active_player_id,
+                        moves: (checker_move1, checker_move2),
+                    })
                 }
-                let from2 = tmp_board
-                    .get_checker_field(color, checker2 as u8)
-                    .unwrap_or(0);
-                let mut to2 = from2 + dice2 as usize;
-
-                // Gestion prise de coin par puissance
-                let opp_rest_field = 13;
-                if to1 == opp_rest_field && to2 == opp_rest_field {
-                    to1 -= 1;
-                    to2 -= 1;
-                }
-
-                let checker_move1 = store::CheckerMove::new(from1, to1).unwrap_or_default();
-                let checker_move2 = store::CheckerMove::new(from2, to2).unwrap_or_default();
-
-                Some(GameEvent::Move {
-                    player_id: self.active_player_id,
-                    moves: (checker_move1, checker_move2),
-                })
             }
         };
 
@@ -365,6 +367,8 @@ impl TrictracEnvironment {
                 // et on indique une valeur reconnaissable pour statistiques
                 reward = ERROR_REWARD;
             }
+        } else {
+            reward = ERROR_REWARD;
         }
 
         (reward, is_rollpoint)

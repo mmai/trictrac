@@ -59,7 +59,7 @@ impl App {
                             }
                             s if s.starts_with("dqnburn:") => {
                                 let path = s.trim_start_matches("dqnburn:");
-                                Some(Box::new(DqnBurnStrategy::new_with_model(&format!("{path}")))
+                                Some(Box::new(DqnBurnStrategy::new_with_model(&path.to_string()))
                                     as Box<dyn BotStrategy>)
                             }
                             _ => None,
@@ -114,7 +114,7 @@ impl App {
 
     pub fn show_history(&self) {
         for hist in self.game.state.history.iter() {
-            println!("{:?}\n", hist);
+            println!("{hist:?}\n");
         }
     }
 
@@ -192,7 +192,7 @@ impl App {
                 return;
             }
         }
-        println!("invalid move : {}", input);
+        println!("invalid move : {input}");
     }
 
     pub fn display(&mut self) -> String {

@@ -60,9 +60,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     std::fs::create_dir_all("models")?;
 
     println!("Configuration d'entraînement DQN :");
-    println!("  Épisodes : {}", episodes);
-    println!("  Chemin du modèle : {}", model_path);
-    println!("  Sauvegarde tous les {} épisodes", save_every);
+    println!("  Épisodes : {episodes}");
+    println!("  Chemin du modèle : {model_path}");
+    println!("  Sauvegarde tous les {save_every} épisodes");
     println!();
 
     // Configuration DQN
@@ -85,10 +85,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Entraînement terminé avec succès !");
     println!("Pour utiliser le modèle entraîné :");
-    println!(
-        "  cargo run --bin=client_cli -- --bot dqn:{}_final.json,dummy",
-        model_path
-    );
+    println!("  cargo run --bin=client_cli -- --bot dqn:{model_path}_final.json,dummy");
 
     Ok(())
 }

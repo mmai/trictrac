@@ -1,7 +1,7 @@
 use std::cmp::{max, min};
 
 use serde::{Deserialize, Serialize};
-use store::{CheckerMove, Dice};
+use store::CheckerMove;
 
 /// Types d'actions possibles dans le jeu
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -210,7 +210,10 @@ fn checker_moves_to_trictrac_action(
     let checker1 = state.board.get_field_checker(color, from1) as usize;
     let mut tmp_board = state.board.clone();
     // should not raise an error for a valid action
-    tmp_board.move_checker(color, *move1);
+    let move_res = tmp_board.move_checker(color, *move1);
+    if move_res.is_err() {
+        panic!("error while moving checker {move_res:?}");
+    }
     let checker2 = tmp_board.get_field_checker(color, from2) as usize;
     TrictracAction::Move {
         dice_order,

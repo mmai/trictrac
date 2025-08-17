@@ -4,6 +4,11 @@ use burn_rl::base::{Action, Environment, Snapshot, State};
 use rand::{thread_rng, Rng};
 use store::{GameEvent, GameState, PlayerId, PointsRules, Stage, TurnStage};
 
+const ERROR_REWARD: f32 = -2.12121;
+const REWARD_VALID_MOVE: f32 = 2.12121;
+const REWARD_RATIO: f32 = 0.01;
+const WIN_POINTS: f32 = 0.1;
+
 /// État du jeu Trictrac pour burn-rl
 #[derive(Debug, Clone, Copy)]
 pub struct TrictracState {
@@ -168,16 +173,13 @@ impl Environment for TrictracEnvironment {
         let is_rollpoint;
 
         // Exécuter l'action si c'est le tour de l'agent DQN
-        let mut has_played = false;
         if self.game.active_player_id == self.active_player_id {
             if let Some(action) = trictrac_action {
-                let str_action = format!("{action:?}");
                 (reward, is_rollpoint) = self.execute_action(action);
                 if is_rollpoint {
                     self.pointrolls_count += 1;
                 }
-                if reward != Self::ERROR_REWARD {
-                    has_played = true;
+                if reward != ERROR_REWARD {
                     self.goodmoves_count += 1;
                     // println!("{str_action}");
                 }
@@ -203,9 +205,9 @@ impl Environment for TrictracEnvironment {
             // Récompense finale basée sur le résultat
             if let Some(winner_id) = self.game.determine_winner() {
                 if winner_id == self.active_player_id {
-                    reward += 50.0; // Victoire
+                    reward += WIN_POINTS; // Victoire
                 } else {
-                    reward -= 25.0; // Défaite
+                    reward -= WIN_POINTS; // Défaite
                 }
             }
         }
@@ -226,15 +228,13 @@ impl Environment for TrictracEnvironment {
 }
 
 impl TrictracEnvironment {
-    const ERROR_REWARD: f32 = -1.12121;
-    const REWARD_RATIO: f32 = 1.0;
-
     /// Convertit une action burn-rl vers une action Trictrac
     pub fn convert_action(action: TrictracAction) -> Option<dqn_common_big::TrictracAction> {
         dqn_common_big::TrictracAction::from_action_index(action.index.try_into().unwrap())
     }
 
     /// Convertit l'index d'une action au sein des actions valides vers une action Trictrac
+    #[allow(dead_code)]
     fn convert_valid_action_index(
         &self,
         action: TrictracAction,
@@ -269,7 +269,6 @@ impl TrictracEnvironment {
         let event = match action {
             TrictracAction::Roll => {
                 // Lancer les dés
-                reward += 0.1;
                 need_roll = true;
                 Some(GameEvent::Roll {
                     player_id: self.active_player_id,
@@ -286,7 +285,6 @@ impl TrictracEnvironment {
             // }
             TrictracAction::Go => {
                 // Continuer après avoir gagné un trou
-                reward += 0.2;
                 Some(GameEvent::Go {
                     player_id: self.active_player_id,
                 })
@@ -315,7 +313,6 @@ impl TrictracEnvironment {
                 let checker_move1 = store::CheckerMove::new(from1, to1).unwrap_or_default();
                 let checker_move2 = store::CheckerMove::new(from2, to2).unwrap_or_default();
 
-                reward += 0.2;
                 Some(GameEvent::Move {
                     player_id: self.active_player_id,
                     moves: (checker_move1, checker_move2),
@@ -327,7 +324,7 @@ impl TrictracEnvironment {
         if let Some(event) = event {
             if self.game.validate(&event) {
                 self.game.consume(&event);
-
+                reward += REWARD_VALID_MOVE;
                 // Simuler le résultat des dés après un Roll
                 // if matches!(action, TrictracAction::Roll) {
                 if need_roll {
@@ -343,7 +340,7 @@ impl TrictracEnvironment {
                     if self.game.validate(&dice_event) {
                         self.game.consume(&dice_event);
                         let (points, adv_points) = self.game.dice_points;
-                        reward += Self::REWARD_RATIO * (points - adv_points) as f32;
+                        reward += REWARD_RATIO * (points - adv_points) as f32;
                         if points > 0 {
                             is_rollpoint = true;
                             // println!("info: rolled for {reward}");
@@ -355,7 +352,7 @@ impl TrictracEnvironment {
                 // Pénalité pour action invalide
                 // on annule les précédents reward
                 // et on indique une valeur reconnaissable pour statistiques
-                reward = Self::ERROR_REWARD;
+                reward = ERROR_REWARD;
             }
         }
 
@@ -399,18 +396,18 @@ impl TrictracEnvironment {
                 }
                 TurnStage::MarkPoints => {
                     panic!("in play_opponent_if_needed > TurnStage::MarkPoints");
-                    let dice_roll_count = self
-                        .game
-                        .players
-                        .get(&self.opponent_id)
-                        .unwrap()
-                        .dice_roll_count;
-                    let points_rules =
-                        PointsRules::new(&opponent_color, &self.game.board, self.game.dice);
-                    GameEvent::Mark {
-                        player_id: self.opponent_id,
-                        points: points_rules.get_points(dice_roll_count).0,
-                    }
+                    // let dice_roll_count = self
+                    //     .game
+                    //     .players
+                    //     .get(&self.opponent_id)
+                    //     .unwrap()
+                    //     .dice_roll_count;
+                    // let points_rules =
+                    //     PointsRules::new(&opponent_color, &self.game.board, self.game.dice);
+                    // GameEvent::Mark {
+                    //     player_id: self.opponent_id,
+                    //     points: points_rules.get_points(dice_roll_count).0,
+                    // }
                 }
                 TurnStage::MarkAdvPoints => {
                     let dice_roll_count = self
@@ -454,7 +451,7 @@ impl TrictracEnvironment {
                         PointsRules::new(&opponent_color, &self.game.board, self.game.dice);
                     let (points, adv_points) = points_rules.get_points(dice_roll_count);
                     // Récompense proportionnelle aux points
-                    let adv_reward = Self::REWARD_RATIO * (points - adv_points) as f32;
+                    let adv_reward = REWARD_RATIO * (points - adv_points) as f32;
                     reward -= adv_reward;
                     // if adv_reward != 0.0 {
                     //     println!("info: opponent : {adv_reward} -> {reward}");

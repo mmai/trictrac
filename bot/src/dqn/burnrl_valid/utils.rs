@@ -3,7 +3,7 @@ use crate::dqn::burnrl_valid::{
     environment::{TrictracAction, TrictracEnvironment},
 };
 use crate::dqn::dqn_common::get_valid_action_indices;
-use burn::backend::{ndarray::NdArrayDevice, Autodiff, NdArray};
+use burn::backend::{ndarray::NdArrayDevice, NdArray};
 use burn::module::{Module, Param, ParamId};
 use burn::nn::Linear;
 use burn::record::{CompactRecorder, Recorder};

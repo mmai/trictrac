@@ -55,6 +55,10 @@ impl ReplayBuffer {
         batch
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.buffer.is_empty()
+    }
+
     pub fn len(&self) -> usize {
         self.buffer.len()
     }
@@ -457,7 +461,7 @@ impl DqnTrainer {
         save_every: usize,
         model_path: &str,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        println!("Démarrage de l'entraînement DQN pour {} épisodes", episodes);
+        println!("Démarrage de l'entraînement DQN pour {episodes} épisodes");
 
         for episode in 1..=episodes {
             let reward = self.train_episode();
@@ -474,16 +478,16 @@ impl DqnTrainer {
             }
 
             if episode % save_every == 0 {
-                let save_path = format!("{}_episode_{}.json", model_path, episode);
+                let save_path = format!("{model_path}_episode_{episode}.json");
                 self.agent.save_model(&save_path)?;
-                println!("Modèle sauvegardé : {}", save_path);
+                println!("Modèle sauvegardé : {save_path}");
             }
         }
 
         // Sauvegarder le modèle final
-        let final_path = format!("{}_final.json", model_path);
+        let final_path = format!("{model_path}_final.json");
         self.agent.save_model(&final_path)?;
-        println!("Modèle final sauvegardé : {}", final_path);
+        println!("Modèle final sauvegardé : {final_path}");
 
         Ok(())
     }

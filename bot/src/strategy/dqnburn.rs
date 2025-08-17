@@ -154,7 +154,10 @@ impl BotStrategy for DqnBurnStrategy {
             let checker_move1 = store::CheckerMove::new(from1, to1).unwrap_or_default();
 
             let mut tmp_board = self.game.board.clone();
-            tmp_board.move_checker(&self.color, checker_move1);
+            let move_res = tmp_board.move_checker(&self.color, checker_move1);
+            if move_res.is_err() {
+                panic!("could not move {move_res:?}");
+            }
             let from2 = tmp_board
                 .get_checker_field(&self.color, checker2 as u8)
                 .unwrap_or(0);

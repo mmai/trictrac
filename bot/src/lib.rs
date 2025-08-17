@@ -1,7 +1,7 @@
 pub mod dqn;
 pub mod strategy;
 
-use log::{debug, error};
+use log::debug;
 use store::{CheckerMove, Color, GameEvent, GameState, PlayerId, PointsRules, Stage, TurnStage};
 pub use strategy::default::DefaultStrategy;
 pub use strategy::dqn::DqnStrategy;

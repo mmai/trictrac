@@ -382,10 +382,9 @@ impl TrictracEnvironment {
                         .dice_roll_count;
                     let points_rules =
                         PointsRules::new(&opponent_color, &self.game.board, self.game.dice);
-                    let (points, adv_points) = points_rules.get_points(dice_roll_count);
                     GameEvent::Mark {
                         player_id: self.opponent_id,
-                        points,
+                        points: points_rules.get_points(dice_roll_count).0,
                     }
                 }
                 TurnStage::MarkAdvPoints => {

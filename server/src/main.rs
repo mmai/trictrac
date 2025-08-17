@@ -43,7 +43,7 @@ fn main() {
         .unwrap();
     let mut transport = NetcodeServerTransport::new(current_time, server_config, socket).unwrap();
 
-    trace!("❂ TricTrac server listening on {}", SERVER_ADDR);
+    trace!("❂ TricTrac server listening on {SERVER_ADDR}");
 
     let mut game_state = store::GameState::default();
     let mut last_updated = Instant::now();
@@ -80,7 +80,7 @@ fn main() {
                     // Tell all players that a new player has joined
                     server.broadcast_message(0, bincode::serialize(&event).unwrap());
 
-                    info!("🎉 Client {} connected.", client_id);
+                    info!("🎉 Client {client_id} connected.");
                     // In TicTacTussle the game can begin once two players has joined
                     if game_state.players.len() == 2 {
                         let event = store::GameEvent::BeginGame {
@@ -101,7 +101,7 @@ fn main() {
                     };
                     game_state.consume(&event);
                     server.broadcast_message(0, bincode::serialize(&event).unwrap());
-                    info!("Client {} disconnected", client_id);
+                    info!("Client {client_id} disconnected");
 
                     // Then end the game, since tic tac toe can't go on with a single player
                     let event = store::GameEvent::EndGame {
@@ -124,7 +124,7 @@ fn main() {
                 if let Ok(event) = bincode::deserialize::<store::GameEvent>(&message) {
                     if game_state.validate(&event) {
                         game_state.consume(&event);
-                        trace!("Player {} sent:\n\t{:#?}", client_id, event);
+                        trace!("Player {client_id} sent:\n\t{event:#?}");
                         server.broadcast_message(0, bincode::serialize(&event).unwrap());
 
                         // Determine if a player has won the game
@@ -135,7 +135,7 @@ fn main() {
                             server.broadcast_message(0, bincode::serialize(&event).unwrap());
                         }
                     } else {
-                        warn!("Player {} sent invalid event:\n\t{:#?}", client_id, event);
+                        warn!("Player {client_id} sent invalid event:\n\t{event:#?}");
                     }
                 }
             }

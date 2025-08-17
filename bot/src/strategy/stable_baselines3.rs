@@ -66,14 +66,14 @@ impl StableBaselines3Strategy {
         // Remplir les positions des pièces blanches (valeurs positives)
         for (pos, count) in self.game.board.get_color_fields(Color::White) {
             if pos < 24 {
-                board[pos] = count as i8;
+                board[pos] = count;
             }
         }
 
         // Remplir les positions des pièces noires (valeurs négatives)
         for (pos, count) in self.game.board.get_color_fields(Color::Black) {
             if pos < 24 {
-                board[pos] = -(count as i8);
+                board[pos] = -count;
             }
         }
 
@@ -270,4 +270,3 @@ impl BotStrategy for StableBaselines3Strategy {
         }
     }
 }
-

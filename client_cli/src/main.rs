@@ -35,7 +35,7 @@ fn main() -> Result<()> {
     let args = match parse_args() {
         Ok(v) => v,
         Err(e) => {
-            eprintln!("Error: {}.", e);
+            eprintln!("Error: {e}.");
             std::process::exit(1);
         }
     };
@@ -63,7 +63,7 @@ fn parse_args() -> Result<AppArgs, pico_args::Error> {
 
     // Help has a higher priority and should be handled separately.
     if pargs.contains(["-h", "--help"]) {
-        print!("{}", HELP);
+        print!("{HELP}");
         std::process::exit(0);
     }
 
@@ -78,7 +78,7 @@ fn parse_args() -> Result<AppArgs, pico_args::Error> {
     // It's up to the caller what to do with the remaining arguments.
     let remaining = pargs.finish();
     if !remaining.is_empty() {
-        eprintln!("Warning: unused arguments left: {:?}.", remaining);
+        eprintln!("Warning: unused arguments left: {remaining:?}.");
     }
 
     Ok(args)

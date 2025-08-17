@@ -4,7 +4,7 @@ use crate::dice::Dice;
 use crate::game_rules_moves::MoveRules;
 use crate::game_rules_points::{PointsRules, PossibleJans};
 use crate::player::{Color, Player, PlayerId};
-use log::{debug, error, info};
+use log::{debug, error};
 
 // use itertools::Itertools;
 use serde::{Deserialize, Serialize};

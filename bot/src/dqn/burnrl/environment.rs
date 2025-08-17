@@ -4,6 +4,11 @@ use burn_rl::base::{Action, Environment, Snapshot, State};
 use rand::{thread_rng, Rng};
 use store::{GameEvent, GameState, PlayerId, PointsRules, Stage, TurnStage};
 
+const ERROR_REWARD: f32 = -2.12121;
+const REWARD_VALID_MOVE: f32 = 2.12121;
+const REWARD_RATIO: f32 = 0.01;
+const WIN_POINTS: f32 = 0.1;
+
 /// État du jeu Trictrac pour burn-rl
 #[derive(Debug, Clone, Copy)]
 pub struct TrictracState {
@@ -165,8 +170,7 @@ impl Environment for TrictracEnvironment {
         let trictrac_action = Self::convert_action(action);
 
         let mut reward = 0.0;
-        let mut is_rollpoint = false;
-        let mut terminated = false;
+        let is_rollpoint;
 
         // Exécuter l'action si c'est le tour de l'agent DQN
         if self.game.active_player_id == self.active_player_id {
@@ -175,7 +179,7 @@ impl Environment for TrictracEnvironment {
                 if is_rollpoint {
                     self.pointrolls_count += 1;
                 }
-                if reward != Self::ERROR_REWARD {
+                if reward != ERROR_REWARD {
                     self.goodmoves_count += 1;
                 }
             } else {
@@ -199,9 +203,9 @@ impl Environment for TrictracEnvironment {
             // Récompense finale basée sur le résultat
             if let Some(winner_id) = self.game.determine_winner() {
                 if winner_id == self.active_player_id {
-                    reward += 50.0; // Victoire
+                    reward += WIN_POINTS; // Victoire
                 } else {
-                    reward -= 25.0; // Défaite
+                    reward -= WIN_POINTS; // Défaite
                 }
             }
         }
@@ -223,15 +227,13 @@ impl Environment for TrictracEnvironment {
 }
 
 impl TrictracEnvironment {
-    const ERROR_REWARD: f32 = -1.12121;
-    const REWARD_RATIO: f32 = 1.0;
-
     /// Convertit une action burn-rl vers une action Trictrac
     pub fn convert_action(action: TrictracAction) -> Option<dqn_common::TrictracAction> {
         dqn_common::TrictracAction::from_action_index(action.index.try_into().unwrap())
     }
 
     /// Convertit l'index d'une action au sein des actions valides vers une action Trictrac
+    #[allow(dead_code)]
     fn convert_valid_action_index(
         &self,
         action: TrictracAction,
@@ -265,7 +267,6 @@ impl TrictracEnvironment {
         let event = match action {
             TrictracAction::Roll => {
                 // Lancer les dés
-                reward += 0.1;
                 Some(GameEvent::Roll {
                     player_id: self.active_player_id,
                 })
@@ -273,7 +274,6 @@ impl TrictracEnvironment {
             // TrictracAction::Mark => {
             //     // Marquer des points
             //     let points = self.game.
-            //     reward += 0.1 * points as f32;
             //     Some(GameEvent::Mark {
             //         player_id: self.active_player_id,
             //         points,
@@ -281,7 +281,6 @@ impl TrictracEnvironment {
             // }
             TrictracAction::Go => {
                 // Continuer après avoir gagné un trou
-                reward += 0.2;
                 Some(GameEvent::Go {
                     player_id: self.active_player_id,
                 })
@@ -308,7 +307,10 @@ impl TrictracEnvironment {
                 let checker_move1 = store::CheckerMove::new(from1, to1).unwrap_or_default();
 
                 let mut tmp_board = self.game.board.clone();
-                tmp_board.move_checker(color, checker_move1);
+                let move_result = tmp_board.move_checker(color, checker_move1);
+                if move_result.is_err() {
+                    panic!("Error while moving checker {move_result:?}")
+                }
                 let from2 = tmp_board
                     .get_checker_field(color, checker2 as u8)
                     .unwrap_or(0);
@@ -324,7 +326,6 @@ impl TrictracEnvironment {
                 let checker_move1 = store::CheckerMove::new(from1, to1).unwrap_or_default();
                 let checker_move2 = store::CheckerMove::new(from2, to2).unwrap_or_default();
 
-                reward += 0.2;
                 Some(GameEvent::Move {
                     player_id: self.active_player_id,
                     moves: (checker_move1, checker_move2),
@@ -336,7 +337,7 @@ impl TrictracEnvironment {
         if let Some(event) = event {
             if self.game.validate(&event) {
                 self.game.consume(&event);
-
+                reward += REWARD_VALID_MOVE;
                 // Simuler le résultat des dés après un Roll
                 if matches!(action, TrictracAction::Roll) {
                     let mut rng = thread_rng();
@@ -350,7 +351,7 @@ impl TrictracEnvironment {
                     if self.game.validate(&dice_event) {
                         self.game.consume(&dice_event);
                         let (points, adv_points) = self.game.dice_points;
-                        reward += Self::REWARD_RATIO * (points - adv_points) as f32;
+                        reward += REWARD_RATIO * (points - adv_points) as f32;
                         if points > 0 {
                             is_rollpoint = true;
                             // println!("info: rolled for {reward}");
@@ -362,7 +363,7 @@ impl TrictracEnvironment {
                 // Pénalité pour action invalide
                 // on annule les précédents reward
                 // et on indique une valeur reconnaissable pour statistiques
-                reward = Self::ERROR_REWARD;
+                reward = ERROR_REWARD;
             }
         }
 
@@ -458,7 +459,7 @@ impl TrictracEnvironment {
                         PointsRules::new(&opponent_color, &self.game.board, self.game.dice);
                     let (points, adv_points) = points_rules.get_points(dice_roll_count);
                     // Récompense proportionnelle aux points
-                    reward -= Self::REWARD_RATIO * (points - adv_points) as f32;
+                    reward -= REWARD_RATIO * (points - adv_points) as f32;
                 }
             }
         }

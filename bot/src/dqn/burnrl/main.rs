@@ -26,13 +26,13 @@ fn main() {
         // epsilon is updated at the start of each episode
         eps_decay: 2000.0, // 1000 ?
 
-        gamma: 0.999, // 0.999 discount factor. Plus élevé = encourage stratégies à long terme
-        tau: 0.005, // 0.005 soft update rate. Taux de mise à jour du réseau cible. Plus bas = adaptation
+        gamma: 0.9999, // 0.999 discount factor. Plus élevé = encourage stratégies à long terme
+        tau: 0.0005, // 0.005 soft update rate. Taux de mise à jour du réseau cible. Plus bas = adaptation
         // plus lente moins sensible aux coups de chance
         learning_rate: 0.001, // 0.001 taille du pas. Bas : plus lent, haut : risque de ne jamais
         // converger
-        batch_size: 32, // 32 nombre d'expériences passées sur lesquelles pour calcul de l'erreur moy.
-        clip_grad: 100.0, // 100 limite max de correction à apporter au gradient (default 100)
+        batch_size: 64, // 32 nombre d'expériences passées sur lesquelles pour calcul de l'erreur moy.
+        clip_grad: 50.0, // 100 limite max de correction à apporter au gradient (default 100)
     };
     println!("{conf}----------");
     let agent = dqn_model::run::<Env, Backend>(&conf, false); //true);
@@ -41,7 +41,7 @@ fn main() {
 
     println!("> Sauvegarde du modèle de validation");
 
-    let path = "models/burn_dqn_40".to_string();
+    let path = "bot/models/burnrl_dqn".to_string();
     save_model(valid_agent.model().as_ref().unwrap(), &path);
 
     println!("> Chargement du modèle pour test");

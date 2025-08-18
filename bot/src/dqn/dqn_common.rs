@@ -157,6 +157,9 @@ pub fn get_valid_actions(game_state: &crate::GameState) -> Vec<TrictracAction> {
         }
     }
 
+    if valid_actions.is_empty() {
+        panic!("empty valid_actions for state {game_state}");
+    }
     valid_actions
 }
 

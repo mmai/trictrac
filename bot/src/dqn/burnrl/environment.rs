@@ -184,7 +184,8 @@ impl Environment for TrictracEnvironment {
                 }
             } else {
                 // Action non convertible, pénalité
-                reward = -0.5;
+                panic!("action non convertible");
+                //reward = -0.5;
             }
         }
 

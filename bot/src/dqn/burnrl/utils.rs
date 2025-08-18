@@ -15,7 +15,7 @@ use burn_rl::base::{Action, ElemType, Environment, State};
 
 pub fn save_model(model: &dqn_model::Net<NdArray<ElemType>>, path: &String) {
     let recorder = CompactRecorder::new();
-    let model_path = format!("{path}_model.mpk");
+    let model_path = format!("{path}.mpk");
     println!("Modèle de validation sauvegardé : {model_path}");
     recorder
         .record(model.clone().into_record(), model_path.into())
@@ -23,7 +23,7 @@ pub fn save_model(model: &dqn_model::Net<NdArray<ElemType>>, path: &String) {
 }
 
 pub fn load_model(dense_size: usize, path: &String) -> Option<dqn_model::Net<NdArray<ElemType>>> {
-    let model_path = format!("{path}_model.mpk");
+    let model_path = format!("{path}.mpk");
     // println!("Chargement du modèle depuis : {model_path}");
 
     CompactRecorder::new()

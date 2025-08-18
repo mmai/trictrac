@@ -9,7 +9,7 @@ shell:
 runcli:
 	RUST_LOG=info cargo run --bin=client_cli
 runclibots:
-	cargo run --bin=client_cli -- --bot random,dqnburn:./bot/models/burn_dqn_model.mpk
+	cargo run --bin=client_cli -- --bot random,dqnburn:./bot/models/burnrl_dqn_40.mpk
 	#cargo run --bin=client_cli -- --bot dqn:./bot/models/dqn_model_final.json,dummy
 	# RUST_LOG=info cargo run --bin=client_cli -- --bot dummy,dqn
 match:

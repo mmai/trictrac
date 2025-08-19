@@ -18,6 +18,10 @@ name = "train_dqn_burn"
 path = "src/burnrl/dqn/main.rs"
 
 [[bin]]
+name = "train_sac_burn"
+path = "src/burnrl/sac/main.rs"
+
+[[bin]]
 name = "train_ppo_burn"
 path = "src/burnrl/ppo/main.rs"
 

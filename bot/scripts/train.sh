@@ -4,7 +4,8 @@ ROOT="$(cd "$(dirname "$0")" && pwd)/../.."
 LOGS_DIR="$ROOT/bot/models/logs"
 
 CFG_SIZE=12
-BINBOT=train_ppo_burn
+BINBOT=train_sac_burn
+# BINBOT=train_ppo_burn
 # BINBOT=train_dqn_burn
 # BINBOT=train_dqn_burn_big
 # BINBOT=train_dqn_burn_before

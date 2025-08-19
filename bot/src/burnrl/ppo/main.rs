@@ -13,18 +13,18 @@ type Env = environment::TrictracEnvironment;
 fn main() {
     // println!("> Entraînement");
 
-    // See also MEMORY_SIZE in dqn_model.rs : 8192
+    // See also MEMORY_SIZE in ppo_model.rs : 8192
     let conf = ppo_model::PpoConfig {
         //                   defaults
         num_episodes: 50, // 40
         max_steps: 1000,  // 1000 max steps by episode
-        dense_size: 256,  // 128  neural network complexity (default 128)
-        gamma: 0.9999,    // 0.999 discount factor. Plus élevé = encourage stratégies à long terme
+        dense_size: 128,  // 128  neural network complexity (default 128)
+        gamma: 0.999,     // 0.999 discount factor. Plus élevé = encourage stratégies à long terme
         // plus lente moins sensible aux coups de chance
         learning_rate: 0.001, // 0.001 taille du pas. Bas : plus lent, haut : risque de ne jamais
         // converger
         batch_size: 128, // 32 nombre d'expériences passées sur lesquelles pour calcul de l'erreur moy.
-        clip_grad: 70.0, // 100 limite max de correction à apporter au gradient (default 100)
+        clip_grad: 100.0, // 100 limite max de correction à apporter au gradient (default 100)
 
         lambda: 0.95,
         epsilon_clip: 0.2,

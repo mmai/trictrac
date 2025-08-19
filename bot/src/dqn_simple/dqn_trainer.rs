@@ -6,7 +6,7 @@ use std::collections::VecDeque;
 use store::{GameEvent, MoveRules, PointsRules, Stage, TurnStage};
 
 use super::dqn_model::{DqnConfig, SimpleNeuralNetwork};
-use crate::dqn::dqn_common_big::{get_valid_actions, TrictracAction};
+use crate::training_common_big::{get_valid_actions, TrictracAction};
 
 /// Expérience pour le buffer de replay
 #[derive(Debug, Clone, Serialize, Deserialize)]

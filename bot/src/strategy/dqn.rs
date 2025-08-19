@@ -3,8 +3,8 @@ use log::info;
 use std::path::Path;
 use store::MoveRules;
 
-use crate::dqn::dqn_common_big::{get_valid_actions, sample_valid_action, TrictracAction};
-use crate::dqn::simple::dqn_model::SimpleNeuralNetwork;
+use crate::dqn_simple::dqn_model::SimpleNeuralNetwork;
+use crate::training_common_big::{get_valid_actions, sample_valid_action, TrictracAction};
 
 /// Stratégie DQN pour le bot - ne fait que charger et utiliser un modèle pré-entraîné
 #[derive(Debug)]

@@ -1,5 +1,5 @@
-use crate::dqn::burnrl::environment::TrictracEnvironment;
-use crate::dqn::burnrl::utils::soft_update_linear;
+use crate::burnrl::dqn_big::utils::soft_update_linear;
+use crate::burnrl::environment_big::TrictracEnvironment;
 use burn::module::Module;
 use burn::nn::{Linear, LinearConfig};
 use burn::optim::AdamWConfig;

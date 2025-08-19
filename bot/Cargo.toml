@@ -7,19 +7,19 @@ edition = "2021"
 
 [[bin]]
 name = "train_dqn_burn_valid"
-path = "src/dqn/burnrl_valid/main.rs"
+path = "src/burnrl/dqn_valid/main.rs"
 
 [[bin]]
 name = "train_dqn_burn_big"
-path = "src/dqn/burnrl_big/main.rs"
+path = "src/burnrl/dqn_big/main.rs"
 
 [[bin]]
 name = "train_dqn_burn"
-path = "src/dqn/burnrl/main.rs"
+path = "src/burnrl/dqn/main.rs"
 
 [[bin]]
 name = "train_dqn_simple"
-path = "src/dqn/simple/main.rs"
+path = "src/dqn_simple/main.rs"
 
 [dependencies]
 pretty_assertions = "1.4.0"

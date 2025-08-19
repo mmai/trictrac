@@ -6,8 +6,9 @@ use crate::{BotStrategy, CheckerMove, Color, GameState, PlayerId};
 use log::info;
 use store::MoveRules;
 
-use crate::dqn::burnrl::{dqn_model, environment, utils};
-use crate::dqn::dqn_common::{get_valid_action_indices, sample_valid_action, TrictracAction};
+use crate::burnrl::dqn::{dqn_model, utils};
+use crate::burnrl::environment;
+use crate::training_common::{get_valid_action_indices, sample_valid_action, TrictracAction};
 
 type DqnBurnNetwork = dqn_model::Net<NdArray<ElemType>>;
 

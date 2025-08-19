@@ -1,8 +1,6 @@
-use crate::dqn::burnrl_valid::{
-    dqn_model,
-    environment::{TrictracAction, TrictracEnvironment},
-};
-use crate::dqn::dqn_common::get_valid_action_indices;
+use crate::burnrl::dqn::dqn_model;
+use crate::burnrl::environment::{TrictracAction, TrictracEnvironment};
+use crate::training_common::get_valid_action_indices;
 use burn::backend::{ndarray::NdArrayDevice, NdArray};
 use burn::module::{Module, Param, ParamId};
 use burn::nn::Linear;
@@ -15,7 +13,7 @@ use burn_rl::base::{Action, ElemType, Environment, State};
 
 pub fn save_model(model: &dqn_model::Net<NdArray<ElemType>>, path: &String) {
     let recorder = CompactRecorder::new();
-    let model_path = format!("{path}_model.mpk");
+    let model_path = format!("{path}.mpk");
     println!("Modèle de validation sauvegardé : {model_path}");
     recorder
         .record(model.clone().into_record(), model_path.into())
@@ -23,7 +21,7 @@ pub fn save_model(model: &dqn_model::Net<NdArray<ElemType>>, path: &String) {
 }
 
 pub fn load_model(dense_size: usize, path: &String) -> Option<dqn_model::Net<NdArray<ElemType>>> {
-    let model_path = format!("{path}_model.mpk");
+    let model_path = format!("{path}.mpk");
     // println!("Chargement du modèle depuis : {model_path}");
 
     CompactRecorder::new()

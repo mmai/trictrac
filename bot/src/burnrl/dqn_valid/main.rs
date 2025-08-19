@@ -1,7 +1,8 @@
-use bot::dqn::burnrl_big::{
-    dqn_model, environment,
+use bot::burnrl::dqn_valid::{
+    dqn_model,
     utils::{demo_model, load_model, save_model},
 };
+use bot::burnrl::environment;
 use burn::backend::{Autodiff, NdArray};
 use burn_rl::agent::DQN;
 use burn_rl::base::ElemType;
@@ -15,16 +16,15 @@ fn main() {
     // See also MEMORY_SIZE in dqn_model.rs : 8192
     let conf = dqn_model::DqnConfig {
         //                   defaults
-        num_episodes: 40,  // 40
-        min_steps: 2000.0, // 1000 min of max steps by episode (mise à jour par la fonction)
-        max_steps: 4000,   // 1000 max steps by episode
-        dense_size: 128,   // 128  neural network complexity (default 128)
+        num_episodes: 100, // 40
+        max_steps: 1000,   // 1000 max steps by episode
+        dense_size: 256,   // 128  neural network complexity (default 128)
         eps_start: 0.9,    // 0.9  epsilon initial value (0.9 => more exploration)
         eps_end: 0.05,     // 0.05
         // eps_decay higher = epsilon decrease slower
         // used in : epsilon = eps_end + (eps_start - eps_end) * e^(-step / eps_decay);
         // epsilon is updated at the start of each episode
-        eps_decay: 1000.0, // 1000 ?
+        eps_decay: 2000.0, // 1000 ?
 
         gamma: 0.999, // 0.999 discount factor. Plus élevé = encourage stratégies à long terme
         tau: 0.005, // 0.005 soft update rate. Taux de mise à jour du réseau cible. Plus bas = adaptation
@@ -41,7 +41,7 @@ fn main() {
 
     println!("> Sauvegarde du modèle de validation");
 
-    let path = "models/burn_dqn_40".to_string();
+    let path = "bot/models/burn_dqn_valid_40".to_string();
     save_model(valid_agent.model().as_ref().unwrap(), &path);
 
     println!("> Chargement du modèle pour test");

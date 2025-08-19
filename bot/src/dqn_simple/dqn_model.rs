@@ -1,4 +1,4 @@
-use crate::dqn::dqn_common::TrictracAction;
+use crate::training_common_big::TrictracAction;
 use serde::{Deserialize, Serialize};
 
 /// Configuration pour l'agent DQN
@@ -151,4 +151,3 @@ impl SimpleNeuralNetwork {
         Ok(network)
     }
 }
-

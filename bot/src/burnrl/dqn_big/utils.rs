@@ -1,8 +1,6 @@
-use crate::dqn::burnrl_big::{
-    dqn_model,
-    environment::{TrictracAction, TrictracEnvironment},
-};
-use crate::dqn::dqn_common_big::get_valid_action_indices;
+use crate::burnrl::dqn_big::dqn_model;
+use crate::burnrl::environment_big::{TrictracAction, TrictracEnvironment};
+use crate::training_common_big::get_valid_action_indices;
 use burn::backend::{ndarray::NdArrayDevice, NdArray};
 use burn::module::{Module, Param, ParamId};
 use burn::nn::Linear;

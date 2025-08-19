@@ -1,6 +1,6 @@
-use bot::dqn::dqn_common::TrictracAction;
-use bot::dqn::simple::dqn_model::DqnConfig;
-use bot::dqn::simple::dqn_trainer::DqnTrainer;
+use bot::dqn_simple::dqn_model::DqnConfig;
+use bot::dqn_simple::dqn_trainer::DqnTrainer;
+use bot::training_common::TrictracAction;
 use std::env;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

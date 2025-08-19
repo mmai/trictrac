@@ -1,5 +1,5 @@
-use crate::dqn::burnrl_valid::environment::TrictracEnvironment;
-use crate::dqn::burnrl_valid::utils::soft_update_linear;
+use crate::burnrl::dqn::utils::soft_update_linear;
+use crate::burnrl::environment::TrictracEnvironment;
 use burn::module::Module;
 use burn::nn::{Linear, LinearConfig};
 use burn::optim::AdamWConfig;
@@ -63,6 +63,7 @@ impl<B: Backend> DQNModel<B> for Net<B> {
 const MEMORY_SIZE: usize = 8192;
 
 pub struct DqnConfig {
+    pub min_steps: f32,
     pub max_steps: usize,
     pub num_episodes: usize,
     pub dense_size: usize,
@@ -80,6 +81,7 @@ pub struct DqnConfig {
 impl fmt::Display for DqnConfig {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut s = String::new();
+        s.push_str(&format!("min_steps={:?}\n", self.min_steps));
         s.push_str(&format!("max_steps={:?}\n", self.max_steps));
         s.push_str(&format!("num_episodes={:?}\n", self.num_episodes));
         s.push_str(&format!("dense_size={:?}\n", self.dense_size));
@@ -98,6 +100,7 @@ impl fmt::Display for DqnConfig {
 impl Default for DqnConfig {
     fn default() -> Self {
         Self {
+            min_steps: 250.0,
             max_steps: 2000,
             num_episodes: 1000,
             dense_size: 256,
@@ -123,6 +126,7 @@ pub fn run<E: Environment + AsMut<TrictracEnvironment>, B: AutodiffBackend>(
 ) -> DQN<E, B, Net<B>> {
     // ) -> impl Agent<E> {
     let mut env = E::new(visualized);
+    // env.as_mut().min_steps = conf.min_steps;
     env.as_mut().max_steps = conf.max_steps;
 
     let model = Net::<B>::new(
@@ -189,11 +193,17 @@ pub fn run<E: Environment + AsMut<TrictracEnvironment>, B: AutodiffBackend>(
 
             if snapshot.done() || episode_duration >= conf.max_steps {
                 let envmut = env.as_mut();
+                let goodmoves_ratio = ((envmut.goodmoves_count as f32 / episode_duration as f32)
+                    * 100.0)
+                    .round() as u32;
                 println!(
-                    "{{\"episode\": {episode}, \"reward\": {episode_reward:.4}, \"steps count\": {episode_duration}, \"epsilon\": {eps_threshold:.3}, \"rollpoints\":{}, \"duration\": {}}}",
+                    "{{\"episode\": {episode}, \"reward\": {episode_reward:.4}, \"steps count\": {episode_duration}, \"epsilon\": {eps_threshold:.3}, \"goodmoves\": {}, \"ratio\": {}%, \"rollpoints\":{}, \"duration\": {}}}",
+                    envmut.goodmoves_count,
+                    goodmoves_ratio,
                     envmut.pointrolls_count,
                     now.elapsed().unwrap().as_secs(),
                 );
+                if goodmoves_ratio < 5 && 10 < episode {}
                 env.reset();
                 episode_done = true;
                 now = SystemTime::now();

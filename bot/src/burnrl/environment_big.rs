@@ -89,7 +89,6 @@ pub struct TrictracEnvironment {
     current_state: TrictracState,
     episode_reward: f32,
     pub step_count: usize,
-    pub min_steps: f32,
     pub max_steps: usize,
     pub pointrolls_count: usize,
     pub goodmoves_count: usize,
@@ -122,7 +121,6 @@ impl Environment for TrictracEnvironment {
             current_state,
             episode_reward: 0.0,
             step_count: 0,
-            min_steps: 250.0,
             max_steps: 2000,
             pointrolls_count: 0,
             goodmoves_count: 0,
@@ -196,9 +194,10 @@ impl Environment for TrictracEnvironment {
         }
 
         // Vérifier si la partie est terminée
-        let max_steps = self.min_steps
-            + (self.max_steps as f32 - self.min_steps)
-                * f32::exp((self.goodmoves_ratio - 1.0) / 0.25);
+        // let max_steps = self.max_steps
+        // let max_steps = self.min_steps
+        //     + (self.max_steps as f32 - self.min_steps)
+        //         * f32::exp((self.goodmoves_ratio - 1.0) / 0.25);
         let done = self.game.stage == Stage::Ended || self.game.determine_winner().is_some();
 
         if done {
@@ -211,7 +210,7 @@ impl Environment for TrictracEnvironment {
                 }
             }
         }
-        let terminated = done || self.step_count >= max_steps.round() as usize;
+        let terminated = done || self.step_count >= self.max_steps;
 
         // Mettre à jour l'état
         self.current_state = TrictracState::from_game_state(&self.game);

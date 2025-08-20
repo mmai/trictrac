@@ -1,15 +1,16 @@
-use crate::burnrl::dqn::utils::soft_update_linear;
-use crate::burnrl::environment::TrictracEnvironment;
+use crate::burnrl::environment_big::TrictracEnvironment;
+use crate::burnrl::utils::{soft_update_linear, Config};
+use burn::backend::{ndarray::NdArrayDevice, NdArray};
 use burn::module::Module;
 use burn::nn::{Linear, LinearConfig};
 use burn::optim::AdamWConfig;
+use burn::record::{CompactRecorder, Recorder};
 use burn::tensor::activation::relu;
 use burn::tensor::backend::{AutodiffBackend, Backend};
 use burn::tensor::Tensor;
 use burn_rl::agent::DQN;
 use burn_rl::agent::{DQNModel, DQNTrainingConfig};
-use burn_rl::base::{Action, ElemType, Environment, Memory, Model, State};
-use std::fmt;
+use burn_rl::base::{Action, Agent, ElemType, Environment, Memory, Model, State};
 use std::time::SystemTime;
 
 #[derive(Module, Debug)]
@@ -62,71 +63,19 @@ impl<B: Backend> DQNModel<B> for Net<B> {
 #[allow(unused)]
 const MEMORY_SIZE: usize = 8192;
 
-pub struct DqnConfig {
-    pub min_steps: f32,
-    pub max_steps: usize,
-    pub num_episodes: usize,
-    pub dense_size: usize,
-    pub eps_start: f64,
-    pub eps_end: f64,
-    pub eps_decay: f64,
-
-    pub gamma: f32,
-    pub tau: f32,
-    pub learning_rate: f32,
-    pub batch_size: usize,
-    pub clip_grad: f32,
-}
-
-impl fmt::Display for DqnConfig {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut s = String::new();
-        s.push_str(&format!("min_steps={:?}\n", self.min_steps));
-        s.push_str(&format!("max_steps={:?}\n", self.max_steps));
-        s.push_str(&format!("num_episodes={:?}\n", self.num_episodes));
-        s.push_str(&format!("dense_size={:?}\n", self.dense_size));
-        s.push_str(&format!("eps_start={:?}\n", self.eps_start));
-        s.push_str(&format!("eps_end={:?}\n", self.eps_end));
-        s.push_str(&format!("eps_decay={:?}\n", self.eps_decay));
-        s.push_str(&format!("gamma={:?}\n", self.gamma));
-        s.push_str(&format!("tau={:?}\n", self.tau));
-        s.push_str(&format!("learning_rate={:?}\n", self.learning_rate));
-        s.push_str(&format!("batch_size={:?}\n", self.batch_size));
-        s.push_str(&format!("clip_grad={:?}\n", self.clip_grad));
-        write!(f, "{s}")
-    }
-}
-
-impl Default for DqnConfig {
-    fn default() -> Self {
-        Self {
-            min_steps: 250.0,
-            max_steps: 2000,
-            num_episodes: 1000,
-            dense_size: 256,
-            eps_start: 0.9,
-            eps_end: 0.05,
-            eps_decay: 1000.0,
-
-            gamma: 0.999,
-            tau: 0.005,
-            learning_rate: 0.001,
-            batch_size: 32,
-            clip_grad: 100.0,
-        }
-    }
-}
-
 type MyAgent<E, B> = DQN<E, B, Net<B>>;
 
 #[allow(unused)]
-pub fn run<E: Environment + AsMut<TrictracEnvironment>, B: AutodiffBackend>(
-    conf: &DqnConfig,
+// pub fn run<E: Environment + AsMut<TrictracEnvironment>, B: AutodiffBackend>(
+pub fn run<
+    E: Environment + AsMut<TrictracEnvironment>,
+    B: AutodiffBackend<InnerBackend = NdArray>,
+>(
+    conf: &Config,
     visualized: bool,
-) -> DQN<E, B, Net<B>> {
-    // ) -> impl Agent<E> {
+    // ) -> DQN<E, B, Net<B>> {
+) -> impl Agent<E> {
     let mut env = E::new(visualized);
-    // env.as_mut().min_steps = conf.min_steps;
     env.as_mut().max_steps = conf.max_steps;
 
     let model = Net::<B>::new(
@@ -203,7 +152,6 @@ pub fn run<E: Environment + AsMut<TrictracEnvironment>, B: AutodiffBackend>(
                     envmut.pointrolls_count,
                     now.elapsed().unwrap().as_secs(),
                 );
-                if goodmoves_ratio < 5 && 10 < episode {}
                 env.reset();
                 episode_done = true;
                 now = SystemTime::now();
@@ -212,5 +160,35 @@ pub fn run<E: Environment + AsMut<TrictracEnvironment>, B: AutodiffBackend>(
             }
         }
     }
-    agent
+    let valid_agent = agent.valid();
+    if let Some(path) = &conf.save_path {
+        save_model(valid_agent.model().as_ref().unwrap(), path);
+    }
+    valid_agent
+}
+
+pub fn save_model(model: &Net<NdArray<ElemType>>, path: &String) {
+    let recorder = CompactRecorder::new();
+    let model_path = format!("{path}.mpk");
+    println!("info: Modèle de validation sauvegardé : {model_path}");
+    recorder
+        .record(model.clone().into_record(), model_path.into())
+        .unwrap();
+}
+
+pub fn load_model(dense_size: usize, path: &String) -> Option<Net<NdArray<ElemType>>> {
+    let model_path = format!("{path}.mpk");
+    // println!("Chargement du modèle depuis : {model_path}");
+
+    CompactRecorder::new()
+        .load(model_path.into(), &NdArrayDevice::default())
+        .map(|record| {
+            Net::new(
+                <TrictracEnvironment as Environment>::StateType::size(),
+                dense_size,
+                <TrictracEnvironment as Environment>::ActionType::size(),
+            )
+            .load_record(record)
+        })
+        .ok()
 }

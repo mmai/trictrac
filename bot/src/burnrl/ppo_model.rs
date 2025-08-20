@@ -1,4 +1,5 @@
 use crate::burnrl::environment::TrictracEnvironment;
+use crate::burnrl::utils::Config;
 use burn::module::Module;
 use burn::nn::{Initializer, Linear, LinearConfig};
 use burn::optim::AdamWConfig;
@@ -7,7 +8,6 @@ use burn::tensor::backend::{AutodiffBackend, Backend};
 use burn::tensor::Tensor;
 use burn_rl::agent::{PPOModel, PPOOutput, PPOTrainingConfig, PPO};
 use burn_rl::base::{Action, Agent, ElemType, Environment, Memory, Model, State};
-use std::fmt;
 use std::time::SystemTime;
 
 #[derive(Module, Debug)]
@@ -54,64 +54,11 @@ impl<B: Backend> PPOModel<B> for Net<B> {}
 #[allow(unused)]
 const MEMORY_SIZE: usize = 512;
 
-pub struct PpoConfig {
-    pub max_steps: usize,
-    pub num_episodes: usize,
-    pub dense_size: usize,
-
-    pub gamma: f32,
-    pub lambda: f32,
-    pub epsilon_clip: f32,
-    pub critic_weight: f32,
-    pub entropy_weight: f32,
-    pub learning_rate: f32,
-    pub epochs: usize,
-    pub batch_size: usize,
-    pub clip_grad: f32,
-}
-
-impl fmt::Display for PpoConfig {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut s = String::new();
-        s.push_str(&format!("max_steps={:?}\n", self.max_steps));
-        s.push_str(&format!("num_episodes={:?}\n", self.num_episodes));
-        s.push_str(&format!("dense_size={:?}\n", self.dense_size));
-        s.push_str(&format!("gamma={:?}\n", self.gamma));
-        s.push_str(&format!("lambda={:?}\n", self.lambda));
-        s.push_str(&format!("epsilon_clip={:?}\n", self.epsilon_clip));
-        s.push_str(&format!("critic_weight={:?}\n", self.critic_weight));
-        s.push_str(&format!("entropy_weight={:?}\n", self.entropy_weight));
-        s.push_str(&format!("learning_rate={:?}\n", self.learning_rate));
-        s.push_str(&format!("epochs={:?}\n", self.epochs));
-        s.push_str(&format!("batch_size={:?}\n", self.batch_size));
-        write!(f, "{s}")
-    }
-}
-
-impl Default for PpoConfig {
-    fn default() -> Self {
-        Self {
-            max_steps: 2000,
-            num_episodes: 1000,
-            dense_size: 256,
-
-            gamma: 0.99,
-            lambda: 0.95,
-            epsilon_clip: 0.2,
-            critic_weight: 0.5,
-            entropy_weight: 0.01,
-            learning_rate: 0.001,
-            epochs: 8,
-            batch_size: 8,
-            clip_grad: 100.0,
-        }
-    }
-}
 type MyAgent<E, B> = PPO<E, B, Net<B>>;
 
 #[allow(unused)]
 pub fn run<E: Environment + AsMut<TrictracEnvironment>, B: AutodiffBackend>(
-    conf: &PpoConfig,
+    conf: &Config,
     visualized: bool,
     // ) -> PPO<E, B, Net<B>> {
 ) -> impl Agent<E> {
@@ -179,6 +126,9 @@ pub fn run<E: Environment + AsMut<TrictracEnvironment>, B: AutodiffBackend>(
         memory.clear();
     }
 
-    agent.valid(model)
-    // agent
+    let valid_agent = agent.valid(model);
+    if let Some(path) = &conf.save_path {
+        // save_model(???, path);
+    }
+    valid_agent
 }

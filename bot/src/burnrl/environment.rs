@@ -139,6 +139,7 @@ impl Environment for TrictracEnvironment {
 
     fn reset(&mut self) -> Snapshot<Self> {
         // Réinitialiser le jeu
+        let history = self.game.history.clone();
         self.game = GameState::new(false);
         self.game.init_player("DQN Agent");
         self.game.init_player("Opponent");
@@ -157,18 +158,18 @@ impl Environment for TrictracEnvironment {
         let warning = if self.best_ratio > 0.7 && self.goodmoves_ratio < 0.1 {
             let path = "bot/models/logs/debug.log";
             if let Ok(mut out) = std::fs::File::create(path) {
-                write!(out, "{:?}", self.game.history);
+                write!(out, "{:?}", history);
             }
             "!!!!"
         } else {
             ""
         };
-        println!(
-            "info: correct moves: {} ({}%) {}",
-            self.goodmoves_count,
-            (100.0 * self.goodmoves_ratio).round() as u32,
-            warning
-        );
+        // println!(
+        //     "info: correct moves: {} ({}%) {}",
+        //     self.goodmoves_count,
+        //     (100.0 * self.goodmoves_ratio).round() as u32,
+        //     warning
+        // );
         self.step_count = 0;
         self.pointrolls_count = 0;
         self.goodmoves_count = 0;
@@ -369,7 +370,7 @@ impl TrictracEnvironment {
                     if self.game.validate(&dice_event) {
                         self.game.consume(&dice_event);
                         let (points, adv_points) = self.game.dice_points;
-                        reward += REWARD_RATIO * (points - adv_points) as f32;
+                        reward += REWARD_RATIO * (points as f32 - adv_points as f32);
                         if points > 0 {
                             is_rollpoint = true;
                             // println!("info: rolled for {reward}");
@@ -479,7 +480,7 @@ impl TrictracEnvironment {
                         PointsRules::new(&opponent_color, &self.game.board, self.game.dice);
                     let (points, adv_points) = points_rules.get_points(dice_roll_count);
                     // Récompense proportionnelle aux points
-                    reward -= REWARD_RATIO * (points - adv_points) as f32;
+                    reward -= REWARD_RATIO * (points as f32 - adv_points as f32);
                 }
             }
         }

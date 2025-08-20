@@ -1,14 +1,15 @@
 use crate::burnrl::environment::TrictracEnvironment;
-use crate::burnrl::sac::utils::soft_update_linear;
+use crate::burnrl::utils::{soft_update_linear, Config};
+use burn::backend::{ndarray::NdArrayDevice, NdArray};
 use burn::module::Module;
 use burn::nn::{Linear, LinearConfig};
 use burn::optim::AdamWConfig;
+use burn::record::{CompactRecorder, Recorder};
 use burn::tensor::activation::{relu, softmax};
 use burn::tensor::backend::{AutodiffBackend, Backend};
 use burn::tensor::Tensor;
 use burn_rl::agent::{SACActor, SACCritic, SACNets, SACOptimizer, SACTrainingConfig, SAC};
 use burn_rl::base::{Action, Agent, ElemType, Environment, Memory, Model, State};
-use std::fmt;
 use std::time::SystemTime;
 
 #[derive(Module, Debug)]
@@ -92,57 +93,11 @@ impl<B: Backend> SACCritic<B> for Critic<B> {
 #[allow(unused)]
 const MEMORY_SIZE: usize = 4096;
 
-pub struct SacConfig {
-    pub max_steps: usize,
-    pub num_episodes: usize,
-    pub dense_size: usize,
-
-    pub gamma: f32,
-    pub tau: f32,
-    pub learning_rate: f32,
-    pub batch_size: usize,
-    pub clip_grad: f32,
-    pub min_probability: f32,
-}
-
-impl Default for SacConfig {
-    fn default() -> Self {
-        Self {
-            max_steps: 2000,
-            num_episodes: 1000,
-            dense_size: 32,
-
-            gamma: 0.999,
-            tau: 0.005,
-            learning_rate: 0.001,
-            batch_size: 32,
-            clip_grad: 1.0,
-            min_probability: 1e-9,
-        }
-    }
-}
-
-impl fmt::Display for SacConfig {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut s = String::new();
-        s.push_str(&format!("max_steps={:?}\n", self.max_steps));
-        s.push_str(&format!("num_episodes={:?}\n", self.num_episodes));
-        s.push_str(&format!("dense_size={:?}\n", self.dense_size));
-        s.push_str(&format!("gamma={:?}\n", self.gamma));
-        s.push_str(&format!("tau={:?}\n", self.tau));
-        s.push_str(&format!("learning_rate={:?}\n", self.learning_rate));
-        s.push_str(&format!("batch_size={:?}\n", self.batch_size));
-        s.push_str(&format!("clip_grad={:?}\n", self.clip_grad));
-        s.push_str(&format!("min_probability={:?}\n", self.min_probability));
-        write!(f, "{s}")
-    }
-}
-
 type MyAgent<E, B> = SAC<E, B, Actor<B>>;
 
 #[allow(unused)]
 pub fn run<E: Environment + AsMut<TrictracEnvironment>, B: AutodiffBackend>(
-    conf: &SacConfig,
+    conf: &Config,
     visualized: bool,
 ) -> impl Agent<E> {
     let mut env = E::new(visualized);
@@ -229,5 +184,35 @@ pub fn run<E: Environment + AsMut<TrictracEnvironment>, B: AutodiffBackend>(
         }
     }
 
-    agent.valid(nets.actor)
+    let valid_agent = agent.valid(nets.actor);
+    if let Some(path) = &conf.save_path {
+        // save_model(???, path);
+    }
+    valid_agent
 }
+
+// pub fn save_model(model: ???, path: &String) {
+//     let recorder = CompactRecorder::new();
+//     let model_path = format!("{path}.mpk");
+//     println!("info: Modèle de validation sauvegardé : {model_path}");
+//     recorder
+//         .record(model.clone().into_record(), model_path.into())
+//         .unwrap();
+// }
+//
+// pub fn load_model(dense_size: usize, path: &String) -> Option<Actor<NdArray<ElemType>>> {
+//     let model_path = format!("{path}.mpk");
+//     // println!("Chargement du modèle depuis : {model_path}");
+//
+//     CompactRecorder::new()
+//         .load(model_path.into(), &NdArrayDevice::default())
+//         .map(|record| {
+//             Actor::new(
+//                 <TrictracEnvironment as Environment>::StateType::size(),
+//                 dense_size,
+//                 <TrictracEnvironment as Environment>::ActionType::size(),
+//             )
+//             .load_record(record)
+//         })
+//         .ok()
+// }

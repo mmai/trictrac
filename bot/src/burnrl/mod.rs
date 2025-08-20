@@ -1,8 +1,9 @@
-pub mod dqn;
-pub mod dqn_big;
-pub mod dqn_valid;
+pub mod dqn_big_model;
+pub mod dqn_model;
+pub mod dqn_valid_model;
 pub mod environment;
 pub mod environment_big;
 pub mod environment_valid;
-pub mod ppo;
-pub mod sac;
+pub mod ppo_model;
+pub mod sac_model;
+pub mod utils;

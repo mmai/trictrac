@@ -6,11 +6,11 @@ use crate::{BotStrategy, CheckerMove, Color, GameState, PlayerId};
 use log::info;
 use store::MoveRules;
 
-use crate::burnrl::dqn_model;
+use crate::burnrl::algos::dqn;
 use crate::burnrl::environment;
 use crate::training_common::{get_valid_action_indices, sample_valid_action, TrictracAction};
 
-type DqnBurnNetwork = dqn_model::Net<NdArray<ElemType>>;
+type DqnBurnNetwork = dqn::Net<NdArray<ElemType>>;
 
 /// Stratégie DQN pour le bot - ne fait que charger et utiliser un modèle pré-entraîné
 #[derive(Debug)]
@@ -40,7 +40,7 @@ impl DqnBurnStrategy {
     pub fn new_with_model(model_path: &String) -> Self {
         info!("Loading model {model_path:?}");
         let mut strategy = Self::new();
-        strategy.model = dqn_model::load_model(256, model_path);
+        strategy.model = dqn::load_model(256, model_path);
         strategy
     }
 

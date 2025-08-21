@@ -603,7 +603,7 @@ mod tests {
         );
         let points_rules = PointsRules::new(&Color::Black, &board, Dice { values: (2, 4) });
         let jans = points_rules.get_result_jans(8);
-        assert!(jans.0.len() > 0);
+        assert!(!jans.0.is_empty());
     }
 
     #[test]
@@ -628,7 +628,7 @@ mod tests {
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, -2,
             ],
         );
-        let mut rules = PointsRules::new(&Color::Black, &board, Dice { values: (2, 3) });
+        let rules = PointsRules::new(&Color::Black, &board, Dice { values: (2, 3) });
         assert_eq!(12, rules.get_points(5).0);
 
         //  Battre à vrai une dame située dans la table des grands jans : 2 + 2 = 4

@@ -244,7 +244,7 @@ impl GameState {
         pos_bits.push_str(&white_bits);
         pos_bits.push_str(&black_bits);
 
-        pos_bits = format!("{:0>108}", pos_bits);
+        pos_bits = format!("{pos_bits:0>108}");
         // println!("{}", pos_bits);
         let pos_u8 = pos_bits
             .as_bytes()
@@ -647,9 +647,7 @@ impl GameState {
 
     fn inc_roll_count(&mut self, player_id: PlayerId) {
         self.players.get_mut(&player_id).map(|p| {
-            if p.dice_roll_count < u8::MAX {
-                p.dice_roll_count += 1;
-            }
+            p.dice_roll_count = p.dice_roll_count.saturating_add(1);
             p
         });
     }

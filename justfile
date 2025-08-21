@@ -25,13 +25,13 @@ pythonlib:
 trainsimple:
   cargo build --release --bin=train_dqn_simple
   LD_LIBRARY_PATH=./target/release ./target/release/train_dqn_simple | tee /tmp/train.out
-trainbot:
+trainbot algo:
   #python ./store/python/trainModel.py
   # cargo run --bin=train_dqn # ok
   # ./bot/scripts/trainValid.sh
-  ./bot/scripts/train.sh
-plottrainbot:
-  ./bot/scripts/train.sh plot
+  ./bot/scripts/train.sh {{algo}}
+plottrainbot algo:
+  ./bot/scripts/train.sh plot {{algo}}
 debugtrainbot:
   cargo build --bin=train_dqn_burn
   RUST_BACKTRACE=1 LD_LIBRARY_PATH=./target/debug  ./target/debug/train_dqn_burn

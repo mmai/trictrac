@@ -1,10 +1,9 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 
 ROOT="$(cd "$(dirname "$0")" && pwd)/../.."
 LOGS_DIR="$ROOT/bot/models/logs"
 
 CFG_SIZE=17
-ALGO="sac"
 BINBOT=burn_train
 # BINBOT=train_ppo_burn
 # BINBOT=train_dqn_burn
@@ -15,6 +14,7 @@ OPPONENT="random"
 PLOT_EXT="png"
 
 train() {
+  ALGO=$1
   cargo build --release --bin=$BINBOT
   NAME="$(date +%Y-%m-%d_%H:%M:%S)"
   LOGS="$LOGS_DIR/$ALGO/$NAME.out"
@@ -23,6 +23,7 @@ train() {
 }
 
 plot() {
+  ALGO=$1
   NAME=$(ls -rt "$LOGS_DIR/$ALGO" | tail -n 1)
   LOGS="$LOGS_DIR/$ALGO/$NAME"
   cfgs=$(head -n $CFG_SIZE "$LOGS")
@@ -37,8 +38,14 @@ plot() {
     feedgnuplot --lines --points --unset grid --title "adv = $OPPONENT ; density = $dense_size ; decay = $eps_decay ; max steps = $max_steps" --terminal $PLOT_EXT >"$LOGS_DIR/$ALGO/$NAME.$PLOT_EXT"
 }
 
-if [ "$1" = "plot" ]; then
-  plot
+if [[ -z "$1" ]]; then
+  echo "Usage : train [plot] <algo>"
+elif [ "$1" = "plot" ]; then
+  if [[ -z "$2" ]]; then
+    echo "Usage : train [plot] <algo>"
+  else
+    plot $2
+  fi
 else
-  train
+  train $1
 fi

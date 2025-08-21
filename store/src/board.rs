@@ -271,7 +271,7 @@ impl Board {
             .map(|cells| {
                 cells
                     .into_iter()
-                    .map(|cell| format!("{:>5}", cell))
+                    .map(|cell| format!("{cell:>5}"))
                     .collect::<Vec<String>>()
                     .join("")
             })
@@ -282,7 +282,7 @@ impl Board {
             .map(|cells| {
                 cells
                     .into_iter()
-                    .map(|cell| format!("{:>5}", cell))
+                    .map(|cell| format!("{cell:>5}"))
                     .collect::<Vec<String>>()
                     .join("")
             })

@@ -1,4 +1,4 @@
-use crate::burnrl::environment::TrictracEnvironment;
+use crate::burnrl::environment_valid::TrictracEnvironment;
 use crate::burnrl::utils::Config;
 use burn::backend::{ndarray::NdArrayDevice, NdArray};
 use burn::module::Module;
@@ -161,8 +161,7 @@ pub fn run<
 
         save_model(&model_with_loaded_weights, path);
     }
-    let valid_agent = agent.valid(model);
-    valid_agent
+    agent.valid(model)
 }
 
 pub fn save_model(model: &Net<NdArray<ElemType>>, path: &String) {
@@ -190,4 +189,3 @@ pub fn load_model(dense_size: usize, path: &String) -> Option<Net<NdArray<ElemTy
         })
         .ok()
 }
-

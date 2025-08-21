@@ -1,13 +1,17 @@
 use crate::burnrl::environment::TrictracEnvironment;
 use crate::burnrl::utils::Config;
+use burn::backend::{ndarray::NdArrayDevice, NdArray};
 use burn::module::Module;
 use burn::nn::{Initializer, Linear, LinearConfig};
 use burn::optim::AdamWConfig;
+use burn::record::{CompactRecorder, Recorder};
 use burn::tensor::activation::{relu, softmax};
 use burn::tensor::backend::{AutodiffBackend, Backend};
 use burn::tensor::Tensor;
 use burn_rl::agent::{PPOModel, PPOOutput, PPOTrainingConfig, PPO};
 use burn_rl::base::{Action, Agent, ElemType, Environment, Memory, Model, State};
+use std::env;
+use std::fs;
 use std::time::SystemTime;
 
 #[derive(Module, Debug)]
@@ -57,7 +61,10 @@ const MEMORY_SIZE: usize = 512;
 type MyAgent<E, B> = PPO<E, B, Net<B>>;
 
 #[allow(unused)]
-pub fn run<E: Environment + AsMut<TrictracEnvironment>, B: AutodiffBackend>(
+pub fn run<
+    E: Environment + AsMut<TrictracEnvironment>,
+    B: AutodiffBackend<InnerBackend = NdArray>,
+>(
     conf: &Config,
     visualized: bool,
     // ) -> PPO<E, B, Net<B>> {
@@ -126,9 +133,61 @@ pub fn run<E: Environment + AsMut<TrictracEnvironment>, B: AutodiffBackend>(
         memory.clear();
     }
 
-    let valid_agent = agent.valid(model);
     if let Some(path) = &conf.save_path {
-        // save_model(???, path);
+        let device = NdArrayDevice::default();
+        let recorder = CompactRecorder::new();
+        let tmp_path = env::temp_dir().join("tmp_model.mpk");
+
+        // Save the trained model (backend B) to a temporary file
+        recorder
+            .record(model.clone().into_record(), tmp_path.clone())
+            .expect("Failed to save temporary model");
+
+        // Create a new model instance with the target backend (NdArray)
+        let model_to_save: Net<NdArray<ElemType>> = Net::new(
+            <<E as Environment>::StateType as State>::size(),
+            conf.dense_size,
+            <<E as Environment>::ActionType as Action>::size(),
+        );
+
+        // Load the record from the temporary file into the new model
+        let record = recorder
+            .load(tmp_path.clone(), &device)
+            .expect("Failed to load temporary model");
+        let model_with_loaded_weights = model_to_save.load_record(record);
+
+        // Clean up the temporary file
+        fs::remove_file(tmp_path).expect("Failed to remove temporary model file");
+
+        save_model(&model_with_loaded_weights, path);
     }
+    let valid_agent = agent.valid(model);
     valid_agent
 }
+
+pub fn save_model(model: &Net<NdArray<ElemType>>, path: &String) {
+    let recorder = CompactRecorder::new();
+    let model_path = format!("{path}.mpk");
+    println!("info: Modèle de validation sauvegardé : {model_path}");
+    recorder
+        .record(model.clone().into_record(), model_path.into())
+        .unwrap();
+}
+
+pub fn load_model(dense_size: usize, path: &String) -> Option<Net<NdArray<ElemType>>> {
+    let model_path = format!("{path}.mpk");
+    // println!("Chargement du modèle depuis : {model_path}");
+
+    CompactRecorder::new()
+        .load(model_path.into(), &NdArrayDevice::default())
+        .map(|record| {
+            Net::new(
+                <TrictracEnvironment as Environment>::StateType::size(),
+                dense_size,
+                <TrictracEnvironment as Environment>::ActionType::size(),
+            )
+            .load_record(record)
+        })
+        .ok()
+}
+

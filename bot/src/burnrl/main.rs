@@ -29,8 +29,10 @@ fn main() {
         batch_size: 128, // 32 nombre d'expériences passées sur lesquelles pour calcul de l'erreur moy.
         clip_grad: 70.0, // 100 limite max de correction à apporter au gradient (default 100)
 
+        // SAC
         min_probability: 1e-9,
 
+        // DQN
         eps_start: 0.9, // 0.9  epsilon initial value (0.9 => more exploration)
         eps_end: 0.05,  // 0.05
         // eps_decay higher = epsilon decrease slower
@@ -38,6 +40,7 @@ fn main() {
         // epsilon is updated at the start of each episode
         eps_decay: 2000.0, // 1000 ?
 
+        // PPO
         lambda: 0.95,
         epsilon_clip: 0.2,
         critic_weight: 0.5,
@@ -48,7 +51,7 @@ fn main() {
 
     match algo.as_str() {
         "dqn" => {
-            let agent = dqn_model::run::<TrictracEnvironment, Backend>(&conf, false);
+            let _agent = dqn_model::run::<TrictracEnvironment, Backend>(&conf, false);
             println!("> Chargement du modèle pour test");
             let loaded_model = dqn_model::load_model(conf.dense_size, &path);
             let loaded_agent: burn_rl::agent::DQN<TrictracEnvironment, _, _> =
@@ -58,23 +61,30 @@ fn main() {
             demo_model(loaded_agent);
         }
         "dqn_big" => {
-            let agent = dqn_big_model::run::<TrictracEnvironmentBig, Backend>(&conf, false);
+            let _agent = dqn_big_model::run::<TrictracEnvironmentBig, Backend>(&conf, false);
         }
         "dqn_valid" => {
-            let agent = dqn_valid_model::run::<TrictracEnvironmentValid, Backend>(&conf, false);
+            let _agent = dqn_valid_model::run::<TrictracEnvironmentValid, Backend>(&conf, false);
         }
         "sac" => {
-            let agent = sac_model::run::<TrictracEnvironment, Backend>(&conf, false);
-            // println!("> Chargement du modèle pour test");
-            // let loaded_model = sac_model::load_model(conf.dense_size, &path);
-            // let loaded_agent: burn_rl::agent::SAC<TrictracEnvironment, _, _> =
-            //     burn_rl::agent::SAC::new(loaded_model.unwrap());
-            //
-            // println!("> Test avec le modèle chargé");
-            // demo_model(loaded_agent);
+            let _agent = sac_model::run::<TrictracEnvironment, Backend>(&conf, false);
+            println!("> Chargement du modèle pour test");
+            let loaded_model = sac_model::load_model(conf.dense_size, &path);
+            let loaded_agent: burn_rl::agent::SAC<TrictracEnvironment, _, _> =
+                burn_rl::agent::SAC::new(loaded_model.unwrap());
+
+            println!("> Test avec le modèle chargé");
+            demo_model(loaded_agent);
         }
         "ppo" => {
-            let agent = ppo_model::run::<TrictracEnvironment, Backend>(&conf, false);
+            let _agent = ppo_model::run::<TrictracEnvironment, Backend>(&conf, false);
+            println!("> Chargement du modèle pour test");
+            let loaded_model = ppo_model::load_model(conf.dense_size, &path);
+            let loaded_agent: burn_rl::agent::PPO<TrictracEnvironment, _, _> =
+                burn_rl::agent::PPO::new(loaded_model.unwrap());
+
+            println!("> Test avec le modèle chargé");
+            demo_model(loaded_agent);
         }
         &_ => {
             dbg!("unknown algo {algo}");

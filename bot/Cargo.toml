@@ -10,26 +10,6 @@ name = "burn_train"
 path = "src/burnrl/main.rs"
 
 [[bin]]
-name = "train_dqn_burn_valid"
-path = "src/burnrl/dqn_valid/main.rs"
-
-[[bin]]
-name = "train_dqn_burn_big"
-path = "src/burnrl/dqn_big/main.rs"
-
-[[bin]]
-name = "train_dqn_burn"
-path = "src/burnrl/dqn/main.rs"
-
-[[bin]]
-name = "train_sac_burn"
-path = "src/burnrl/sac/main.rs"
-
-[[bin]]
-name = "train_ppo_burn"
-path = "src/burnrl/ppo/main.rs"
-
-[[bin]]
 name = "train_dqn_simple"
 path = "src/dqn_simple/main.rs"
 

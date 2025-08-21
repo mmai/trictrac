@@ -3,8 +3,8 @@
 ROOT="$(cd "$(dirname "$0")" && pwd)/../.."
 LOGS_DIR="$ROOT/bot/models/logs"
 
-CFG_SIZE=18
-ALGO="dqn"
+CFG_SIZE=17
+ALGO="sac"
 BINBOT=burn_train
 # BINBOT=train_ppo_burn
 # BINBOT=train_dqn_burn

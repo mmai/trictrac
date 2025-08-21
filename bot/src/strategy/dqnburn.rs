@@ -8,7 +8,6 @@ use store::MoveRules;
 
 use crate::burnrl::dqn_model;
 use crate::burnrl::environment;
-use crate::burnrl::utils;
 use crate::training_common::{get_valid_action_indices, sample_valid_action, TrictracAction};
 
 type DqnBurnNetwork = dqn_model::Net<NdArray<ElemType>>;

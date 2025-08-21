@@ -96,7 +96,10 @@ const MEMORY_SIZE: usize = 4096;
 type MyAgent<E, B> = SAC<E, B, Actor<B>>;
 
 #[allow(unused)]
-pub fn run<E: Environment + AsMut<TrictracEnvironment>, B: AutodiffBackend>(
+pub fn run<
+    E: Environment + AsMut<TrictracEnvironment>,
+    B: AutodiffBackend<InnerBackend = NdArray>,
+>(
     conf: &Config,
     visualized: bool,
 ) -> impl Agent<E> {
@@ -105,9 +108,9 @@ pub fn run<E: Environment + AsMut<TrictracEnvironment>, B: AutodiffBackend>(
     let state_dim = <<E as Environment>::StateType as State>::size();
     let action_dim = <<E as Environment>::ActionType as Action>::size();
 
-    let mut actor = Actor::<B>::new(state_dim, conf.dense_size, action_dim);
-    let mut critic_1 = Critic::<B>::new(state_dim, conf.dense_size, action_dim);
-    let mut critic_2 = Critic::<B>::new(state_dim, conf.dense_size, action_dim);
+    let actor = Actor::<B>::new(state_dim, conf.dense_size, action_dim);
+    let critic_1 = Critic::<B>::new(state_dim, conf.dense_size, action_dim);
+    let critic_2 = Critic::<B>::new(state_dim, conf.dense_size, action_dim);
     let mut nets = SACNets::<B, Actor<B>, Critic<B>>::new(actor, critic_1, critic_2);
 
     let mut agent = MyAgent::default();
@@ -133,8 +136,6 @@ pub fn run<E: Environment + AsMut<TrictracEnvironment>, B: AutodiffBackend>(
         optimizer_config.clone().init(),
         optimizer_config.init(),
     );
-
-    let mut policy_net = agent.model().clone();
 
     let mut step = 0_usize;
 
@@ -186,33 +187,35 @@ pub fn run<E: Environment + AsMut<TrictracEnvironment>, B: AutodiffBackend>(
 
     let valid_agent = agent.valid(nets.actor);
     if let Some(path) = &conf.save_path {
-        // save_model(???, path);
+        if let Some(model) = valid_agent.model() {
+            save_model(model, path);
+        }
     }
     valid_agent
 }
 
-// pub fn save_model(model: ???, path: &String) {
-//     let recorder = CompactRecorder::new();
-//     let model_path = format!("{path}.mpk");
-//     println!("info: Modèle de validation sauvegardé : {model_path}");
-//     recorder
-//         .record(model.clone().into_record(), model_path.into())
-//         .unwrap();
-// }
-//
-// pub fn load_model(dense_size: usize, path: &String) -> Option<Actor<NdArray<ElemType>>> {
-//     let model_path = format!("{path}.mpk");
-//     // println!("Chargement du modèle depuis : {model_path}");
-//
-//     CompactRecorder::new()
-//         .load(model_path.into(), &NdArrayDevice::default())
-//         .map(|record| {
-//             Actor::new(
-//                 <TrictracEnvironment as Environment>::StateType::size(),
-//                 dense_size,
-//                 <TrictracEnvironment as Environment>::ActionType::size(),
-//             )
-//             .load_record(record)
-//         })
-//         .ok()
-// }
+pub fn save_model(model: &Actor<NdArray<ElemType>>, path: &String) {
+    let recorder = CompactRecorder::new();
+    let model_path = format!("{path}.mpk");
+    println!("info: Modèle de validation sauvegardé : {model_path}");
+    recorder
+        .record(model.clone().into_record(), model_path.into())
+        .unwrap();
+}
+
+pub fn load_model(dense_size: usize, path: &String) -> Option<Actor<NdArray<ElemType>>> {
+    let model_path = format!("{path}.mpk");
+    // println!("Chargement du modèle depuis : {model_path}");
+
+    CompactRecorder::new()
+        .load(model_path.into(), &NdArrayDevice::default())
+        .map(|record| {
+            Actor::new(
+                <TrictracEnvironment as Environment>::StateType::size(),
+                dense_size,
+                <TrictracEnvironment as Environment>::ActionType::size(),
+            )
+            .load_record(record)
+        })
+        .ok()
+}

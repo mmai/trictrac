@@ -155,10 +155,10 @@ impl Environment for TrictracEnvironment {
             self.goodmoves_count as f32 / self.step_count as f32
         };
         self.best_ratio = self.best_ratio.max(self.goodmoves_ratio);
-        let warning = if self.best_ratio > 0.7 && self.goodmoves_ratio < 0.1 {
+        let _warning = if self.best_ratio > 0.7 && self.goodmoves_ratio < 0.1 {
             let path = "bot/models/logs/debug.log";
             if let Ok(mut out) = std::fs::File::create(path) {
-                write!(out, "{:?}", history);
+                write!(out, "{history:?}").expect("could not write history log");
             }
             "!!!!"
         } else {

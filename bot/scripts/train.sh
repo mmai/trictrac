@@ -3,8 +3,9 @@
 ROOT="$(cd "$(dirname "$0")" && pwd)/../.."
 LOGS_DIR="$ROOT/bot/models/logs"
 
-CFG_SIZE=12
-BINBOT=train_sac_burn
+CFG_SIZE=18
+ALGO="dqn"
+BINBOT=burn_train
 # BINBOT=train_ppo_burn
 # BINBOT=train_dqn_burn
 # BINBOT=train_dqn_burn_big
@@ -16,14 +17,14 @@ PLOT_EXT="png"
 train() {
   cargo build --release --bin=$BINBOT
   NAME="$(date +%Y-%m-%d_%H:%M:%S)"
-  LOGS="$LOGS_DIR/$BINBOT/$NAME.out"
-  mkdir -p "$LOGS_DIR/$BINBOT"
-  LD_LIBRARY_PATH="$ROOT/target/release" "$ROOT/target/release/$BINBOT" | tee "$LOGS"
+  LOGS="$LOGS_DIR/$ALGO/$NAME.out"
+  mkdir -p "$LOGS_DIR/$ALGO"
+  LD_LIBRARY_PATH="$ROOT/target/release" "$ROOT/target/release/$BINBOT" $ALGO | tee "$LOGS"
 }
 
 plot() {
-  NAME=$(ls -rt "$LOGS_DIR/$BINBOT" | tail -n 1)
-  LOGS="$LOGS_DIR/$BINBOT/$NAME"
+  NAME=$(ls -rt "$LOGS_DIR/$ALGO" | tail -n 1)
+  LOGS="$LOGS_DIR/$ALGO/$NAME"
   cfgs=$(head -n $CFG_SIZE "$LOGS")
   for cfg in $cfgs; do
     eval "$cfg"
@@ -33,7 +34,7 @@ plot() {
   tail -n +$((CFG_SIZE + 2)) "$LOGS" |
     grep -v "info:" |
     awk -F '[ ,]' '{print $5}' |
-    feedgnuplot --lines --points --unset grid --title "adv = $OPPONENT ; density = $dense_size ; decay = $eps_decay ; max steps = $max_steps" --terminal $PLOT_EXT >"$LOGS_DIR/$BINBOT/$NAME.$PLOT_EXT"
+    feedgnuplot --lines --points --unset grid --title "adv = $OPPONENT ; density = $dense_size ; decay = $eps_decay ; max steps = $max_steps" --terminal $PLOT_EXT >"$LOGS_DIR/$ALGO/$NAME.$PLOT_EXT"
 }
 
 if [ "$1" = "plot" ]; then

@@ -1,19 +1,20 @@
-use bot::burnrl::sac_model as burn_model;
-// use bot::burnrl::dqn_big_model as burn_model;
-// use bot::burnrl::dqn_model as burn_model;
-// use bot::burnrl::environment_big::TrictracEnvironment;
 use bot::burnrl::environment::TrictracEnvironment;
+use bot::burnrl::environment_big::TrictracEnvironment as TrictracEnvironmentBig;
+use bot::burnrl::environment_valid::TrictracEnvironment as TrictracEnvironmentValid;
 use bot::burnrl::utils::{demo_model, Config};
+use bot::burnrl::{dqn_big_model, dqn_model, dqn_valid_model, ppo_model, sac_model};
 use burn::backend::{Autodiff, NdArray};
-use burn_rl::agent::SAC as MyAgent;
-// use burn_rl::agent::DQN as MyAgent;
 use burn_rl::base::ElemType;
+use std::env;
 
 type Backend = Autodiff<NdArray<ElemType>>;
-type Env = TrictracEnvironment;
 
 fn main() {
-    let path = "bot/models/burnrl_dqn".to_string();
+    let args: Vec<String> = env::args().collect();
+    let algo = &args[1];
+    // let dir_path = &args[2];
+
+    let path = format!("bot/models/burnrl_{algo}");
     let conf = Config {
         save_path: Some(path.clone()),
         num_episodes: 30, // 40
@@ -45,14 +46,38 @@ fn main() {
     };
     println!("{conf}----------");
 
-    let agent = burn_model::run::<Env, Backend>(&conf, false); //true);
+    match algo.as_str() {
+        "dqn" => {
+            let agent = dqn_model::run::<TrictracEnvironment, Backend>(&conf, false);
+            println!("> Chargement du modèle pour test");
+            let loaded_model = dqn_model::load_model(conf.dense_size, &path);
+            let loaded_agent: burn_rl::agent::DQN<TrictracEnvironment, _, _> =
+                burn_rl::agent::DQN::new(loaded_model.unwrap());
 
-    // println!("> Chargement du modèle pour test");
-    // let loaded_model = burn_model::load_model(conf.dense_size, &path);
-    // let loaded_agent: MyAgent<Env, _, _> = MyAgent::new(loaded_model.unwrap());
-    //
-    // println!("> Test avec le modèle chargé");
-    // demo_model(loaded_agent);
-
-    // demo_model::<Env>(agent);
+            println!("> Test avec le modèle chargé");
+            demo_model(loaded_agent);
+        }
+        "dqn_big" => {
+            let agent = dqn_big_model::run::<TrictracEnvironmentBig, Backend>(&conf, false);
+        }
+        "dqn_valid" => {
+            let agent = dqn_valid_model::run::<TrictracEnvironmentValid, Backend>(&conf, false);
+        }
+        "sac" => {
+            let agent = sac_model::run::<TrictracEnvironment, Backend>(&conf, false);
+            // println!("> Chargement du modèle pour test");
+            // let loaded_model = sac_model::load_model(conf.dense_size, &path);
+            // let loaded_agent: burn_rl::agent::SAC<TrictracEnvironment, _, _> =
+            //     burn_rl::agent::SAC::new(loaded_model.unwrap());
+            //
+            // println!("> Test avec le modèle chargé");
+            // demo_model(loaded_agent);
+        }
+        "ppo" => {
+            let agent = ppo_model::run::<TrictracEnvironment, Backend>(&conf, false);
+        }
+        &_ => {
+            dbg!("unknown algo {algo}");
+        }
+    }
 }

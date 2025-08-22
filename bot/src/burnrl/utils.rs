@@ -3,28 +3,39 @@ use burn::nn::Linear;
 use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
 use burn_rl::base::{Agent, ElemType, Environment};
+use serde::{Deserialize, Serialize};
 
+#[derive(Serialize, Deserialize)]
 pub struct Config {
     pub save_path: Option<String>,
-    pub max_steps: usize,
+    pub max_steps: usize, // max steps by episode
     pub num_episodes: usize,
-    pub dense_size: usize,
+    pub dense_size: usize, // neural network complexity
 
+    // discount factor. Plus élevé = encourage stratégies à long terme
     pub gamma: f32,
+    // soft update rate. Taux de mise à jour du réseau cible. Plus bas = adaptation plus lente moins sensible aux coups de chance
     pub tau: f32,
+    // taille du pas. Bas : plus lent, haut : risque de ne jamais
     pub learning_rate: f32,
+    // nombre d'expériences passées sur lesquelles pour calcul de l'erreur moy.
     pub batch_size: usize,
+    // limite max de correction à apporter au gradient (default 100)
     pub clip_grad: f32,
 
-    // for SAC
+    // ---- for SAC
     pub min_probability: f32,
 
-    // for DQN
+    // ---- for DQN
+    // epsilon initial value (0.9 => more exploration)
     pub eps_start: f64,
     pub eps_end: f64,
+    // eps_decay higher = epsilon decrease slower
+    // used in : epsilon = eps_end + (eps_start - eps_end) * e^(-step / eps_decay);
+    // epsilon is updated at the start of each episode
     pub eps_decay: f64,
 
-    // for PPO
+    // ---- for PPO
     pub lambda: f32,
     pub epsilon_clip: f32,
     pub critic_weight: f32,

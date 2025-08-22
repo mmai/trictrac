@@ -23,3 +23,4 @@ env_logger = "0.10"
 burn = { version = "0.17", features = ["ndarray", "autodiff"] }
 burn-rl = { git = "https://github.com/yunjhongwu/burn-rl-examples.git", package = "burn-rl" }
 log = "0.4.20"
+confy = "1.0.0"

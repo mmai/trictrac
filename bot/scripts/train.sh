@@ -24,14 +24,13 @@ train() {
 
 plot() {
   ALGO=$1
-  NAME=$(ls -rt "$LOGS_DIR/$ALGO" | tail -n 1)
+  NAME=$(ls -rt "$LOGS_DIR/$ALGO" | grep -v png | tail -n 1)
   LOGS="$LOGS_DIR/$ALGO/$NAME"
-  cfgs=$(head -n $CFG_SIZE "$LOGS")
+  cfgs=$(grep -v "info:" "$LOGS" | head -n $CFG_SIZE)
   for cfg in $cfgs; do
     eval "$cfg"
   done
 
-  # tail -n +$((CFG_SIZE + 2)) "$LOGS"
   tail -n +$((CFG_SIZE + 2)) "$LOGS" |
     grep -v "info:" |
     awk -F '[ ,]' '{print $5}' |

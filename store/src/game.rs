@@ -60,7 +60,7 @@ impl From<TurnStage> for u8 {
 }
 
 /// Represents a TricTrac game
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GameState {
     pub stage: Stage,
     pub turn_stage: TurnStage,
@@ -121,6 +121,15 @@ impl GameState {
         let mut gs = GameState::default();
         gs.set_schools_enabled(schools_enabled);
         gs
+    }
+
+    pub fn new_with_players(p1_name: &str, p2_name: &str) -> Self {
+        let mut game = Self::default();
+        if let Some(p1) = game.init_player(p1_name) {
+            game.init_player(p2_name);
+            game.consume(&GameEvent::BeginGame { goes_first: p1 });
+        }
+        game
     }
 
     fn set_schools_enabled(&mut self, schools_enabled: bool) {
@@ -707,14 +716,14 @@ impl GameState {
 }
 
 /// The reasons why a game could end
-#[derive(Debug, Clone, Copy, Serialize, PartialEq, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq, Deserialize)]
 pub enum EndGameReason {
     PlayerLeft { player_id: PlayerId },
     PlayerWon { winner: PlayerId },
 }
 
 /// An event that progresses the GameState forward
-#[derive(Debug, Clone, Serialize, PartialEq, Deserialize)]
+#[derive(Debug, Clone, Serialize, PartialEq, Eq, Deserialize)]
 pub enum GameEvent {
     BeginGame {
         goes_first: PlayerId,

@@ -3,6 +3,7 @@ pub mod dqn_simple;
 pub mod strategy;
 pub mod training_common;
 pub mod training_common_big;
+pub mod trictrac_board;
 
 use log::debug;
 use store::{CheckerMove, Color, GameEvent, GameState, PlayerId, PointsRules, Stage, TurnStage};

@@ -281,79 +281,8 @@ impl TrictracEnvironment {
         let mut reward = 0.0;
         let mut is_rollpoint = false;
 
-        let event = match action {
-            TrictracAction::Roll => {
-                // Lancer les dés
-                Some(GameEvent::Roll {
-                    player_id: self.active_player_id,
-                })
-            }
-            // TrictracAction::Mark => {
-            //     // Marquer des points
-            //     let points = self.game.
-            //     Some(GameEvent::Mark {
-            //         player_id: self.active_player_id,
-            //         points,
-            //     })
-            // }
-            TrictracAction::Go => {
-                // Continuer après avoir gagné un trou
-                Some(GameEvent::Go {
-                    player_id: self.active_player_id,
-                })
-            }
-            TrictracAction::Move {
-                dice_order,
-                checker1,
-                checker2,
-            } => {
-                // Effectuer un mouvement
-                let (dice1, dice2) = if dice_order {
-                    (self.game.dice.values.0, self.game.dice.values.1)
-                } else {
-                    (self.game.dice.values.1, self.game.dice.values.0)
-                };
-
-                let color = &store::Color::White;
-                let from1 = self
-                    .game
-                    .board
-                    .get_checker_field(color, checker1 as u8)
-                    .unwrap_or(0);
-                let mut to1 = from1 + dice1 as usize;
-                let checker_move1 = store::CheckerMove::new(from1, to1).unwrap_or_default();
-
-                let mut tmp_board = self.game.board.clone();
-                let move_result = tmp_board.move_checker(color, checker_move1);
-                if move_result.is_err() {
-                    None
-                    // panic!("Error while moving checker {move_result:?}")
-                } else {
-                    let from2 = tmp_board
-                        .get_checker_field(color, checker2 as u8)
-                        .unwrap_or(0);
-                    let mut to2 = from2 + dice2 as usize;
-
-                    // Gestion prise de coin par puissance
-                    let opp_rest_field = 13;
-                    if to1 == opp_rest_field && to2 == opp_rest_field {
-                        to1 -= 1;
-                        to2 -= 1;
-                    }
-
-                    let checker_move1 = store::CheckerMove::new(from1, to1).unwrap_or_default();
-                    let checker_move2 = store::CheckerMove::new(from2, to2).unwrap_or_default();
-
-                    Some(GameEvent::Move {
-                        player_id: self.active_player_id,
-                        moves: (checker_move1, checker_move2),
-                    })
-                }
-            }
-        };
-
         // Appliquer l'événement si valide
-        if let Some(event) = event {
+        if let Some(event) = action.to_event(&self.game) {
             if self.game.validate(&event) {
                 self.game.consume(&event);
                 reward += REWARD_VALID_MOVE;

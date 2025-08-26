@@ -1,10 +1,11 @@
 use std::cmp::{max, min};
+use std::fmt::{Debug, Display, Formatter};
 
 use serde::{Deserialize, Serialize};
-use store::CheckerMove;
+use store::{CheckerMove, GameEvent, GameState};
 
 /// Types d'actions possibles dans le jeu
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, Serialize, Deserialize, PartialEq)]
 pub enum TrictracAction {
     /// Lancer les dés
     Roll,
@@ -18,6 +19,14 @@ pub enum TrictracAction {
     },
     // Marquer les points : à activer si support des écoles
     // Mark,
+}
+
+impl Display for TrictracAction {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let s = format!("{self:?}");
+        writeln!(f, "{}", s.chars().rev().collect::<String>())?;
+        Ok(())
+    }
 }
 
 impl TrictracAction {
@@ -41,6 +50,78 @@ impl TrictracAction {
                 }
                 start + checker1 * 16 + checker2
             } // TrictracAction::Mark => 514,
+        }
+    }
+
+    pub fn to_event(&self, state: &GameState) -> Option<GameEvent> {
+        match self {
+            TrictracAction::Roll => {
+                // Lancer les dés
+                Some(GameEvent::Roll {
+                    player_id: state.active_player_id,
+                })
+            }
+            // TrictracAction::Mark => {
+            //     // Marquer des points
+            //     let points = self.game.
+            //     Some(GameEvent::Mark {
+            //         player_id: self.active_player_id,
+            //         points,
+            //     })
+            // }
+            TrictracAction::Go => {
+                // Continuer après avoir gagné un trou
+                Some(GameEvent::Go {
+                    player_id: state.active_player_id,
+                })
+            }
+            TrictracAction::Move {
+                dice_order,
+                checker1,
+                checker2,
+            } => {
+                // Effectuer un mouvement
+                let (dice1, dice2) = if *dice_order {
+                    (state.dice.values.0, state.dice.values.1)
+                } else {
+                    (state.dice.values.1, state.dice.values.0)
+                };
+
+                let color = &store::Color::White;
+                let from1 = state
+                    .board
+                    .get_checker_field(color, *checker1 as u8)
+                    .unwrap_or(0);
+                let mut to1 = from1 + dice1 as usize;
+                let checker_move1 = store::CheckerMove::new(from1, to1).unwrap_or_default();
+
+                let mut tmp_board = state.board.clone();
+                let move_result = tmp_board.move_checker(color, checker_move1);
+                if move_result.is_err() {
+                    None
+                    // panic!("Error while moving checker {move_result:?}")
+                } else {
+                    let from2 = tmp_board
+                        .get_checker_field(color, *checker2 as u8)
+                        .unwrap_or(0);
+                    let mut to2 = from2 + dice2 as usize;
+
+                    // Gestion prise de coin par puissance
+                    let opp_rest_field = 13;
+                    if to1 == opp_rest_field && to2 == opp_rest_field {
+                        to1 -= 1;
+                        to2 -= 1;
+                    }
+
+                    let checker_move1 = store::CheckerMove::new(from1, to1).unwrap_or_default();
+                    let checker_move2 = store::CheckerMove::new(from2, to2).unwrap_or_default();
+
+                    Some(GameEvent::Move {
+                        player_id: state.active_player_id,
+                        moves: (checker_move1, checker_move2),
+                    })
+                }
+            }
         }
     }
 

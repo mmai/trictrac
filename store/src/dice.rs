@@ -44,7 +44,7 @@ impl DiceRoller {
 /// Represents the two dice
 ///
 /// Trictrac is always played with two dice.
-#[derive(Debug, Clone, Copy, Serialize, PartialEq, Deserialize, Default)]
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq, Deserialize, Default)]
 pub struct Dice {
     /// The two dice values
     pub values: (u8, u8),

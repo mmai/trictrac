@@ -24,3 +24,5 @@ burn = { version = "0.17", features = ["ndarray", "autodiff"] }
 burn-rl = { git = "https://github.com/yunjhongwu/burn-rl-examples.git", package = "burn-rl" }
 log = "0.4.20"
 confy = "1.0.0"
+board-game = "0.8.2"
+internal-iterator = "0.2.3"

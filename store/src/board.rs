@@ -8,7 +8,7 @@ use std::fmt;
 pub type Field = usize;
 pub type FieldWithCount = (Field, i8);
 
-#[derive(Debug, Copy, Clone, Serialize, PartialEq, Deserialize)]
+#[derive(Debug, Copy, Clone, Serialize, PartialEq, Eq, Deserialize)]
 pub struct CheckerMove {
     from: Field,
     to: Field,
@@ -94,7 +94,7 @@ impl CheckerMove {
 }
 
 /// Represents the Tric Trac board
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Board {
     positions: [i8; 24],
 }

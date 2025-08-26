@@ -4,7 +4,7 @@ use std::fmt;
 // This just makes it easier to dissern between a player id and any ol' u64
 pub type PlayerId = u64;
 
-#[derive(Copy, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Copy, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Color {
     White,
     Black,
@@ -20,7 +20,7 @@ impl Color {
 }
 
 /// Struct for storing player related data.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Player {
     pub name: String,
     pub color: Color,

@@ -5,9 +5,16 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[lib]
+name = "store"
+# Only "rlib" is needed for other Rust crates to use this library
+crate-type = ["rlib"]
+
 [dependencies]
 base64 = "0.21.7"
+# provides macros for creating log messages to be used by a logger (for example env_logger)
 log = "0.4.20"
+merge = "0.1.0"
 rand = "0.8.5"
-serde =  { version = "1.0", features = ["derive"] }
+serde = { version = "1.0", features = ["derive"] }
 transpose = "0.2.2"

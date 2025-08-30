@@ -1,40 +1,66 @@
-use crate::Error;
 use rand::distributions::{Distribution, Uniform};
+use rand::{rngs::StdRng, SeedableRng};
 use serde::{Deserialize, Serialize};
 
-/// Represents the two dices
+#[derive(Debug)]
+pub struct DiceRoller {
+    rng: StdRng,
+}
+
+impl Default for DiceRoller {
+    fn default() -> Self {
+        Self::new(None)
+    }
+}
+
+impl DiceRoller {
+    pub fn new(opt_seed: Option<u64>) -> Self {
+        Self {
+            rng: match opt_seed {
+                None => StdRng::from_rng(rand::thread_rng()).unwrap(),
+                Some(seed) => SeedableRng::seed_from_u64(seed),
+            },
+        }
+    }
+
+    /// Roll the dices which generates two random numbers between 1 and 6, replicating a perfect
+    /// dice. We use the operating system's random number generator.
+    pub fn roll(&mut self) -> Dice {
+        let between = Uniform::new_inclusive(1, 6);
+
+        let v = (between.sample(&mut self.rng), between.sample(&mut self.rng));
+
+        Dice { values: (v.0, v.1) }
+    }
+
+    // Heads or tails
+    // pub fn coin(self) -> bool {
+    //     let between = Uniform::new_inclusive(1, 2);
+    //     let mut rng = rand::thread_rng();
+    //     between.sample(&mut rng) == 1
+    // }
+}
+
+/// Represents the two dice
 ///
-/// Trictrac is always played with two dices.
-#[derive(Debug, Clone, Copy, Serialize, PartialEq, Deserialize, Default)]
-pub struct Dices {
+/// Trictrac is always played with two dice.
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq, Deserialize, Default)]
+pub struct Dice {
     /// The two dice values
     pub values: (u8, u8),
 }
-impl Dices {
-    /// Roll the dices which generates two random numbers between 1 and 6, replicating a perfect
-    /// dice. We use the operating system's random number generator.
-    pub fn roll(self) -> Self {
-        let between = Uniform::new_inclusive(1, 6);
-        let mut rng = rand::thread_rng();
 
-        let v = (between.sample(&mut rng), between.sample(&mut rng));
-
-        Dices { values: (v.0, v.1) }
-    }
-
-    /// Heads or tails
-    pub fn coin(self) -> bool {
-        let between = Uniform::new_inclusive(1, 2);
-        let mut rng = rand::thread_rng();
-        between.sample(&mut rng) == 1
-    }
-
+impl Dice {
     pub fn to_bits_string(self) -> String {
         format!("{:0>3b}{:0>3b}", self.values.0, self.values.1)
     }
 
     pub fn to_display_string(self) -> String {
         format!("{} & {}", self.values.0, self.values.1)
+    }
+
+    pub fn is_double(&self) -> bool {
+        self.values.0 == self.values.1
     }
 
     // pub fn to_bits(self) -> [bool;6] {
@@ -49,26 +75,32 @@ impl Dices {
     // }
 }
 
-/// Trait to roll the dices
-pub trait Roll {
-    /// Roll the dices
-    fn roll(&mut self) -> &mut Self;
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn test_roll() {
-        let dices = Dices::default().roll();
-        assert!(dices.values.0 >= 1 && dices.values.0 <= 6);
-        assert!(dices.values.1 >= 1 && dices.values.1 <= 6);
+        let dice = DiceRoller::default().roll();
+        assert!(dice.values.0 >= 1 && dice.values.0 <= 6);
+        assert!(dice.values.1 >= 1 && dice.values.1 <= 6);
+    }
+
+    #[test]
+    fn test_seed() {
+        let seed = Some(123);
+        let dice1 = DiceRoller::new(seed).roll();
+        let dice2 = DiceRoller::new(seed).roll();
+        let dice3 = DiceRoller::new(seed).roll();
+        assert!(dice1.values.0 == dice2.values.0);
+        assert!(dice1.values.0 == dice3.values.0);
+        assert!(dice1.values.1 == dice2.values.1);
+        assert!(dice1.values.1 == dice3.values.1);
     }
 
     #[test]
     fn test_to_bits_string() {
-        let dices = Dices { values: (4, 2) };
-        assert!(dices.to_bits_string() == "100010");
+        let dice = Dice { values: (4, 2) };
+        assert!(dice.to_bits_string() == "100010");
     }
 }

@@ -1,4 +1,4 @@
-use crate::player::{Color, Player};
+use crate::player::Color;
 use crate::Error;
 use serde::{Deserialize, Serialize};
 use std::cmp;
@@ -6,12 +6,15 @@ use std::fmt;
 
 /// field (aka 'point') position on the board (from 0 to 24, 0 being 'outside')
 pub type Field = usize;
+pub type FieldWithCount = (Field, i8);
 
-#[derive(Debug, Copy, Clone, Serialize, PartialEq, Deserialize)]
+#[derive(Debug, Copy, Clone, Serialize, PartialEq, Eq, Deserialize)]
 pub struct CheckerMove {
     from: Field,
     to: Field,
 }
+
+pub const EMPTY_MOVE: CheckerMove = CheckerMove { from: 0, to: 0 };
 
 fn transpose(matrix: Vec<Vec<String>>) -> Vec<Vec<String>> {
     let num_cols = matrix.first().unwrap().len();
@@ -26,18 +29,39 @@ fn transpose(matrix: Vec<Vec<String>>) -> Vec<Vec<String>> {
     out
 }
 
+impl Default for CheckerMove {
+    fn default() -> Self {
+        EMPTY_MOVE
+    }
+}
+
 impl CheckerMove {
+    pub fn to_display_string(self) -> String {
+        format!("{self:?} ")
+    }
+
     pub fn new(from: Field, to: Field) -> Result<Self, Error> {
+        // println!("from {} to {}", from, to);
         // check if the field is on the board
         // we allow 0 for 'to', which represents the exit of a checker
-        if from < 1 || 24 < from || 24 < to {
+        // and (0, 0) which represent the absence of a move (when there is only one checker left on the
+        // board)
+        if ((from, to) != (0, 0)) && (!(1..25).contains(&from) || 24 < to) {
             return Err(Error::FieldInvalid);
         }
         // check that the destination is after the origin field
-        if to < from && to != 0 {
-            return Err(Error::MoveInvalid);
-        }
+        // --> not applicable for black moves
+        // if to < from && to != 0 {
+        //     return Err(Error::MoveInvalid);
+        // }
         Ok(Self { from, to })
+    }
+
+    /// Get the mirrord CheckerMove (ie change colors)
+    pub fn mirror(&self) -> Self {
+        let from = if self.from == 0 { 0 } else { 25 - self.from };
+        let to = if self.to == 0 { 0 } else { 25 - self.to };
+        Self { from, to }
     }
 
     // Construct the move resulting of two successive moves
@@ -58,10 +82,19 @@ impl CheckerMove {
     pub fn get_to(&self) -> Field {
         self.to
     }
+
+    pub fn is_exit(&self) -> bool {
+        self.to == 0 && self != &EMPTY_MOVE
+    }
+
+    pub fn doable_with_dice(&self, dice: usize) -> bool {
+        (self.to == 0 && 25 - self.from <= dice)
+            || (self.from < self.to && self.to - self.from == dice)
+    }
 }
 
 /// Represents the Tric Trac board
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Board {
     positions: [i8; 24],
 }
@@ -81,7 +114,7 @@ impl fmt::Display for Board {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut s = String::new();
         s.push_str(&format!("{:?}", self.positions));
-        write!(f, "{}", s)
+        write!(f, "{s}")
     }
 }
 
@@ -91,12 +124,86 @@ impl Board {
         Board::default()
     }
 
+    /// Get the mirrord board (ie change colors)
+    pub fn mirror(&self) -> Self {
+        let mut positions = self.positions.map(|c| 0 - c);
+        positions.reverse();
+        Board { positions }
+    }
+
+    /// Globally set pieces on board ( for tests )
+    pub fn set_positions(&mut self, color: &Color, positions: [i8; 24]) {
+        let mut new_positions = positions;
+        if color == &Color::Black {
+            new_positions = new_positions.map(|c| 0 - c);
+            new_positions.reverse();
+        }
+        self.positions = new_positions;
+    }
+
+    pub fn count_checkers(&self, color: Color, from: Field, to: Field) -> u8 {
+        if to == 0 || from == 0 {
+            return 0;
+        }
+        self.positions[(from - 1)..to]
+            .iter()
+            .filter(|count| {
+                if color == Color::White {
+                    **count > 0
+                } else {
+                    **count < 0
+                }
+            })
+            .sum::<i8>()
+            .unsigned_abs()
+    }
+
+    // get the number of the last checker in a field
+    pub fn get_field_checker(&self, color: &Color, field: Field) -> u8 {
+        assert_eq!(color, &Color::White); // sinon ajouter la gestion des noirs avec mirror
+        let mut total_count: u8 = 0;
+        for (i, checker_count) in self.positions.iter().enumerate() {
+            // count white checkers (checker_count > 0)
+            if *checker_count > 0 {
+                total_count += *checker_count as u8;
+                if field == i + 1 {
+                    return total_count;
+                }
+            }
+        }
+        0
+    }
+
+    // get the field of the nth checker
+    pub fn get_checker_field(&self, color: &Color, checker_pos: u8) -> Option<Field> {
+        assert_eq!(color, &Color::White); // sinon ajouter la gestion des noirs avec mirror
+        if checker_pos == 0 {
+            return None;
+        }
+        let mut total_count: u8 = 0;
+        for (i, checker_count) in self.positions.iter().enumerate() {
+            // count white checkers (checker_count > 0)
+            if *checker_count > 0 {
+                total_count += *checker_count as u8;
+            }
+            // return the current field if it contains the checker
+            if checker_pos <= total_count {
+                return Some(i + 1);
+            }
+        }
+        None
+    }
+
+    pub fn to_vec(&self) -> Vec<i8> {
+        self.positions.to_vec()
+    }
+
     // maybe todo : operate on bits (cf. https://github.com/bungogood/bkgm/blob/a2fb3f395243bcb0bc9f146df73413f73f5ea1e0/src/position.rs#L217)
     pub fn to_gnupg_pos_id(&self) -> String {
         // Pieces placement -> 77bits (24 + 23 + 30 max)
         // inspired by https://www.gnu.org/software/gnubg/manual/html_node/A-technical-description-of-the-Position-ID.html
         // - white positions
-        let white_board = self.positions.clone();
+        let white_board = self.positions;
         let mut pos_bits = white_board.iter().fold(vec![], |acc, nb| {
             let mut new_acc = acc.clone();
             if *nb > 0 {
@@ -108,7 +215,7 @@ impl Board {
         });
 
         // - black positions
-        let mut black_board = self.positions.clone();
+        let mut black_board = self.positions;
         black_board.reverse();
         let mut pos_black_bits = black_board.iter().fold(vec![], |acc, nb| {
             let mut new_acc = acc.clone();
@@ -164,7 +271,7 @@ impl Board {
             .map(|cells| {
                 cells
                     .into_iter()
-                    .map(|cell| format!("{:>5}", cell))
+                    .map(|cell| format!("{cell:>5}"))
                     .collect::<Vec<String>>()
                     .join("")
             })
@@ -175,29 +282,28 @@ impl Board {
             .map(|cells| {
                 cells
                     .into_iter()
-                    .map(|cell| format!("{:>5}", cell))
+                    .map(|cell| format!("{cell:>5}"))
                     .collect::<Vec<String>>()
                     .join("")
             })
             .collect();
 
         let mut output = "
-    13   14   15   16   17   18       19   20   21   22   23   24  
+     13   14   15   16   17   18      19   20   21   22   23   24  
   ----------------------------------------------------------------\n"
             .to_owned();
         for mut line in upper {
             // add middle bar
-            line.replace_range(30..30, "| |");
+            line.replace_range(31..31, "| |");
             output = output + " |" + &line + " |\n";
         }
-        output = output + " |----------------------------- | | ------------------------------|\n";
+        output += " |------------------------------ | | -----------------------------|\n";
         for mut line in lower {
             // add middle bar
-            line.replace_range(30..30, "| |");
+            line.replace_range(31..31, "| |");
             output = output + " |" + &line + " |\n";
         }
-        output = output
-            + "  ----------------------------------------------------------------
+        output += "  ----------------------------------------------------------------
     12   11   10    9    8    7        6    5    4    3    2    1   \n";
         output
     }
@@ -249,6 +355,13 @@ impl Board {
 
     /// Check if a field is blocked for a player
     pub fn blocked(&self, color: &Color, field: Field) -> Result<bool, Error> {
+        // the square is blocked on the opponent rest corner
+        // let opp_corner_field = if color == &Color::White { 13 } else { 12 };
+        self.passage_blocked(color, field)
+        // .map(|blocked| blocked || opp_corner_field == field)
+    }
+
+    pub fn passage_blocked(&self, color: &Color, field: Field) -> Result<bool, Error> {
         if 24 < field {
             return Err(Error::FieldInvalid);
         }
@@ -258,42 +371,55 @@ impl Board {
             return Ok(false);
         }
 
-        // the square is blocked on the opponent rest corner or if there are opponent's men on the square
-        match color {
-            Color::White => {
-                if field == 13 || self.positions[field - 1] < 0 {
-                    Ok(true)
-                } else {
-                    Ok(false)
-                }
-            }
-            Color::Black => {
-                if field == 12 || self.positions[23 - field] > 1 {
-                    Ok(true)
-                } else {
-                    Ok(false)
-                }
-            }
-        }
+        // the square is blocked if there are opponent's men on the square
+        let blocked = if color == &Color::White {
+            self.positions[field - 1] < 0
+        } else {
+            self.positions[field - 1] > 0
+        };
+        Ok(blocked)
     }
 
     pub fn get_field_checkers(&self, field: Field) -> Result<(u8, Option<&Color>), Error> {
-        if field < 1 || field > 24 {
+        if !(1..25).contains(&field) {
             return Err(Error::FieldInvalid);
         }
         let checkers_count = self.positions[field - 1];
-        let color = if checkers_count < 0 {
-            Some(&Color::Black)
-        } else if checkers_count > 0 {
-            Some(&Color::White)
-        } else {
-            None
+        let color = match checkers_count.cmp(&0) {
+            cmp::Ordering::Less => Some(&Color::Black),
+            cmp::Ordering::Greater => Some(&Color::White),
+            cmp::Ordering::Equal => None,
         };
-        Ok((checkers_count.abs() as u8, color))
+        Ok((checkers_count.unsigned_abs(), color))
     }
 
     pub fn get_checkers_color(&self, field: Field) -> Result<Option<&Color>, Error> {
-        self.get_field_checkers(field).map(|(count, color)| color)
+        self.get_field_checkers(field).map(|(_ount, color)| color)
+    }
+
+    pub fn is_field_in_small_jan(field: Field) -> bool {
+        !(7..=18).contains(&field)
+    }
+
+    /// returns the list of Fields containing Checkers of the Color
+    pub fn get_color_fields(&self, color: Color) -> Vec<(usize, i8)> {
+        match color {
+            Color::White => self
+                .positions
+                .iter()
+                .enumerate()
+                .filter(|&(_, count)| *count > 0)
+                .map(|(i, count)| (i + 1, *count))
+                .collect(),
+            Color::Black => self
+                .positions
+                .iter()
+                .enumerate()
+                .filter(|&(_, count)| *count < 0)
+                .rev()
+                .map(|(i, count)| (i + 1, (0 - count)))
+                .collect(),
+        }
     }
 
     // Get the corner field for the color
@@ -305,11 +431,166 @@ impl Board {
         }
     }
 
+    pub fn get_possible_moves(
+        &self,
+        color: Color,
+        dice: u8,
+        with_excedants: bool,
+        check_rest_corner_exit: bool,
+        forbid_exits: bool,
+    ) -> Vec<CheckerMove> {
+        let mut moves = Vec::new();
+
+        let get_dest = |from| {
+            if color == Color::White {
+                if from + dice as i32 == 25 {
+                    0
+                } else {
+                    from + dice as i32
+                }
+            } else {
+                from - dice as i32
+            }
+        };
+
+        for (field, count) in self.get_color_fields(color) {
+            // check rest corner exit
+            if field == self.get_color_corner(&color) && count == 2 && check_rest_corner_exit {
+                continue;
+            }
+            let mut dest = get_dest(field as i32);
+            if dest == 0 && forbid_exits {
+                continue;
+            }
+            if !(0..25).contains(&dest) {
+                if with_excedants && !forbid_exits {
+                    dest = 0;
+                } else {
+                    continue;
+                }
+            }
+            if let Ok(cmove) = CheckerMove::new(field, dest.unsigned_abs() as usize) {
+                if let Ok(false) = self.blocked(&color, dest.unsigned_abs() as usize) {
+                    moves.push(cmove);
+                }
+            }
+        }
+        moves
+    }
+
+    pub fn passage_possible(&self, color: &Color, cmove: &CheckerMove) -> bool {
+        !self.passage_blocked(color, cmove.to).unwrap_or(true)
+    }
+
     pub fn move_possible(&self, color: &Color, cmove: &CheckerMove) -> bool {
         let blocked = self.blocked(color, cmove.to).unwrap_or(true);
         // Check if there is a player's checker on the 'from' square
         let has_checker = self.get_checkers_color(cmove.from).unwrap_or(None) == Some(color);
-        has_checker && !blocked
+        (has_checker && !blocked) || cmove == &EMPTY_MOVE
+    }
+
+    /// Return if there is a quarter filled by the color
+    pub fn any_quarter_filled(&self, color: Color) -> bool {
+        [1, 7, 13, 19]
+            .iter()
+            .any(|field| self.is_quarter_filled(color, *field))
+    }
+
+    /// Return if the quarter containing `field` is filled by the `color`
+    pub fn is_quarter_filled(&self, color: Color, field: Field) -> bool {
+        let fields = self.get_quarter_fields(field);
+        !fields.iter().any(|field| {
+            if color == Color::White {
+                self.positions[field - 1] < 2
+            } else {
+                self.positions[field - 1] > -2
+            }
+        })
+    }
+
+    pub fn get_quarter_filling_candidate(&self, color: Color) -> Vec<Field> {
+        let mut missing = vec![];
+        // first quarter
+        for quarter in [1..7, 7..13, 13..19, 19..25] {
+            missing = vec![];
+            for field in quarter {
+                let field_count = if color == Color::Black {
+                    0 - self.positions[field - 1]
+                } else {
+                    self.positions[field - 1]
+                };
+                if field_count < 0 {
+                    // opponent checker found : this quarter cannot be filled
+                    missing = vec![];
+                    continue;
+                }
+                if field_count == 0 {
+                    missing.push(field);
+                    missing.push(field);
+                } else if field_count == 1 {
+                    missing.push(field);
+                }
+            }
+            if missing.len() < 3 {
+                // fillable quarter found (no more than two missing checkers)
+                if let Some(field) = missing.first() {
+                    // We check that there are sufficient checkers left to fill the quarter
+                    if !self.is_quarter_fillable(color, *field) {
+                        missing = vec![];
+                    }
+                }
+                // there will be no other fillable quarter
+                break;
+            }
+        }
+        missing
+    }
+
+    /// Returns whether the `color` player can still fill the quarter containing the `field`
+    /// * `color` - color of the player
+    /// * `field` - field belonging to the quarter
+    pub fn is_quarter_fillable(&self, color: Color, field: Field) -> bool {
+        let fields = self.get_quarter_fields(field);
+
+        // opponent rest corner
+        if color == Color::White && fields.contains(&13)
+            || color == Color::Black && fields.contains(&12)
+        {
+            return false;
+        }
+
+        // is there a sufficient number of checkers on or before each fields ?
+        for field in fields {
+            // Number of checkers needed before this field (included) :
+            // 2 checkers by field, from the begining of the quarter
+            let mut field_pos = field % 6;
+            if field_pos == 0 {
+                field_pos = 6;
+            }
+            if color == Color::Black {
+                field_pos = 7 - field_pos;
+            }
+            let needed = 2 * field_pos;
+
+            let (from, to) = if color == Color::White {
+                (1, field)
+            } else {
+                (field, 24)
+            };
+            if self.count_checkers(color, from, to) < needed as u8 {
+                return false;
+            }
+        }
+        true
+    }
+
+    /// Returns the 6 fields of the quarter containing the `field`
+    fn get_quarter_fields(&self, field: Field) -> [Field; 6] {
+        if field == 0 {
+            return [0; 6];
+        }
+        let min = 1 + ((field - 1) / 6) * 6;
+        core::array::from_fn(|i| i + min)
     }
 
     pub fn move_checker(&mut self, color: &Color, cmove: CheckerMove) -> Result<(), Error> {
@@ -319,36 +600,45 @@ impl Board {
     }
 
     pub fn remove_checker(&mut self, color: &Color, field: Field) -> Result<(), Error> {
+        if field == 0 {
+            return Ok(());
+        }
         let checker_color = self.get_checkers_color(field)?;
         if Some(color) != checker_color {
+            println!("field invalid : {color:?}, {field:?}, {self:?}");
             return Err(Error::FieldInvalid);
         }
-        self.positions[field - 1] -= 1;
+        let unit = match color {
+            Color::White => 1,
+            Color::Black => -1,
+        };
+        self.positions[field - 1] -= unit;
         Ok(())
     }
 
     pub fn add_checker(&mut self, color: &Color, field: Field) -> Result<(), Error> {
-        let checker_color = self.get_checkers_color(field)?;
-        // error if the case contains the other color
-        if None != checker_color && Some(color) != checker_color {
-            return Err(Error::FieldInvalid);
+        // Sortie
+        if field == 0 {
+            return Ok(());
         }
-        self.positions[field - 1] += 1;
+
+        // let checker_color = self.get_checkers_color(field)?;
+        let (count, checker_color) = self.get_field_checkers(field)?;
+        // error if the case contains the other color
+        if checker_color.is_some() && Some(color) != checker_color {
+            return if count > 1 {
+                Err(Error::FieldBlocked)
+            } else {
+                Err(Error::FieldBlockedByOne)
+            };
+        }
+        let unit = match color {
+            Color::White => 1,
+            Color::Black => -1,
+        };
+        self.positions[field - 1] += unit;
         Ok(())
     }
-}
-
-/// Trait to move checkers
-pub trait Move {
-    /// Move a checker
-    fn move_checker(&mut self, player: &Player, dice: u8, from: Field) -> Result<&mut Self, Error>
-    where
-        Self: Sized;
-
-    /// Move permitted
-    fn move_permitted(&mut self, player: &Player, dice: u8) -> Result<&mut Self, Error>
-    where
-        Self: Sized;
 }
 
 // Unit Tests
@@ -364,7 +654,7 @@ mod tests {
     #[test]
     fn blocked_outofrange() -> Result<(), Error> {
         let board = Board::new();
-        assert!(!board.blocked(&Color::White, 0).is_err());
+        assert!(board.blocked(&Color::White, 0).is_ok());
         assert!(board.blocked(&Color::White, 28).is_err());
         Ok(())
     }
@@ -404,7 +694,95 @@ mod tests {
     #[test]
     fn set_wrong_amount1() {
         let mut board = Board::new();
-        let player = Player::new("".into(), Color::White);
         assert!(board.set(&Color::White, 23, -3).is_err());
+    }
+
+    #[test]
+    fn move_possible() {
+        let board = Board::new();
+        assert!(board.move_possible(&Color::White, &EMPTY_MOVE));
+    }
+
+    #[test]
+    fn get_color_fields() {
+        let board = Board::new();
+        assert_eq!(board.get_color_fields(Color::White), vec![(1, 15)]);
+        assert_eq!(board.get_color_fields(Color::Black), vec![(24, 15)]);
+    }
+
+    #[test]
+    fn is_quarter_fillable() {
+        let mut board = Board::new();
+        board.set_positions(
+            &Color::White,
+            [
+                15, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -15,
+            ],
+        );
+        assert!(board.is_quarter_fillable(Color::Black, 1));
+        assert!(!board.is_quarter_fillable(Color::Black, 12));
+        assert!(board.is_quarter_fillable(Color::Black, 13));
+        assert!(board.is_quarter_fillable(Color::Black, 24));
+        assert!(board.is_quarter_fillable(Color::White, 1));
+        assert!(board.is_quarter_fillable(Color::White, 12));
+        assert!(!board.is_quarter_fillable(Color::White, 13));
+        assert!(board.is_quarter_fillable(Color::White, 24));
+        board.set_positions(
+            &Color::White,
+            [
+                5, 0, 0, 0, 0, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -8, 0, 0, 0, 0, 0, -5,
+            ],
+        );
+        assert!(board.is_quarter_fillable(Color::Black, 13));
+        assert!(!board.is_quarter_fillable(Color::Black, 24));
+        assert!(!board.is_quarter_fillable(Color::White, 1));
+        assert!(board.is_quarter_fillable(Color::White, 12));
+        board.set_positions(
+            &Color::White,
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, -12, 0, 0, 0, 0, 1, 0,
+            ],
+        );
+        assert!(board.is_quarter_fillable(Color::Black, 16));
+    }
+
+    #[test]
+    fn get_quarter_filling_candidate() {
+        let mut board = Board::new();
+        board.set_positions(
+            &Color::White,
+            [
+                3, 1, 2, 2, 3, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+        );
+        assert_eq!(vec![2], board.get_quarter_filling_candidate(Color::White));
+    }
+
+    #[test]
+    fn get_checker_field() {
+        let mut board = Board::new();
+        board.set_positions(
+            &Color::White,
+            [
+                3, 1, 2, 2, 3, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+        );
+        assert_eq!(None, board.get_checker_field(&Color::White, 0));
+        assert_eq!(Some(3), board.get_checker_field(&Color::White, 5));
+        assert_eq!(Some(3), board.get_checker_field(&Color::White, 6));
+        assert_eq!(None, board.get_checker_field(&Color::White, 14));
+    }
+
+    #[test]
+    fn get_field_checker() {
+        let mut board = Board::new();
+        board.set_positions(
+            &Color::White,
+            [
+                3, 1, 2, 2, 3, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+        );
+        assert_eq!(4, board.get_field_checker(&Color::White, 2));
+        assert_eq!(6, board.get_field_checker(&Color::White, 3));
     }
 }

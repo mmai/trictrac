@@ -14,6 +14,8 @@ pub enum Error {
     PlayerInvalid,
     /// Field blocked
     FieldBlocked,
+    /// Field blocked
+    FieldBlockedByOne,
     /// Invalid field
     FieldInvalid,
     /// Not your turn
@@ -40,6 +42,7 @@ impl fmt::Display for Error {
             Error::PlayerInvalid => write!(f, "Invalid player"),
             Error::DoublingNotPermitted => write!(f, "Doubling not permitted"),
             Error::FieldBlocked => write!(f, "Field blocked"),
+            Error::FieldBlockedByOne => write!(f, "Field blocked by one opponent"),
             Error::FieldInvalid => write!(f, "Invalid field"),
             Error::NotYourTurn => write!(f, "Not your turn"),
             Error::MoveInvalid => write!(f, "Invalid move"),

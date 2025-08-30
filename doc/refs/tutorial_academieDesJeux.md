@@ -37,7 +37,7 @@ Si on peut remplir le coin de l'adversaire avec deux dames (ce qui est interdit)
 
 Si on a le choix entre remplir son coin directement ou par puissance, on doit obligatoirement le faire directement.
 
-Tant que l'adversaire à la possibilité de remplir un cadran, on ne peut pas jouer dans ce cadran.
+Tant que l'adversaire à la possibilité de remplir un des deux cadrans de son côté (son jeu "ordinaire", par opposition au jeu "de retour"), on ne peut pas jouer dans ce cadran.
 
 Quand on joue dans ses propres deux cadrans, on dit qu'on joue le jeu ordinaire
 Quand on joue dans les deux cadrans de l'adversaire, on dit qu'on joue le jeu de retour
@@ -64,6 +64,7 @@ Si on doit passer par une case occupée par deux dames adverses ou plus pour att
 
 Remarques 
 - on peut "passer" sur une dame adverse (donc battue) pour battre une seconde dame adverse (avec la somme des deux dés).
+- comme pour les déplacements, il est possible de passer par le coin de repos vide de l'adversaire pour battre à vrai une dame en "tout d'une" (c'est s'arrêter sur le coin de repos qui est interdit)
 - même s'il ne reste que deux dames dans son coin de repos (et qu'en théorie elle ne peuvent en sortir qu'en même temps), elles peuvent tout de même battre une dame adverse (à vrai et à faux). En revanche elles ne peuvent pas participer au battage du coin adverse (cf. prochain paragraphe).
 
 Autre jan de récompense :

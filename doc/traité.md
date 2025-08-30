@@ -1,3 +1,5 @@
+# traité
+
 En 12 chapitres (trous) de 12 sous-chapitres (points / niveaux de compréhension) ?
 
 Célébration -> s'inspirer du _petit traité invitant à la découverte de l'art subtil du go_
@@ -30,3 +32,9 @@ L'encyclopédie
   - le dictionnaire du trictrac
 - fabriquer un boîtier/plateau de jeu 
 - jouer en ligne
+
+## rêveries
+
+Trictrac : un domaine grand et complexe, un univers dans lequel on peut s'absorber. Un jeu geek parfait. Qui a la noblesse d'avoir été populaire, qui a la noblesse de règles nécessitant apprentissage et presque companionage. 
+Pourquoi s'investir dans  ce genre d'activité ? Toucher un absolu. Sauver de la mort une pépite du passé. Entrer dans le monde des morts comme Orphée ou Ulysse ?
+Et maîtriser un vocabulaire, des gestes, des règles affinées au fil des siècles.

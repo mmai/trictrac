@@ -1,10 +1,10 @@
 //! # Play a TricTrac Game
-use crate::board::{Board, CheckerMove, Field, Move};
-use crate::dice::{Dices, Roll};
+use crate::board::{Board, CheckerMove};
+use crate::dice::Dice;
+use crate::game_rules_moves::MoveRules;
+use crate::game_rules_points::{PointsRules, PossibleJans};
 use crate::player::{Color, Player, PlayerId};
-use crate::Error;
-use log::{error, info};
-use std::cmp;
+use log::{debug, error};
 
 // use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -25,12 +25,42 @@ pub enum Stage {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TurnStage {
     RollDice,
+    RollWaiting,
     MarkPoints,
+    HoldOrGoChoice,
     Move,
+    MarkAdvPoints,
+}
+
+impl From<u8> for TurnStage {
+    fn from(item: u8) -> Self {
+        match item {
+            0 => TurnStage::RollWaiting,
+            1 => TurnStage::RollDice,
+            2 => TurnStage::MarkPoints,
+            3 => TurnStage::HoldOrGoChoice,
+            4 => TurnStage::Move,
+            5 => TurnStage::MarkAdvPoints,
+            _ => TurnStage::RollWaiting,
+        }
+    }
+}
+
+impl From<TurnStage> for u8 {
+    fn from(stage: TurnStage) -> u8 {
+        match stage {
+            TurnStage::RollWaiting => 0,
+            TurnStage::RollDice => 1,
+            TurnStage::MarkPoints => 2,
+            TurnStage::HoldOrGoChoice => 3,
+            TurnStage::Move => 4,
+            TurnStage::MarkAdvPoints => 5,
+        }
+    }
 }
 
 /// Represents a TricTrac game
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GameState {
     pub stage: Stage,
     pub turn_stage: TurnStage,
@@ -39,19 +69,30 @@ pub struct GameState {
     pub players: HashMap<PlayerId, Player>,
     pub history: Vec<GameEvent>,
     /// last dice pair rolled
-    pub dices: Dices,
+    pub dice: Dice,
+    /// players points computed for the last dice pair rolled
+    pub dice_points: (u8, u8),
+    pub dice_moves: (CheckerMove, CheckerMove),
+    pub dice_jans: PossibleJans,
     /// true if player needs to roll first
     roll_first: bool,
+    // NOTE: add to a Setting struct if other fields needed
+    pub schools_enabled: bool,
 }
 
 // implement Display trait
 impl fmt::Display for GameState {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut s = String::new();
-        s.push_str(&format!("Dices: {:?}\n", self.dices));
+        s.push_str(&format!(
+            "Stage: {:?} / {:?}\n",
+            self.stage, self.turn_stage
+        ));
+        s.push_str(&format!("Dice: {:?}\n", self.dice));
         // s.push_str(&format!("Who plays: {}\n", self.who_plays().map(|player| &player.name ).unwrap_or("")));
         s.push_str(&format!("Board: {:?}\n", self.board));
-        write!(f, "{}", s)
+        // s.push_str(&format!("History: {:?}\n", self.history));
+        write!(f, "{s}")
     }
 }
 
@@ -64,21 +105,112 @@ impl Default for GameState {
             active_player_id: 0,
             players: HashMap::new(),
             history: Vec::new(),
-            dices: Dices::default(),
+            dice: Dice::default(),
+            dice_points: (0, 0),
+            dice_moves: (CheckerMove::default(), CheckerMove::default()),
+            dice_jans: PossibleJans::default(),
             roll_first: true,
+            schools_enabled: false,
         }
     }
 }
 
 impl GameState {
     /// Create a new default game
-    pub fn new() -> Self {
-        GameState::default()
+    pub fn new(schools_enabled: bool) -> Self {
+        let mut gs = GameState::default();
+        gs.set_schools_enabled(schools_enabled);
+        gs
+    }
+
+    pub fn new_with_players(p1_name: &str, p2_name: &str) -> Self {
+        let mut game = Self::default();
+        if let Some(p1) = game.init_player(p1_name) {
+            game.init_player(p2_name);
+            game.consume(&GameEvent::BeginGame { goes_first: p1 });
+        }
+        game
+    }
+
+    fn set_schools_enabled(&mut self, schools_enabled: bool) {
+        self.schools_enabled = schools_enabled;
+    }
+
+    fn get_active_player(&self) -> Option<&Player> {
+        self.players.get(&self.active_player_id)
+    }
+
+    fn get_opponent_id(&self) -> Option<PlayerId> {
+        self.players
+            .keys()
+            .copied()
+            .filter(|k| k != &self.active_player_id)
+            .collect::<Vec<PlayerId>>()
+            .first()
+            .copied()
     }
 
     // -------------------------------------------------------------------------
     //                        accessors
     // -------------------------------------------------------------------------
+
+    pub fn to_vec_float(&self) -> Vec<f32> {
+        self.to_vec().iter().map(|&x| x as f32).collect()
+    }
+
+    /// Get state as a vector (to be used for bot training input) :
+    /// length = 36
+    /// i8 for board positions with negative values for blacks
+    pub fn to_vec(&self) -> Vec<i8> {
+        let state_len = 36;
+        let mut state = Vec::with_capacity(state_len);
+
+        // length = 24
+        state.extend(self.board.to_vec());
+
+        // active player -> length = 1
+        // white : 0 (false)
+        // black : 1 (true)
+        state.push(
+            self.who_plays()
+                .map(|player| if player.color == Color::Black { 1 } else { 0 })
+                .unwrap_or(0), // White by default
+        );
+
+        // step  -> length = 1
+        let turn_stage: u8 = self.turn_stage.into();
+        state.push(turn_stage as i8);
+
+        // dice roll -> length = 2
+        state.push(self.dice.values.0 as i8);
+        state.push(self.dice.values.1 as i8);
+
+        // points, trous, bredouille, grande bredouille length=4 x2 joueurs = 8
+        let white_player: Vec<i8> = self
+            .get_white_player()
+            .unwrap()
+            .to_vec()
+            .iter()
+            .map(|&x| x as i8)
+            .collect();
+        state.extend(white_player);
+        let black_player: Vec<i8> = self
+            .get_black_player()
+            .unwrap()
+            .to_vec()
+            .iter()
+            .map(|&x| x as i8)
+            .collect();
+        // .iter().map(|&x| x as i8) .collect()
+        state.extend(black_player);
+
+        // ensure state has length state_len
+        state.truncate(state_len);
+        while state.len() < state_len {
+            state.push(0);
+        }
+        state
+    }
 
     /// Calculate game state id :
     pub fn to_string_id(&self) -> String {
@@ -100,16 +232,19 @@ impl GameState {
                 .unwrap_or('0'), // White by default
         );
 
-        // step  -> 2 bits
+        // step  -> 3 bits
         let step_bits = match self.turn_stage {
-            TurnStage::RollDice => "01",
-            TurnStage::MarkPoints => "01",
-            TurnStage::Move => "10",
+            TurnStage::RollWaiting => "000",
+            TurnStage::RollDice => "001",
+            TurnStage::MarkPoints => "010",
+            TurnStage::HoldOrGoChoice => "011",
+            TurnStage::Move => "100",
+            TurnStage::MarkAdvPoints => "101",
         };
         pos_bits.push_str(step_bits);
 
         // dice roll -> 6 bits
-        let dice_bits = self.dices.to_bits_string();
+        let dice_bits = self.dice.to_bits_string();
         pos_bits.push_str(&dice_bits);
 
         // points 10bits x2 joueurs = 20bits
@@ -118,7 +253,7 @@ impl GameState {
         pos_bits.push_str(&white_bits);
         pos_bits.push_str(&black_bits);
 
-        pos_bits = format!("{:0>108}", pos_bits);
+        pos_bits = format!("{pos_bits:0>108}");
         // println!("{}", pos_bits);
         let pos_u8 = pos_bits
             .as_bytes()
@@ -130,7 +265,7 @@ impl GameState {
     }
 
     pub fn who_plays(&self) -> Option<&Player> {
-        self.players.get(&self.active_player_id)
+        self.get_active_player()
     }
 
     pub fn get_white_player(&self) -> Option<&Player> {
@@ -165,6 +300,14 @@ impl GameState {
             .next()
     }
 
+    pub fn player_color_by_id(&self, player_id: &PlayerId) -> Option<Color> {
+        self.players
+            .iter()
+            .filter(|(id, _)| *id == player_id)
+            .map(|(_, player)| player.color)
+            .next()
+    }
+
     // ----------------------------------------------------------------------------------
     //                          Rules checks
     // ----------------------------------------------------------------------------------
@@ -184,15 +327,14 @@ impl GameState {
                     return false;
                 }
             }
-            EndGame { reason } => match reason {
-                EndGameReason::PlayerWon { winner: _ } => {
+            EndGame { reason } => {
+                if let EndGameReason::PlayerWon { winner: _ } = reason {
                     // Check that the game has started before someone wins it
                     if self.stage != Stage::InGame {
                         return false;
                     }
                 }
-                _ => {}
-            },
+            }
             PlayerJoined { player_id, name: _ } => {
                 // Check that there isn't another player with the same id
                 if self.players.contains_key(player_id) {
@@ -214,8 +356,13 @@ impl GameState {
                 if self.active_player_id != *player_id {
                     return false;
                 }
+                // Check the turn stage
+                if self.turn_stage != TurnStage::RollDice {
+                    error!("bad stage {:?}", self.turn_stage);
+                    return false;
+                }
             }
-            Mark { player_id, points } => {
+            RollResult { player_id, dice: _ } => {
                 // Check player exists
                 if !self.players.contains_key(player_id) {
                     return false;
@@ -224,11 +371,39 @@ impl GameState {
                 if self.active_player_id != *player_id {
                     return false;
                 }
+                // Check the turn stage
+                if self.turn_stage != TurnStage::RollWaiting {
+                    error!("bad stage {:?}", self.turn_stage);
+                    return false;
+                }
             }
-            Move { player_id, moves } => {
+            Mark {
+                player_id,
+                points: _,
+            } => {
                 // Check player exists
                 if !self.players.contains_key(player_id) {
-                    error!("Player {} unknown", player_id);
+                    return false;
+                }
+                // Check player is currently the one making their move
+                if self.active_player_id != *player_id {
+                    return false;
+                }
+
+                // Check points are correct
+                // let (board, moves) = if *color == Color::Black {
+                //     (board.mirror(), (moves.0.mirror(), moves.1.mirror()))
+                // } else {
+                //     (board.clone(), *moves)
+                // };
+                // let rules_points: u8 = self.get_points().iter().map(|r| r.0).sum();
+                // if rules_points != *points {
+                //     return false;
+                // }
+            }
+            Go { player_id } => {
+                if !self.players.contains_key(player_id) {
+                    error!("Player {player_id} unknown");
                     return false;
                 }
                 // Check player is currently the one making their move
@@ -236,97 +411,55 @@ impl GameState {
                     error!("Player not active : {}", self.active_player_id);
                     return false;
                 }
+                // Check the player can leave (ie the game is in the KeepOrLeaveChoice stage)
+                if self.turn_stage != TurnStage::HoldOrGoChoice {
+                    error!("bad stage {:?}", self.turn_stage);
+                    error!(
+                        "black player points : {:?}",
+                        self.get_black_player()
+                            .map(|player| (player.points, player.holes))
+                    );
+                    // error!("history {:?}", self.history);
+                    return false;
+                }
+            }
+            Move { player_id, moves } => {
+                // Check player exists
+                if !self.players.contains_key(player_id) {
+                    error!("Player {player_id} unknown");
+                    return false;
+                }
+                // Check player is currently the one making their move
+                if self.active_player_id != *player_id {
+                    error!("Player not active : {}", self.active_player_id);
+                    return false;
+                }
+                // Check the turn stage
+                if self.turn_stage != TurnStage::Move
+                    && self.turn_stage != TurnStage::HoldOrGoChoice
+                {
+                    error!("bad stage {:?}", self.turn_stage);
+                    return false;
+                }
                 let color = &self.players[player_id].color;
 
-                // Check moves possibles on the board
-                if !self.moves_possible(color, moves) {
+                let rules = MoveRules::new(color, &self.board, self.dice);
+                let moves = if *color == Color::Black {
+                    (moves.0.mirror(), moves.1.mirror())
+                } else {
+                    *moves
+                };
+                if !rules.moves_follow_rules(&moves) {
+                    error!("rules not followed ");
                     return false;
                 }
-
-                // Check moves conforms to the dices
-                if !self.moves_follows_dices(color, moves) {
-                    return false;
-                }
-
-                // Check move is allowed by the rules (to desactivate when playing with schools)
-                if !self.moves_allowed(color, moves) {
-                    return false;
-                }
+            }
+            PlayError => {
+                return true;
             }
         }
 
         // We couldn't find anything wrong with the event so it must be good
-        true
-    }
-
-    fn moves_possible(&self, color: &Color, moves: &(CheckerMove, CheckerMove)) -> bool {
-        // Check move is physically possible
-        if !self.board.move_possible(color, &moves.0) {
-            return false;
-        }
-
-        // Chained_move : "Tout d'une"
-        let chained_move = moves.0.chain(moves.1);
-        if chained_move.is_ok() {
-            if !self.board.move_possible(color, &chained_move.unwrap()) {
-                return false;
-            }
-        } else if !self.board.move_possible(color, &moves.1) {
-            return false;
-        }
-        true
-    }
-
-    fn moves_follows_dices(&self, color: &Color, moves: &(CheckerMove, CheckerMove)) -> bool {
-        let (dice1, dice2) = self.dices.values;
-        let (move1, move2): &(CheckerMove, CheckerMove) = moves.into();
-        let dist1 = (move1.get_to() - move1.get_from()) as u8;
-        let dist2 = (move2.get_to() - move2.get_from()) as u8;
-        print!("{}, {}, {}, {}", dist1, dist2, dice1, dice2);
-        // basic : same number
-        if cmp::min(dist1, dist2) != cmp::min(dice1, dice2)
-            || cmp::max(dist1, dist2) != cmp::max(dice1, dice2)
-        {
-            return false;
-        }
-        // prise de coin par puissance
-        // sorties
-        // no rule was broken
-        true
-    }
-
-    fn moves_allowed(&self, color: &Color, moves: &(CheckerMove, CheckerMove)) -> bool {
-        // ------- corner rules ----------
-        let corner_field: Field = self.board.get_color_corner(color);
-        let (corner_count, _color) = self.board.get_field_checkers(corner_field).unwrap();
-        let (from0, to0, from1, to1) = (
-            moves.0.get_from(),
-            moves.0.get_to(),
-            moves.1.get_from(),
-            moves.1.get_to(),
-        );
-        // 2 checkers must go at the same time on an empty corner
-        if (to0 == corner_field || to1 == corner_field) && (to0 != to1) && corner_count == 0 {
-            return false;
-        }
-
-        // the lat 2 checkers of a corner must leave at the same time
-        if (from0 == corner_field || from1 == corner_field) && (from0 != from1) && corner_count == 2
-        {
-            return false;
-        }
-
-        // ------- exit rules ----------
-        // -- toutes les dames doivent être dans le jan de retour
-        // -- si on peut sortir, on doit sortir
-        // -- priorité :
-        //  - dame se trouvant sur la flêche correspondant au dé
-        //  - dame se trouvant plus loin de la sortie que la flêche (point défaillant)
-        //  - dame se trouvant plus près que la flêche (point exédant)
-
-        // --- cadran rempli si possible ----
-        // --- interdit de jouer dans cadran que l'adversaire peut encore remplir ----
-        // no rule was broken
         true
     }
 
@@ -341,7 +474,6 @@ impl GameState {
         }
 
         let player_id = self.players.len() + 1;
-        println!("player_id {}", player_id);
         let color = if player_id == 1 {
             Color::White
         } else {
@@ -352,6 +484,7 @@ impl GameState {
         Some(player_id as PlayerId)
     }
 
+    #[cfg(test)]
     fn add_player(&mut self, player_id: PlayerId, player: Player) {
         self.players.insert(player_id, player);
     }
@@ -372,12 +505,24 @@ impl GameState {
         match valid_event {
             BeginGame { goes_first } => {
                 self.active_player_id = *goes_first;
+                // if self.who_plays().is_none() {
+                //     let active_color = match self.dice.coin() {
+                //         false => Color::Black,
+                //         true => Color::White,
+                //     };
+                //     let color_player_id = self.player_id_by_color(active_color);
+                //     if color_player_id.is_some() {
+                //         self.active_player_id = *color_player_id.unwrap();
+                //     }
+                // }
                 self.stage = Stage::InGame;
                 self.turn_stage = TurnStage::RollDice;
             }
-            EndGame { reason: _ } => self.stage = Stage::Ended,
+            EndGame { reason: _ } => {
+                self.stage = Stage::Ended;
+            }
             PlayerJoined { player_id, name } => {
-                let color = if self.players.len() > 0 {
+                let color = if !self.players.is_empty() {
                     Color::White
                 } else {
                     Color::Black
@@ -391,6 +536,7 @@ impl GameState {
                         points: 0,
                         can_bredouille: true,
                         can_big_bredouille: true,
+                        dice_roll_count: 0,
                     },
                 );
             }
@@ -398,52 +544,186 @@ impl GameState {
                 self.players.remove(player_id);
             }
             Roll { player_id: _ } => {
-                self.roll();
-                self.turn_stage = TurnStage::MarkPoints;
+                self.turn_stage = TurnStage::RollWaiting;
             }
-            Mark { player_id, points } => {
-                self.mark_points(*player_id, *points);
-                if self.stage != Stage::Ended {
-                    self.turn_stage = TurnStage::Move;
+            RollResult { player_id: _, dice } => {
+                self.dice = *dice;
+                self.inc_roll_count(self.active_player_id);
+                self.turn_stage = TurnStage::MarkPoints;
+                (self.dice_jans, self.dice_points) = self.get_rollresult_jans(dice);
+                debug!("points from result : {:?}", self.dice_points);
+                if !self.schools_enabled {
+                    // Schools are not enabled. We mark points automatically
+                    // the points earned by the opponent will be marked on its turn
+                    let new_hole = self.mark_points(self.active_player_id, self.dice_points.0);
+                    if new_hole {
+                        let holes_count = self.get_active_player().unwrap().holes;
+                        debug!("new hole  -> {holes_count:?}");
+                        if holes_count > 12 {
+                            self.stage = Stage::Ended;
+                        } else {
+                            self.turn_stage = TurnStage::HoldOrGoChoice;
+                        }
+                    } else {
+                        self.turn_stage = TurnStage::Move;
+                    }
                 }
             }
+            Mark { player_id, points } => {
+                if self.schools_enabled {
+                    let new_hole = self.mark_points(*player_id, *points);
+                    if new_hole {
+                        if self.get_active_player().unwrap().holes > 12 {
+                            self.stage = Stage::Ended;
+                        } else {
+                            self.turn_stage = if self.turn_stage == TurnStage::MarkAdvPoints {
+                                TurnStage::RollDice
+                            } else {
+                                TurnStage::HoldOrGoChoice
+                            };
+                        }
+                    } else {
+                        self.turn_stage = if self.turn_stage == TurnStage::MarkAdvPoints {
+                            TurnStage::RollDice
+                        } else {
+                            TurnStage::Move
+                        };
+                    }
+                }
+            }
+            Go { player_id: _ } => self.new_pick_up(),
             Move { player_id, moves } => {
                 let player = self.players.get(player_id).unwrap();
                 self.board.move_checker(&player.color, moves.0).unwrap();
                 self.board.move_checker(&player.color, moves.1).unwrap();
-                self.active_player_id = self
-                    .players
-                    .keys()
-                    .find(|id| *id != player_id)
-                    .unwrap()
-                    .clone();
+                self.dice_moves = *moves;
+                self.active_player_id = *self.players.keys().find(|id| *id != player_id).unwrap();
+                self.turn_stage = if self.schools_enabled {
+                    TurnStage::MarkAdvPoints
+                } else {
+                    // The player has moved, we can mark its opponent's points (which is now the current player)
+                    let new_hole = self.mark_points(self.active_player_id, self.dice_points.1);
+                    if new_hole && self.get_active_player().unwrap().holes > 12 {
+                        self.stage = Stage::Ended;
+                    }
+                    TurnStage::RollDice
+                };
             }
+            PlayError => {}
         }
-
         self.history.push(valid_event.clone());
+    }
+
+    /// Set a new pick up ('relevé') after a player won a hole and choose to 'go',
+    /// or after a player has bore off (took of his men off the board)
+    fn new_pick_up(&mut self) {
+        self.players.iter_mut().for_each(|(_id, p)| {
+            // reset points
+            p.points = 0;
+            // reset dice_roll_count
+            p.dice_roll_count = 0;
+            // reset bredouille
+            p.can_bredouille = true;
+            // XXX : switch colors
+            // désactivé pour le moment car la vérification des mouvements échoue, cf. https://code.rhumbs.fr/henri/trictrac/issues/31
+            // p.color = p.color.opponent_color();
+        });
+        // joueur actif = joueur ayant sorti ses dames ou est parti (donc deux jeux successifs)
+        self.turn_stage = TurnStage::RollDice;
+        // reset board
+        self.board = Board::new();
+    }
+
+    fn get_rollresult_jans(&self, dice: &Dice) -> (PossibleJans, (u8, u8)) {
+        let player = &self.players.get(&self.active_player_id).unwrap();
+        debug!(
+            "get rollresult for {:?} {:?} {:?} (roll count {:?})",
+            player.color, self.board, dice, player.dice_roll_count
+        );
+        let points_rules = PointsRules::new(&player.color, &self.board, *dice);
+        points_rules.get_result_jans(player.dice_roll_count)
     }
 
     /// Determines if someone has won the game
     pub fn determine_winner(&self) -> Option<PlayerId> {
-        None
+        // A player has won if he has got 12 holes
+        self.players
+            .iter()
+            .filter(|(_, p)| p.holes > 11)
+            .map(|(id, _)| *id)
+            .next()
     }
 
-    fn mark_points(&mut self, player_id: PlayerId, points: u8) {
-        todo!()
+    fn inc_roll_count(&mut self, player_id: PlayerId) {
+        self.players.get_mut(&player_id).map(|p| {
+            p.dice_roll_count = p.dice_roll_count.saturating_add(1);
+            p
+        });
+    }
+
+    fn mark_points(&mut self, player_id: PlayerId, points: u8) -> bool {
+        // Update player points and holes
+        let mut new_hole = false;
+        self.players.get_mut(&player_id).map(|p| {
+            let sum_points = p.points + points;
+            let jeux = sum_points / 12;
+            let holes = match (jeux, p.can_bredouille) {
+                (0, _) => 0,
+                (_, false) => 2 * jeux - 1,
+                (_, true) => 2 * jeux,
+            };
+
+            new_hole = holes > 0;
+            if new_hole {
+                p.can_bredouille = true;
+            }
+            p.points = sum_points % 12;
+            p.holes += holes;
+
+            // if points > 0 && p.holes > 15 {
+            if points > 0 {
+                debug!(
+                    "player {player_id:?}  holes : {:?} (+{holes:?}) points : {:?} (+{points:?} - {jeux:?})",
+                    p.holes, p.points
+                )
+            }
+            p
+        });
+
+        // Opponent updates
+        let maybe_op = if player_id == self.active_player_id {
+            self.get_opponent_id()
+        } else {
+            Some(player_id)
+        };
+        if let Some(opp_id) = maybe_op {
+            if points > 0 {
+                self.players.get_mut(&opp_id).map(|opponent| {
+                    // Cancel opponent bredouille
+                    opponent.can_bredouille = false;
+                    // Reset opponent points if the player finished a hole
+                    if new_hole {
+                        opponent.points = 0;
+                        opponent.can_bredouille = true;
+                    }
+                    opponent
+                });
+            }
+        }
+
+        new_hole
     }
 }
 
 /// The reasons why a game could end
-#[derive(Debug, Clone, Copy, Serialize, PartialEq, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq, Deserialize)]
 pub enum EndGameReason {
-    // In tic tac toe it doesn't make sense to keep playing when one of the players disconnect.
-    // Note that it might make sense to keep playing in some other game (like Team Fight Tactics for instance).
     PlayerLeft { player_id: PlayerId },
     PlayerWon { winner: PlayerId },
 }
 
 /// An event that progresses the GameState forward
-#[derive(Debug, Clone, Serialize, PartialEq, Deserialize)]
+#[derive(Debug, Clone, Serialize, PartialEq, Eq, Deserialize)]
 pub enum GameEvent {
     BeginGame {
         goes_first: PlayerId,
@@ -461,80 +741,94 @@ pub enum GameEvent {
     Roll {
         player_id: PlayerId,
     },
+    RollResult {
+        player_id: PlayerId,
+        dice: Dice,
+    },
     Mark {
         player_id: PlayerId,
         points: u8,
+    },
+    Go {
+        player_id: PlayerId,
     },
     Move {
         player_id: PlayerId,
         moves: (CheckerMove, CheckerMove),
     },
+    PlayError,
 }
 
-impl Roll for GameState {
-    fn roll(&mut self) -> &mut Self {
-        self.dices = self.dices.roll();
-        if self.who_plays().is_none() {
-            let active_color = match self.dices.coin() {
-                false => Color::Black,
-                true => Color::White,
-            };
-            let color_player_id = self.player_id_by_color(active_color);
-            if color_player_id.is_some() {
-                self.active_player_id = *color_player_id.unwrap();
+impl GameEvent {
+    pub fn player_id(&self) -> Option<PlayerId> {
+        match self {
+            Self::PlayerJoined { player_id, name: _ } => Some(*player_id),
+            Self::PlayerDisconnected { player_id } => Some(*player_id),
+            Self::Roll { player_id } => Some(*player_id),
+            Self::RollResult { player_id, dice: _ } => Some(*player_id),
+            Self::Mark {
+                player_id,
+                points: _,
+            } => Some(*player_id),
+            Self::Go { player_id } => Some(*player_id),
+            Self::Move {
+                player_id,
+                moves: _,
+            } => Some(*player_id),
+            _ => None,
+        }
+    }
+
+    pub fn get_mirror(&self) -> Self {
+        // let mut mirror = self.clone();
+        let mirror_player_id = if let Some(player_id) = self.player_id() {
+            if player_id == 1 {
+                2
+            } else {
+                1
             }
-        }
-        self
-    }
-}
-
-impl Move for GameState {
-    fn move_checker(&mut self, player: &Player, dice: u8, from: usize) -> Result<&mut Self, Error> {
-        // check if move is permitted
-        let _ = self.move_permitted(player, dice)?;
-
-        // remove checker from old position
-        self.board.set(&player.color, from, -1)?;
-
-        // move checker to new position, in case it is reaching the off position, set it off
-        let new_position = from as i8 - dice as i8;
-        if new_position < 0 {
-            // self.board.set_off(player, 1)?;
         } else {
-            // self.board.set(player, new_position as usize, 1)?;
+            0
+        };
+
+        match self {
+            Self::PlayerJoined { player_id: _, name } => Self::PlayerJoined {
+                player_id: mirror_player_id,
+                name: name.clone(),
+            },
+            Self::PlayerDisconnected { player_id: _ } => GameEvent::PlayerDisconnected {
+                player_id: mirror_player_id,
+            },
+            Self::Roll { player_id: _ } => GameEvent::Roll {
+                player_id: mirror_player_id,
+            },
+            Self::RollResult { player_id: _, dice } => GameEvent::RollResult {
+                player_id: mirror_player_id,
+                dice: *dice,
+            },
+            Self::Mark {
+                player_id: _,
+                points,
+            } => GameEvent::Mark {
+                player_id: mirror_player_id,
+                points: *points,
+            },
+            Self::Go { player_id: _ } => GameEvent::Go {
+                player_id: mirror_player_id,
+            },
+            Self::Move {
+                player_id: _,
+                moves: (move1, move2),
+            } => Self::Move {
+                player_id: mirror_player_id,
+                moves: (move1.mirror(), move2.mirror()),
+            },
+            Self::BeginGame { goes_first } => GameEvent::BeginGame {
+                goes_first: (if *goes_first == 1 { 2 } else { 1 }),
+            },
+            Self::EndGame { reason } => GameEvent::EndGame { reason: *reason },
+            Self::PlayError => GameEvent::PlayError,
         }
-
-        // switch to other player if all dices have been consumed
-        self.switch_active_player();
-        self.roll_first = true;
-
-        Ok(self)
-    }
-
-    /// Implements checks to validate if the player is allowed to move
-    fn move_permitted(&mut self, player: &Player, dice: u8) -> Result<&mut Self, Error> {
-        let maybe_player_id = self.player_id(&player);
-        // check if player is allowed to move
-        if maybe_player_id != Some(&self.active_player_id) {
-            return Err(Error::NotYourTurn);
-        }
-
-        // if player is nobody, you can not play and have to roll first
-        if maybe_player_id.is_none() {
-            return Err(Error::RollFirst);
-        }
-
-        // check if player has to roll first
-        if self.roll_first {
-            return Err(Error::RollFirst);
-        }
-
-        // check if dice value has actually been rolled
-        if dice != self.dices.values.0 && dice != self.dices.values.1 {
-            return Err(Error::DiceInvalid);
-        }
-
-        Ok(self)
     }
 }
 
@@ -542,64 +836,73 @@ impl Move for GameState {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_to_string_id() {
+    fn init_test_gamestate(turn: TurnStage) -> GameState {
         let mut state = GameState::default();
         state.add_player(1, Player::new("player1".into(), Color::White));
         state.add_player(2, Player::new("player2".into(), Color::Black));
+        state.active_player_id = 1;
+        state.turn_stage = turn;
+        state
+    }
+
+    #[test]
+    fn to_string_id() {
+        let state = init_test_gamestate(TurnStage::RollDice);
         let string_id = state.to_string_id();
         // println!("string_id : {}", string_id);
-        assert!(string_id == "Dz8+AAAAAT8/MAAAAAQAADAD");
+        assert_eq!(string_id, "Hz88AAAAAz8/IAAAAAQAADAD");
     }
 
     #[test]
-    fn test_moves_possible() {
-        let mut state = GameState::default();
-        let player1 = Player::new("player1".into(), Color::White);
-        let player_id = 1;
-        state.add_player(player_id, player1);
-        state.add_player(2, Player::new("player2".into(), Color::Black));
-        state.consume(&GameEvent::BeginGame {
-            goes_first: player_id,
-        });
+    fn hold_or_go() {
+        let mut game_state = init_test_gamestate(TurnStage::MarkPoints);
+        game_state.schools_enabled = true;
+        let pid = game_state.active_player_id;
+        game_state.consume(
+            &(GameEvent::Mark {
+                player_id: pid,
+                points: 13,
+            }),
+        );
+        let player = game_state.get_active_player().unwrap();
+        assert_eq!(player.points, 1);
+        assert_eq!(player.holes, 2); // because can bredouille
+        assert_eq!(game_state.turn_stage, TurnStage::HoldOrGoChoice);
 
-        // Chained moves
+        // Go
+        game_state.consume(
+            &(GameEvent::Go {
+                player_id: game_state.active_player_id,
+            }),
+        );
+        assert_eq!(game_state.active_player_id, pid);
+        let player = game_state.get_active_player().unwrap();
+        assert_eq!(player.points, 0);
+        assert_eq!(game_state.turn_stage, TurnStage::RollDice);
+
+        // Hold
+        let mut game_state = init_test_gamestate(TurnStage::MarkPoints);
+        game_state.schools_enabled = true;
+        let pid = game_state.active_player_id;
+        game_state.consume(
+            &(GameEvent::Mark {
+                player_id: pid,
+                points: 13,
+            }),
+        );
         let moves = (
-            CheckerMove::new(1, 5).unwrap(),
-            CheckerMove::new(5, 9).unwrap(),
+            CheckerMove::new(1, 3).unwrap(),
+            CheckerMove::new(1, 3).unwrap(),
         );
-        assert!(state.moves_possible(&Color::White, &moves));
-
-        // not chained moves
-        let moves = (
-            CheckerMove::new(1, 5).unwrap(),
-            CheckerMove::new(6, 9).unwrap(),
+        game_state.consume(
+            &(GameEvent::Move {
+                player_id: game_state.active_player_id,
+                moves,
+            }),
         );
-        assert!(!state.moves_possible(&Color::White, &moves));
-    }
-
-    #[test]
-    fn test_moves_follow_dices() {
-        let mut state = GameState::default();
-        let player1 = Player::new("player1".into(), Color::White);
-        let player_id = 1;
-        state.add_player(player_id, player1);
-        state.add_player(2, Player::new("player2".into(), Color::Black));
-        state.consume(&GameEvent::BeginGame {
-            goes_first: player_id,
-        });
-        state.consume(&GameEvent::Roll { player_id });
-        let dices = state.dices.values;
-        let moves = (
-            CheckerMove::new(1, (1 + dices.0).into()).unwrap(),
-            CheckerMove::new((1 + dices.0).into(), (1 + dices.0 + dices.1).into()).unwrap(),
-        );
-        assert!(state.moves_follows_dices(&Color::White, &moves));
-
-        let badmoves = (
-            CheckerMove::new(1, (2 + dices.0).into()).unwrap(),
-            CheckerMove::new((1 + dices.0).into(), (1 + dices.0 + dices.1).into()).unwrap(),
-        );
-        assert!(!state.moves_follows_dices(&Color::White, &badmoves));
+        assert_ne!(game_state.active_player_id, pid);
+        assert_eq!(game_state.players.get(&pid).unwrap().points, 1);
+        assert_eq!(game_state.get_active_player().unwrap().points, 0);
+        assert_eq!(game_state.turn_stage, TurnStage::MarkAdvPoints);
     }
 }

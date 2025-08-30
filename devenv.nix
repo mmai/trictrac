@@ -1,16 +1,27 @@
 { pkgs, ... }:
 
 {
-  # https://devenv.sh/basics/
-  # env.GREET = "devenv";
 
-  packages = [ 
+  packages = [
+
+    # pour burn-rs
+    pkgs.SDL2_gfx
+    #  (compilation sdl2-sys)
+    pkgs.cmake
+    pkgs.libffi
+    pkgs.wayland-scanner
+
+    # dev tools
+    pkgs.samply # code profiler
+    pkgs.feedgnuplot # to visualize bots training results
+
     # for bevy
-    pkgs.alsaLib
+    pkgs.alsa-lib
     pkgs.udev
 
     # bevy fast compile
-    pkgs.clang pkgs.lld
+    pkgs.clang
+    pkgs.lld
 
     # copié de https://github.com/mmai/Hyperspeedcube/blob/develop/devenv.nix
     # TODO : retirer ce qui est inutile
@@ -27,15 +38,11 @@
     pkgs.xorg.libXi
     pkgs.xorg.libX11
 
-    pkgs.vulkan-headers pkgs.vulkan-loader
+    pkgs.vulkan-headers
+    pkgs.vulkan-loader
     # ------------ fin copie
 
   ];
-
-  # enterShell = ''
-  #   hello
-  #   git --version
-  # '';
 
   # https://devenv.sh/languages/
   languages.rust.enable = true;
@@ -44,7 +51,7 @@
   # scripts.hello.exec = "echo hello from $GREET";
 
   # https://devenv.sh/pre-commit-hooks/
-  pre-commit.hooks.shellcheck.enable = true;
+  # pre-commit.hooks.shellcheck.enable = true;
 
   # https://devenv.sh/processes/
   # processes.ping.exec = "ping example.com";

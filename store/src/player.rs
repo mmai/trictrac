@@ -4,14 +4,23 @@ use std::fmt;
 // This just makes it easier to dissern between a player id and any ol' u64
 pub type PlayerId = u64;
 
-#[derive(Copy, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Copy, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Color {
     White,
     Black,
 }
 
+impl Color {
+    pub fn opponent_color(&self) -> Self {
+        match self {
+            Self::White => Self::Black,
+            Self::Black => Self::White,
+        }
+    }
+}
+
 /// Struct for storing player related data.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Player {
     pub name: String,
     pub color: Color,
@@ -19,6 +28,9 @@ pub struct Player {
     pub holes: u8,
     pub can_bredouille: bool,
     pub can_big_bredouille: bool,
+    /// Number of dice rolls since beginning of the current setting (all 15 dames in the talon )
+    /// (used to check jan de 3 coups)
+    pub dice_roll_count: u8,
 }
 
 impl Player {
@@ -30,6 +42,7 @@ impl Player {
             holes: 0,
             can_bredouille: true,
             can_big_bredouille: true,
+            dice_roll_count: 0,
         }
     }
 
@@ -38,6 +51,15 @@ impl Player {
             "{:0>4b}{:0>4b}{:b}{:b}",
             self.points, self.holes, self.can_bredouille as u8, self.can_big_bredouille as u8
         )
+    }
+
+    pub fn to_vec(&self) -> Vec<u8> {
+        vec![
+            self.points,
+            self.holes,
+            self.can_bredouille as u8,
+            self.can_big_bredouille as u8,
+        ]
     }
 }
 
@@ -63,6 +85,7 @@ pub enum CurrentPlayer {
 
 impl CurrentPlayer {
     /// Returns the other player, i.e. the player who is not the current player.
+    #[cfg(test)]
     pub fn other(&self) -> Self {
         match *self {
             CurrentPlayer::Nobody => CurrentPlayer::Nobody,
@@ -104,6 +127,7 @@ mod tests {
             holes: 3,
             can_bredouille: true,
             can_big_bredouille: false,
+            dice_roll_count: 0,
         };
         println!("{}", player.to_bits_string());
         assert!(player.to_bits_string() == "1011001110");

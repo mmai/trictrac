@@ -77,6 +77,16 @@ impl BoardGameBoard for TrictracBoard {
     }
 }
 
+impl TrictracBoard {
+    pub fn to_fen(&self) -> String {
+        self.0.to_string_id()
+    }
+
+    pub fn from_fen(fen: &str) -> Result<TrictracBoard, String> {
+        crate::GameState::from_string_id(fen).map(TrictracBoard)
+    }
+}
+
 impl<'a> BoardMoves<'a, TrictracBoard> for TrictracBoard {
     type AllMovesIterator = TrictracAllMovesIterator;
     type AvailableMovesIterator = TrictracAvailableMovesIterator<'a>;

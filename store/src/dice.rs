@@ -55,6 +55,17 @@ impl Dice {
         format!("{:0>3b}{:0>3b}", self.values.0, self.values.1)
     }
 
+    pub fn from_bits_string(bits: &str) -> Result<Self, String> {
+        if bits.len() != 6 {
+            return Err("Invalid bit string length for dice".to_string());
+        }
+        let d1_str = &bits[0..3];
+        let d2_str = &bits[3..6];
+        let d1 = u8::from_str_radix(d1_str, 2).map_err(|e| e.to_string())?;
+        let d2 = u8::from_str_radix(d2_str, 2).map_err(|e| e.to_string())?;
+        Ok(Dice { values: (d1, d2) })
+    }
+
     pub fn to_display_string(self) -> String {
         format!("{} & {}", self.values.0, self.values.1)
     }

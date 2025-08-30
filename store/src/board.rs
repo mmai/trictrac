@@ -639,6 +639,55 @@ impl Board {
         self.positions[field - 1] += unit;
         Ok(())
     }
+
+    pub fn from_gnupg_pos_id(bits: &str) -> Result<Board, String> {
+        let mut positions = [0i8; 24];
+        let mut bit_idx = 0;
+        let bit_chars: Vec<char> = bits.chars().collect();
+
+        // White checkers (points 1 to 24)
+        for i in 0..24 {
+            if bit_idx >= bit_chars.len() {
+                break;
+            }
+            let mut count = 0;
+            while bit_idx < bit_chars.len() && bit_chars[bit_idx] == '1' {
+                count += 1;
+                bit_idx += 1;
+            }
+            positions[i] = count;
+            if bit_idx < bit_chars.len() && bit_chars[bit_idx] == '0' {
+                bit_idx += 1; // Consume the '0' separator
+            }
+        }
+
+        // Black checkers (points 24 down to 1)
+        for i in (0..24).rev() {
+            if bit_idx >= bit_chars.len() {
+                break;
+            }
+            let mut count = 0;
+            while bit_idx < bit_chars.len() && bit_chars[bit_idx] == '1' {
+                count += 1;
+                bit_idx += 1;
+            }
+
+            if positions[i] == 0 {
+                positions[i] = -count;
+            } else if count > 0 {
+                return Err(format!(
+                    "Invalid board: checkers of both colors on point {}",
+                    i + 1
+                ));
+            }
+
+            if bit_idx < bit_chars.len() && bit_chars[bit_idx] == '0' {
+                bit_idx += 1; // Consume the '0' separator
+            }
+        }
+
+        Ok(Board { positions })
+    }
 }
 
 // Unit Tests

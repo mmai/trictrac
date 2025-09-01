@@ -4,6 +4,10 @@ use std::fmt::{Debug, Display, Formatter};
 use serde::{Deserialize, Serialize};
 use store::{CheckerMove, GameEvent, GameState};
 
+// 1 (Roll) + 1 (Go) + mouvements possibles
+// Pour les mouvements : 2*16*16 = 514 (choix du dé + choix de la dame 0-15 pour chaque from)
+pub const ACTION_SPACE_SIZE: usize = 514;
+
 /// Types d'actions possibles dans le jeu
 #[derive(Debug, Copy, Clone, Eq, Serialize, Deserialize, PartialEq)]
 pub enum TrictracAction {
@@ -158,10 +162,7 @@ impl TrictracAction {
 
     /// Retourne la taille de l'espace d'actions total
     pub fn action_space_size() -> usize {
-        // 1 (Roll) + 1 (Go) + mouvements possibles
-        // Pour les mouvements : 2*25*25 = 1250 (choix du dé + position 0-24 pour chaque from)
-        // Mais on peut optimiser en limitant aux positions valides (1-24)
-        2 + (2 * 16 * 16) // = 514
+        ACTION_SPACE_SIZE
     }
 
     // pub fn to_game_event(&self, player_id: PlayerId, dice: Dice) -> GameEvent {

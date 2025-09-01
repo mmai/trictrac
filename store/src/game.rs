@@ -9,12 +9,13 @@ use log::{debug, error};
 // use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
 use std::{fmt, str};
 
 use base64::{engine::general_purpose, Engine as _};
 
 /// The different stages a game can be in. (not to be confused with the entire "GameState")
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Stage {
     PreGame,
     InGame,
@@ -22,7 +23,7 @@ pub enum Stage {
 }
 
 /// The different stages a game turn can be in.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TurnStage {
     RollDice,
     RollWaiting,
@@ -112,6 +113,11 @@ impl Default for GameState {
             roll_first: true,
             schools_enabled: false,
         }
+    }
+}
+impl Hash for GameState {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.to_string_id().hash(state);
     }
 }
 

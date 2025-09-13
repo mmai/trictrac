@@ -146,7 +146,11 @@ pub fn get_valid_actions(game_state: &crate::GameState) -> Vec<TrictracAction> {
             }
             TurnStage::Move => {
                 let rules = store::MoveRules::new(&color, &game_state.board, game_state.dice);
-                let possible_moves = rules.get_possible_moves_sequences(true, vec![]);
+                let mut possible_moves = rules.get_possible_moves_sequences(true, vec![]);
+                if possible_moves.is_empty() {
+                    // Empty move
+                    possible_moves.push((CheckerMove::default(), CheckerMove::default()));
+                }
 
                 // Modififier checker_moves_to_trictrac_action si on doit gérer Black
                 assert_eq!(color, store::Color::White);

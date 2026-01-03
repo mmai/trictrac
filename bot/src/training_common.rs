@@ -1,3 +1,5 @@
+/// training_common_big.rs : environnement avec espace d'actions optimisé
+/// (514 au lieu de 1252 pour training_common_big.rs)
 use std::cmp::{max, min};
 use std::fmt::{Debug, Display, Formatter};
 

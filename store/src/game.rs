@@ -742,6 +742,10 @@ impl GameState {
         });
     }
 
+    pub fn mark_points_for_bot_training(&mut self, player_id: PlayerId, points: u8) -> bool {
+        self.mark_points(player_id, points)
+    }
+
     fn mark_points(&mut self, player_id: PlayerId, points: u8) -> bool {
         // Update player points and holes
         let mut new_hole = false;

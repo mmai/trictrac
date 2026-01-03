@@ -1,3 +1,5 @@
+/// training_common_big.rs : environnement avec espace d'actions non optimisé
+/// (1252 au lieu de 514 pour training_common.rs)
 use std::cmp::{max, min};
 
 use serde::{Deserialize, Serialize};

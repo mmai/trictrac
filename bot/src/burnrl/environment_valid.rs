@@ -1,8 +1,11 @@
-use crate::training_common_big;
+use crate::training_common;
 use burn::{prelude::Backend, tensor::Tensor};
 use burn_rl::base::{Action, Environment, Snapshot, State};
 use rand::{thread_rng, Rng};
 use store::{GameEvent, GameState, PlayerId, PointsRules, Stage, TurnStage};
+
+const ERROR_REWARD: f32 = -1.0012121;
+const REWARD_RATIO: f32 = 0.1;
 
 /// État du jeu Trictrac pour burn-rl
 #[derive(Debug, Clone, Copy)]
@@ -214,16 +217,16 @@ impl TrictracEnvironment {
     const REWARD_RATIO: f32 = 1.0;
 
     /// Convertit une action burn-rl vers une action Trictrac
-    pub fn convert_action(action: TrictracAction) -> Option<training_common_big::TrictracAction> {
-        training_common_big::TrictracAction::from_action_index(action.index.try_into().unwrap())
+    pub fn convert_action(action: TrictracAction) -> Option<training_common::TrictracAction> {
+        training_common::TrictracAction::from_action_index(action.index.try_into().unwrap())
     }
 
     /// Convertit l'index d'une action au sein des actions valides vers une action Trictrac
     fn convert_valid_action_index(
         &self,
         action: TrictracAction,
-    ) -> Option<training_common_big::TrictracAction> {
-        use training_common_big::get_valid_actions;
+    ) -> Option<training_common::TrictracAction> {
+        use training_common::get_valid_actions;
 
         // Obtenir les actions valides dans le contexte actuel
         let valid_actions = get_valid_actions(&self.game);
@@ -240,72 +243,19 @@ impl TrictracEnvironment {
     /// Exécute une action Trictrac dans le jeu
     // fn execute_action(
     //     &mut self,
-    //     action: training_common_big::TrictracAction,
+    //     action: training_common::TrictracAction,
     // ) -> Result<f32, Box<dyn std::error::Error>> {
-    fn execute_action(&mut self, action: training_common_big::TrictracAction) -> (f32, bool) {
-        use training_common_big::TrictracAction;
+    fn execute_action(&mut self, action: training_common::TrictracAction) -> (f32, bool) {
+        use training_common::TrictracAction;
 
         let mut reward = 0.0;
         let mut is_rollpoint = false;
 
-        let event = match action {
-            TrictracAction::Roll => {
-                // Lancer les dés
-                Some(GameEvent::Roll {
-                    player_id: self.active_player_id,
-                })
-            }
-            // TrictracAction::Mark => {
-            //     // Marquer des points
-            //     let points = self.game.
-            //     reward += 0.1 * points as f32;
-            //     Some(GameEvent::Mark {
-            //         player_id: self.active_player_id,
-            //         points,
-            //     })
-            // }
-            TrictracAction::Go => {
-                // Continuer après avoir gagné un trou
-                Some(GameEvent::Go {
-                    player_id: self.active_player_id,
-                })
-            }
-            TrictracAction::Move {
-                dice_order,
-                from1,
-                from2,
-            } => {
-                // Effectuer un mouvement
-                let (dice1, dice2) = if dice_order {
-                    (self.game.dice.values.0, self.game.dice.values.1)
-                } else {
-                    (self.game.dice.values.1, self.game.dice.values.0)
-                };
-                let mut to1 = from1 + dice1 as usize;
-                let mut to2 = from2 + dice2 as usize;
-
-                // Gestion prise de coin par puissance
-                let opp_rest_field = 13;
-                if to1 == opp_rest_field && to2 == opp_rest_field {
-                    to1 -= 1;
-                    to2 -= 1;
-                }
-
-                let checker_move1 = store::CheckerMove::new(from1, to1).unwrap_or_default();
-                let checker_move2 = store::CheckerMove::new(from2, to2).unwrap_or_default();
-
-                Some(GameEvent::Move {
-                    player_id: self.active_player_id,
-                    moves: (checker_move1, checker_move2),
-                })
-            }
-        };
-
         // Appliquer l'événement si valide
-        if let Some(event) = event {
+        if let Some(event) = action.to_event(&self.game) {
             if self.game.validate(&event) {
                 self.game.consume(&event);
-
+                // reward += REWARD_VALID_MOVE;
                 // Simuler le résultat des dés après un Roll
                 if matches!(action, TrictracAction::Roll) {
                     let mut rng = thread_rng();
@@ -319,7 +269,7 @@ impl TrictracEnvironment {
                     if self.game.validate(&dice_event) {
                         self.game.consume(&dice_event);
                         let (points, adv_points) = self.game.dice_points;
-                        reward += Self::REWARD_RATIO * (points - adv_points) as f32;
+                        reward += REWARD_RATIO * (points as f32 - adv_points as f32);
                         if points > 0 {
                             is_rollpoint = true;
                             // println!("info: rolled for {reward}");
@@ -331,9 +281,12 @@ impl TrictracEnvironment {
                 // Pénalité pour action invalide
                 // on annule les précédents reward
                 // et on indique une valeur reconnaissable pour statistiques
-                println!("info: action invalide -> err_reward");
-                reward = Self::ERROR_REWARD;
+                reward = ERROR_REWARD;
+                self.game.mark_points_for_bot_training(self.opponent_id, 1);
             }
+        } else {
+            reward = ERROR_REWARD;
+            self.game.mark_points_for_bot_training(self.opponent_id, 1);
         }
 
         (reward, is_rollpoint)

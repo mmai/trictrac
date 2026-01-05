@@ -9,10 +9,6 @@ edition = "2021"
 name = "burn_train"
 path = "src/burnrl/main.rs"
 
-[[bin]]
-name = "train_dqn_simple"
-path = "src/dqn_simple/main.rs"
-
 [dependencies]
 pretty_assertions = "1.4.0"
 serde = { version = "1.0", features = ["derive"] }

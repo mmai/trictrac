@@ -6,8 +6,8 @@ use std::fmt::{Debug, Display, Formatter};
 use serde::{Deserialize, Serialize};
 use store::{CheckerMove, GameEvent, GameState};
 
-// 1 (Roll) + 1 (Go) + mouvements possibles
-// Pour les mouvements : 2*16*16 = 514 (choix du dé + choix de la dame 0-15 pour chaque from)
+// 1 (Roll) + 1 (Go) + 512 (mouvements possibles)
+// avec 512 = 2 (choix du dé) * 16 * 16 (choix de la dame 0-15 pour chaque from)
 pub const ACTION_SPACE_SIZE: usize = 514;
 
 /// Types d'actions possibles dans le jeu

@@ -6,10 +6,10 @@ use burn_rl::base::{Action, Environment, Snapshot, State};
 use rand::{thread_rng, Rng};
 use store::{GameEvent, GameState, PlayerId, PointsRules, Stage, TurnStage};
 
-const ERROR_REWARD: f32 = -1.12121;
-const REWARD_VALID_MOVE: f32 = 1.12121;
-const REWARD_RATIO: f32 = 0.01;
-const WIN_POINTS: f32 = 1.0;
+const ERROR_REWARD: f32 = -1.0012121;
+const REWARD_VALID_MOVE: f32 = 1.0012121;
+const REWARD_RATIO: f32 = 0.1;
+const WIN_POINTS: f32 = 100.0;
 
 /// État du jeu Trictrac pour burn-rl
 #[derive(Debug, Clone, Copy)]
@@ -285,7 +285,7 @@ impl TrictracEnvironment {
         if let Some(event) = action.to_event(&self.game) {
             if self.game.validate(&event) {
                 self.game.consume(&event);
-                reward += REWARD_VALID_MOVE;
+                // reward += REWARD_VALID_MOVE;
                 // Simuler le résultat des dés après un Roll
                 if matches!(action, TrictracAction::Roll) {
                     let mut rng = thread_rng();
@@ -312,9 +312,11 @@ impl TrictracEnvironment {
                 // on annule les précédents reward
                 // et on indique une valeur reconnaissable pour statistiques
                 reward = ERROR_REWARD;
+                self.game.mark_points_for_bot_training(self.opponent_id, 1);
             }
         } else {
             reward = ERROR_REWARD;
+            self.game.mark_points_for_bot_training(self.opponent_id, 1);
         }
 
         (reward, is_rollpoint)

@@ -22,6 +22,7 @@ nombres aléatoires avec seed : <https://richard.dallaway.com/posts/2021-01-04-r
 - rayon ( sync <-> parallel )
 
 - front : yew + tauri
+
   - egui
 
 - <https://docs.rs/board-game/latest/board_game/>
@@ -31,6 +32,7 @@ nombres aléatoires avec seed : <https://richard.dallaway.com/posts/2021-01-04-r
 - <https://www.mattkeeter.com/projects/pont/>
 - <https://github.com/jackadamson/onitama> (wasm, rooms)
 - <https://github.com/UkoeHB/renet2>
+- <https://github.com/UkoeHB/bevy_simplenet>
 
 ## Others
 

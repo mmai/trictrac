@@ -9,12 +9,13 @@ use log::{debug, error};
 // use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
 use std::{fmt, str};
 
 use base64::{engine::general_purpose, Engine as _};
 
 /// The different stages a game can be in. (not to be confused with the entire "GameState")
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Stage {
     PreGame,
     InGame,
@@ -22,7 +23,7 @@ pub enum Stage {
 }
 
 /// The different stages a game turn can be in.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TurnStage {
     RollDice,
     RollWaiting,
@@ -112,6 +113,11 @@ impl Default for GameState {
             roll_first: true,
             schools_enabled: false,
         }
+    }
+}
+impl Hash for GameState {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.to_string_id().hash(state);
     }
 }
 
@@ -253,7 +259,7 @@ impl GameState {
         pos_bits.push_str(&white_bits);
         pos_bits.push_str(&black_bits);
 
-        pos_bits = format!("{pos_bits:0>108}");
+        pos_bits = format!("{pos_bits:0<108}");
         // println!("{}", pos_bits);
         let pos_u8 = pos_bits
             .as_bytes()
@@ -262,6 +268,81 @@ impl GameState {
             .map(|chunk| u8::from_str_radix(chunk, 2).unwrap())
             .collect::<Vec<u8>>();
         general_purpose::STANDARD.encode(pos_u8)
+    }
+
+    pub fn from_string_id(id: &str) -> Result<Self, String> {
+        let bytes = general_purpose::STANDARD
+            .decode(id)
+            .map_err(|e| e.to_string())?;
+
+        let bits_str: String = bytes.iter().map(|byte| format!("{:06b}", byte)).collect();
+
+        // The original string was padded to 108 bits.
+        let bits = if bits_str.len() >= 108 {
+            &bits_str[..108]
+        } else {
+            return Err("Invalid decoded string length".to_string());
+        };
+
+        let board_bits = &bits[0..77];
+        let board = Board::from_gnupg_pos_id(board_bits)?;
+
+        let active_player_bit = bits.chars().nth(77).unwrap();
+        let active_player_color = if active_player_bit == '1' {
+            Color::Black
+        } else {
+            Color::White
+        };
+
+        let turn_stage_bits = &bits[78..81];
+        let turn_stage = match turn_stage_bits {
+            "000" => TurnStage::RollWaiting,
+            "001" => TurnStage::RollDice,
+            "010" => TurnStage::MarkPoints,
+            "011" => TurnStage::HoldOrGoChoice,
+            "100" => TurnStage::Move,
+            "101" => TurnStage::MarkAdvPoints,
+            _ => return Err(format!("Invalid bits for turn stage : {turn_stage_bits}")),
+        };
+
+        let dice_bits = &bits[81..87];
+        let dice = Dice::from_bits_string(dice_bits).map_err(|e| e.to_string())?;
+
+        let white_player_bits = &bits[87..97];
+        let black_player_bits = &bits[97..107];
+
+        let white_player =
+            Player::from_bits_string(white_player_bits, "Player 1".to_string(), Color::White)
+                .map_err(|e| e.to_string())?;
+        let black_player =
+            Player::from_bits_string(black_player_bits, "Player 2".to_string(), Color::Black)
+                .map_err(|e| e.to_string())?;
+
+        let mut players = HashMap::new();
+        players.insert(1, white_player);
+        players.insert(2, black_player);
+
+        let active_player_id = if active_player_color == Color::White {
+            1
+        } else {
+            2
+        };
+
+        // Some fields are not in the ID, so we use defaults.
+        Ok(GameState {
+            stage: Stage::InGame, // Assume InGame from ID
+            turn_stage,
+            board,
+            active_player_id,
+            players,
+            history: Vec::new(),
+            dice,
+            dice_points: (0, 0),
+            dice_moves: (CheckerMove::default(), CheckerMove::default()),
+            dice_jans: PossibleJans::default(),
+            roll_first: false,      // Assume not first roll
+            schools_enabled: false, // Assume disabled
+        })
     }
 
     pub fn who_plays(&self) -> Option<&Player> {
@@ -661,6 +742,10 @@ impl GameState {
         });
     }
 
+    pub fn mark_points_for_bot_training(&mut self, player_id: PlayerId, points: u8) -> bool {
+        self.mark_points(player_id, points)
+    }
+
     fn mark_points(&mut self, player_id: PlayerId, points: u8) -> bool {
         // Update player points and holes
         let mut new_hole = false;
@@ -850,7 +935,16 @@ mod tests {
         let state = init_test_gamestate(TurnStage::RollDice);
         let string_id = state.to_string_id();
         // println!("string_id : {}", string_id);
-        assert_eq!(string_id, "Hz88AAAAAz8/IAAAAAQAADAD");
+        assert_eq!(string_id, "Pz84AAAABz8/AAAAAAgAASAG");
+        let new_state = GameState::from_string_id(&string_id).unwrap();
+        assert_eq!(state.board, new_state.board);
+        assert_eq!(state.active_player_id, new_state.active_player_id);
+        assert_eq!(state.turn_stage, new_state.turn_stage);
+        assert_eq!(state.dice, new_state.dice);
+        assert_eq!(
+            state.get_white_player().unwrap().points,
+            new_state.get_white_player().unwrap().points
+        );
     }
 
     #[test]

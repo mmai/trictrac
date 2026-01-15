@@ -1,8 +1,5 @@
-use bot::burnrl::algos::{
-    dqn, dqn_big, dqn_valid, ppo, ppo_big, ppo_valid, sac, sac_big, sac_valid,
-};
+use bot::burnrl::algos::{dqn, dqn_valid, ppo, ppo_valid, sac, sac_valid};
 use bot::burnrl::environment::TrictracEnvironment;
-use bot::burnrl::environment_big::TrictracEnvironment as TrictracEnvironmentBig;
 use bot::burnrl::environment_valid::TrictracEnvironment as TrictracEnvironmentValid;
 use bot::burnrl::utils::{demo_model, Config};
 use burn::backend::{Autodiff, NdArray};
@@ -36,16 +33,6 @@ fn main() {
             println!("> Test avec le modèle chargé");
             demo_model(loaded_agent);
         }
-        "dqn_big" => {
-            let _agent = dqn_big::run::<TrictracEnvironmentBig, Backend>(&conf, false);
-            println!("> Chargement du modèle pour test");
-            let loaded_model = dqn_big::load_model(conf.dense_size, &path);
-            let loaded_agent: burn_rl::agent::DQN<TrictracEnvironmentBig, _, _> =
-                burn_rl::agent::DQN::new(loaded_model.unwrap());
-
-            println!("> Test avec le modèle chargé");
-            demo_model(loaded_agent);
-        }
         "dqn_valid" => {
             let _agent = dqn_valid::run::<TrictracEnvironmentValid, Backend>(&conf, false);
             println!("> Chargement du modèle pour test");
@@ -66,16 +53,6 @@ fn main() {
             println!("> Test avec le modèle chargé");
             demo_model(loaded_agent);
         }
-        "sac_big" => {
-            let _agent = sac_big::run::<TrictracEnvironmentBig, Backend>(&conf, false);
-            println!("> Chargement du modèle pour test");
-            let loaded_model = sac_big::load_model(conf.dense_size, &path);
-            let loaded_agent: burn_rl::agent::SAC<TrictracEnvironmentBig, _, _> =
-                burn_rl::agent::SAC::new(loaded_model.unwrap());
-
-            println!("> Test avec le modèle chargé");
-            demo_model(loaded_agent);
-        }
         "sac_valid" => {
             let _agent = sac_valid::run::<TrictracEnvironmentValid, Backend>(&conf, false);
             println!("> Chargement du modèle pour test");
@@ -91,16 +68,6 @@ fn main() {
             println!("> Chargement du modèle pour test");
             let loaded_model = ppo::load_model(conf.dense_size, &path);
             let loaded_agent: burn_rl::agent::PPO<TrictracEnvironment, _, _> =
-                burn_rl::agent::PPO::new(loaded_model.unwrap());
-
-            println!("> Test avec le modèle chargé");
-            demo_model(loaded_agent);
-        }
-        "ppo_big" => {
-            let _agent = ppo_big::run::<TrictracEnvironmentBig, Backend>(&conf, false);
-            println!("> Chargement du modèle pour test");
-            let loaded_model = ppo_big::load_model(conf.dense_size, &path);
-            let loaded_agent: burn_rl::agent::PPO<TrictracEnvironmentBig, _, _> =
                 burn_rl::agent::PPO::new(loaded_model.unwrap());
 
             println!("> Test avec le modèle chargé");

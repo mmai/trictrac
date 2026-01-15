@@ -53,6 +53,26 @@ impl Player {
         )
     }
 
+    pub fn from_bits_string(bits: &str, name: String, color: Color) -> Result<Self, String> {
+        if bits.len() != 10 {
+            return Err("Invalid bit string length for player".to_string());
+        }
+        let points = u8::from_str_radix(&bits[0..4], 2).map_err(|e| e.to_string())?;
+        let holes = u8::from_str_radix(&bits[4..8], 2).map_err(|e| e.to_string())?;
+        let can_bredouille = bits.chars().nth(8).unwrap() == '1';
+        let can_big_bredouille = bits.chars().nth(9).unwrap() == '1';
+
+        Ok(Player {
+            name,
+            color,
+            points,
+            holes,
+            can_bredouille,
+            can_big_bredouille,
+            dice_roll_count: 0, // This info is not in the string id
+        })
+    }
+
     pub fn to_vec(&self) -> Vec<u8> {
         vec![
             self.points,

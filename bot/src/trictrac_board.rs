@@ -6,10 +6,11 @@ use board_game::board::{
 use board_game::impl_unit_symmetry_board;
 use internal_iterator::InternalIterator;
 use std::fmt;
+use std::hash::Hash;
 use std::ops::ControlFlow;
 use store::Color;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct TrictracBoard(crate::GameState);
 
 impl Default for TrictracBoard {
@@ -74,6 +75,20 @@ impl BoardGameBoard for TrictracBoard {
 
     fn can_lose_after_move() -> bool {
         true
+    }
+}
+
+impl TrictracBoard {
+    pub fn inner(&self) -> &crate::GameState {
+        &self.0
+    }
+
+    pub fn to_fen(&self) -> String {
+        self.0.to_string_id()
+    }
+
+    pub fn from_fen(fen: &str) -> Result<TrictracBoard, String> {
+        crate::GameState::from_string_id(fen).map(TrictracBoard)
     }
 }
 

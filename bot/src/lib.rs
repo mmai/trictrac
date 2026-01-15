@@ -1,14 +1,11 @@
 pub mod burnrl;
-pub mod dqn_simple;
 pub mod strategy;
 pub mod training_common;
-pub mod training_common_big;
 pub mod trictrac_board;
 
 use log::debug;
 use store::{CheckerMove, Color, GameEvent, GameState, PlayerId, PointsRules, Stage, TurnStage};
 pub use strategy::default::DefaultStrategy;
-pub use strategy::dqn::DqnStrategy;
 pub use strategy::dqnburn::DqnBurnStrategy;
 pub use strategy::erroneous_moves::ErroneousStrategy;
 pub use strategy::random::RandomStrategy;

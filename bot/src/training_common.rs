@@ -1,8 +1,14 @@
+/// training_common.rs : environnement avec espace d'actions optimisé
+/// (514 au lieu de 1252 pour training_common_big.rs de la branche 'big_and_full' )
 use std::cmp::{max, min};
 use std::fmt::{Debug, Display, Formatter};
 
 use serde::{Deserialize, Serialize};
 use store::{CheckerMove, GameEvent, GameState};
+
+// 1 (Roll) + 1 (Go) + mouvements possibles
+// Pour les mouvements : 2*16*16 = 514 (choix du dé + choix de la dame 0-15 pour chaque from)
+pub const ACTION_SPACE_SIZE: usize = 514;
 
 /// Types d'actions possibles dans le jeu
 #[derive(Debug, Copy, Clone, Eq, Serialize, Deserialize, PartialEq)]
@@ -158,10 +164,7 @@ impl TrictracAction {
 
     /// Retourne la taille de l'espace d'actions total
     pub fn action_space_size() -> usize {
-        // 1 (Roll) + 1 (Go) + mouvements possibles
-        // Pour les mouvements : 2*25*25 = 1250 (choix du dé + position 0-24 pour chaque from)
-        // Mais on peut optimiser en limitant aux positions valides (1-24)
-        2 + (2 * 16 * 16) // = 514
+        ACTION_SPACE_SIZE
     }
 
     // pub fn to_game_event(&self, player_id: PlayerId, dice: Dice) -> GameEvent {
@@ -225,7 +228,11 @@ pub fn get_valid_actions(game_state: &crate::GameState) -> Vec<TrictracAction> {
             }
             TurnStage::Move => {
                 let rules = store::MoveRules::new(&color, &game_state.board, game_state.dice);
-                let possible_moves = rules.get_possible_moves_sequences(true, vec![]);
+                let mut possible_moves = rules.get_possible_moves_sequences(true, vec![]);
+                if possible_moves.is_empty() {
+                    // Empty move
+                    possible_moves.push((CheckerMove::default(), CheckerMove::default()));
+                }
 
                 // Modififier checker_moves_to_trictrac_action si on doit gérer Black
                 assert_eq!(color, store::Color::White);

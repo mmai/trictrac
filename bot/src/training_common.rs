@@ -15,7 +15,8 @@ pub const ACTION_SPACE_SIZE: usize = 514;
 pub enum TrictracAction {
     /// Lancer les dés
     Roll,
-    /// Continuer après avoir gagné un trou
+    /// Faire un nouveau 'relevé' (repositionnement des dames à l'état de départ) après avoir gagné un trou,
+    /// au lieu de continuer dans la position courante
     Go,
     /// Effectuer un mouvement de pions
     Move {

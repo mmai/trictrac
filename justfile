@@ -20,6 +20,7 @@ profile:
   cargo build --profile profiling
   samply record ./target/profiling/client_cli --bot dummy,dummy
 pythonlib:
+  rm -rf target/wheels
   maturin build -m store/Cargo.toml --release
   pip install --no-deps --force-reinstall --prefix .devenv/state/venv target/wheels/*.whl
 trainbot algo:

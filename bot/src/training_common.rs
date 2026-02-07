@@ -324,10 +324,10 @@ pub fn get_valid_action_indices(game_state: &crate::GameState) -> Vec<usize> {
 
 /// Sélectionne une action valide aléatoire
 pub fn sample_valid_action(game_state: &crate::GameState) -> Option<TrictracAction> {
-    use rand::{seq::SliceRandom, thread_rng};
+    use rand::{prelude::IndexedRandom, rng};
 
     let valid_actions = get_valid_actions(game_state);
-    let mut rng = thread_rng();
+    let mut rng = rng();
     valid_actions.choose(&mut rng).cloned()
 }
 

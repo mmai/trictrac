@@ -8,7 +8,7 @@ use internal_iterator::InternalIterator;
 use std::fmt;
 use std::hash::Hash;
 use std::ops::ControlFlow;
-use store::Color;
+use trictrac_store::Color;
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct TrictracBoard(crate::GameState);

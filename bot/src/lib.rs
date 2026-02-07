@@ -4,7 +4,7 @@ pub mod training_common;
 pub mod trictrac_board;
 
 use log::debug;
-use store::{CheckerMove, Color, GameEvent, GameState, PlayerId, PointsRules, Stage, TurnStage};
+use trictrac_store::{CheckerMove, Color, GameEvent, GameState, PlayerId, PointsRules, Stage, TurnStage};
 pub use strategy::default::DefaultStrategy;
 pub use strategy::dqnburn::DqnBurnStrategy;
 pub use strategy::erroneous_moves::ErroneousStrategy;
@@ -144,7 +144,7 @@ impl Bot {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use store::{Dice, Stage};
+    use trictrac_store::{Dice, Stage};
 
     #[test]
     fn test_new() {

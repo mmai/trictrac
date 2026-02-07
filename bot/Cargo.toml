@@ -1,5 +1,5 @@
 [package]
-name = "bot"
+name = "trictrac-bot"
 version = "0.1.0"
 edition = "2021"
 
@@ -13,7 +13,7 @@ path = "src/burnrl/main.rs"
 pretty_assertions = "1.4.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-store = { path = "../store" }
+trictrac-store = { path = "../store" }
 rand = "0.9"
 env_logger = "0.10"
 burn = { version = "0.20", features = ["ndarray", "autodiff"] }

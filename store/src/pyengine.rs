@@ -36,73 +36,72 @@ impl TricTrac {
         }
     }
 
-    /// Obtenir l'état du jeu sous forme de dictionnaire
-    fn get_state_dict<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
-        let dict = PyDict::new(py);
-        dict.set_item("stage", format!("{:?}", self.game_state.stage))?;
-        dict.set_item("turn_stage", format!("{:?}", self.game_state.turn_stage))?;
-        dict.set_item("active_player_id", self.game_state.active_player_id)?;
-        
-        // Board
-        let board_list = self.game_state.board.to_vec(); // returns Vec<i8>
-        dict.set_item("board", board_list)?;
-
-        // Dice
-        dict.set_item("dice", (self.game_state.dice.values.0, self.game_state.dice.values.1))?;
-
-        // Players
-        let players_dict = PyDict::new(py);
-        for (id, player) in &self.game_state.players {
-            let p_dict = PyDict::new(py);
-            p_dict.set_item("color", format!("{:?}", player.color))?;
-            p_dict.set_item("holes", player.holes)?;
-            p_dict.set_item("points", player.points)?;
-            p_dict.set_item("can_bredouille", player.can_bredouille)?;
-            p_dict.set_item("dice_roll_count", player.dice_roll_count)?;
-            players_dict.set_item(id, p_dict)?;
-        }
-        dict.set_item("players", players_dict)?;
-
-        Ok(dict)
+    fn needs_roll(&self) -> bool {
+        self.game_state.turn_stage == TurnStage::RollWaiting
     }
+
+    fn is_game_ended(&self) -> bool {
+        self.game_state.stage == Stage::Ended
+    }
+
+    // 0 or 1
+    fn current_player_idx(&self) -> u64 {
+        self.game_state.active_player_id - 1
+    }
+
+    // fn get_legal_actions(&self) -> Vec<usize> {
+    //     get_valid_actions(&self.game_state)
+    //     .into_iter()
+    //     .map(|action| action.to_action_index())
+    //     .collect()
+    // }
 
     /// Lance les dés ou utilise la séquence prédéfinie
     fn roll_dice(&mut self) -> PyResult<(u8, u8)> {
         let player_id = self.game_state.active_player_id;
 
         if self.game_state.turn_stage != TurnStage::RollDice {
-             return Err(pyo3::exceptions::PyRuntimeError::new_err("Not in RollDice stage"));
+            return Err(pyo3::exceptions::PyRuntimeError::new_err(
+                "Not in RollDice stage",
+            ));
         }
-        
+
         self.game_state.consume(&GameEvent::Roll { player_id });
-        
+
         let dice = if self.current_dice_index < self.dice_roll_sequence.len() {
-             let vals = self.dice_roll_sequence[self.current_dice_index];
-             self.current_dice_index += 1;
-             Dice { values: vals }
+            let vals = self.dice_roll_sequence[self.current_dice_index];
+            self.current_dice_index += 1;
+            Dice { values: vals }
         } else {
-             DiceRoller::default().roll()
+            DiceRoller::default().roll()
         };
-        
-        self.game_state.consume(&GameEvent::RollResult { player_id, dice });
-        
+
+        self.game_state
+            .consume(&GameEvent::RollResult { player_id, dice });
+
         Ok(dice.values)
     }
 
     /// Applique un mouvement (deux déplacements de dames)
     fn apply_move(&mut self, from1: usize, to1: usize, from2: usize, to2: usize) -> PyResult<()> {
         let player_id = self.game_state.active_player_id;
-        
-        let m1 = CheckerMove::new(from1, to1).map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
-        let m2 = CheckerMove::new(from2, to2).map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
-        
+
+        let m1 = CheckerMove::new(from1, to1)
+            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
+        let m2 = CheckerMove::new(from2, to2)
+            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
+
         let moves = (m1, m2);
-        
-        if !self.game_state.validate(&GameEvent::Move { player_id, moves }) {
-             return Err(pyo3::exceptions::PyValueError::new_err("Invalid move"));
+
+        if !self
+            .game_state
+            .validate(&GameEvent::Move { player_id, moves })
+        {
+            return Err(pyo3::exceptions::PyValueError::new_err("Invalid move"));
         }
-        
-        self.game_state.consume(&GameEvent::Move { player_id, moves });
+
+        self.game_state
+            .consume(&GameEvent::Move { player_id, moves });
         Ok(())
     }
 
@@ -223,7 +222,7 @@ impl TricTrac {
 /// the `lib.name` setting in the `Cargo.toml`, else Python will not be able to
 /// import the module.
 #[pymodule]
-fn store(m: &Bound<'_, PyModule>) -> PyResult<()> {
+fn trictrac_store(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<TricTrac>()?;
 
     Ok(())

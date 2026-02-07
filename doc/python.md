@@ -16,8 +16,8 @@ Pour vérifier l'accès à la lib : lancer le shell interactif `python`
 ```python
 Python 3.13.11 (main, Dec  5 2025, 16:06:33) [GCC 15.2.0] on linux
 Type "help", "copyright", "credits" or "license" for more information.
->>> import store
->>> game = store.TricTrac()
+>>> import trictrac_store
+>>> game = trictrac_store.TricTrac()
 >>> game.get_active_player_id()
 1
 ```

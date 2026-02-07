@@ -1,12 +1,12 @@
 [package]
-name = "store"
+name = "trictrac-store"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
-name = "store"
+name = "trictrac_store"
 # "cdylib" is necessary to produce a shared library for Python to import from.
 # Only "rlib" is needed for other Rust crates to use this library
 crate-type = ["cdylib", "rlib"]

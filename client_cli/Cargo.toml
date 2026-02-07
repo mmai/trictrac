@@ -1,5 +1,5 @@
 [package]
-name = "client_cli"
+name = "trictrac-client_cli"
 version = "0.1.0"
 edition = "2021"
 
@@ -11,8 +11,8 @@ bincode = "1.3.3"
 pico-args = "0.5.0"
 pretty_assertions = "1.4.0"
 renet = "0.0.13"
-store = { path = "../store" }
-bot = { path = "../bot" }
+trictrac-store = { path = "../store" }
+trictrac-bot = { path = "../bot" }
 itertools = "0.13.0"
 env_logger = "0.11.6"
 log = "0.4.20"

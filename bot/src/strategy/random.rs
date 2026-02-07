@@ -1,6 +1,6 @@
 use crate::{BotStrategy, CheckerMove, Color, GameState, PlayerId};
 use rand::{prelude::IndexedRandom, rng};
-use store::MoveRules;
+use trictrac_store::MoveRules;
 
 #[derive(Debug)]
 pub struct RandomStrategy {

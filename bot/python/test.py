@@ -1,4 +1,4 @@
-import store
+import trictrac_store
 
-game = store.TricTrac()
-print(game.get_state_dict())
+game = trictrac_store.TricTrac()
+print(game.get_active_player_id())

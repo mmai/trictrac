@@ -5,7 +5,7 @@ use std::io::Read;
 use std::io::Write;
 use std::path::Path;
 use std::process::Command;
-use store::MoveRules;
+use trictrac_store::MoveRules;
 
 #[derive(Debug)]
 pub struct StableBaselines3Strategy {
@@ -79,12 +79,12 @@ impl StableBaselines3Strategy {
 
         // Convertir l'étape du tour en entier
         let turn_stage = match self.game.turn_stage {
-            store::TurnStage::RollDice => 0,
-            store::TurnStage::RollWaiting => 1,
-            store::TurnStage::MarkPoints => 2,
-            store::TurnStage::HoldOrGoChoice => 3,
-            store::TurnStage::Move => 4,
-            store::TurnStage::MarkAdvPoints => 5,
+            trictrac_store::TurnStage::RollDice => 0,
+            trictrac_store::TurnStage::RollWaiting => 1,
+            trictrac_store::TurnStage::MarkPoints => 2,
+            trictrac_store::TurnStage::HoldOrGoChoice => 3,
+            trictrac_store::TurnStage::Move => 4,
+            trictrac_store::TurnStage::MarkAdvPoints => 5,
         };
 
         // Récupérer les points et trous des joueurs

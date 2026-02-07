@@ -1,13 +1,16 @@
-{ pkgs, ... }:
+{ inputs, pkgs, ... }:
 
+let
+  pkgs-cmake3 = import inputs.nixpkgs-cmake3 { system = pkgs.stdenv.system; };
+in
 {
-
   packages = [
 
     # pour burn-rs
     pkgs.SDL2_gfx
     #  (compilation sdl2-sys)
-    pkgs.cmake
+    pkgs-cmake3.cmake
+    pkgs.libxcb
     pkgs.libffi
     pkgs.wayland-scanner
 

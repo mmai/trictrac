@@ -1,5 +1,5 @@
 import trictrac_store
 
 game = trictrac_store.TricTrac()
-print(game.get_active_player_id())
-print(game.get_legal_actions())
+print(game.current_player_idx())
+print(game.get_legal_actions(game.current_player_idx()))

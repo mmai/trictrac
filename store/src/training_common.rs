@@ -167,28 +167,6 @@ impl TrictracAction {
     pub fn action_space_size() -> usize {
         ACTION_SPACE_SIZE
     }
-
-    // pub fn to_game_event(&self, player_id: PlayerId, dice: Dice) -> GameEvent {
-    //     match action {
-    //         TrictracAction::Roll => Some(GameEvent::Roll { player_id }),
-    //         TrictracAction::Mark => Some(GameEvent::Mark { player_id, points }),
-    //         TrictracAction::Go => Some(GameEvent::Go { player_id }),
-    //         TrictracAction::Move {
-    //             dice_order,
-    //             from1,
-    //             from2,
-    //         } => {
-    //             // Effectuer un mouvement
-    //             let checker_move1 = CheckerMove::new(move1.0, move1.1).unwrap_or_default();
-    //             let checker_move2 = CheckerMove::new(move2.0, move2.1).unwrap_or_default();
-    //
-    //             Some(GameEvent::Move {
-    //                 player_id: self.agent_player_id,
-    //                 moves: (checker_move1, checker_move2),
-    //             })
-    //         }
-    //     };
-    // }
 }
 
 /// Obtient les actions valides pour l'état de jeu actuel

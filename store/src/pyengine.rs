@@ -8,7 +8,7 @@ use crate::game::{GameEvent, GameState, Stage, TurnStage};
 use crate::game_rules_moves::MoveRules;
 use crate::game_rules_points::PointsRules;
 use crate::player::{Color, PlayerId};
-use crate::training_common::get_valid_action_indices;
+use crate::training_common::{get_valid_action_indices, TrictracAction};
 
 #[pyclass]
 struct TricTrac {
@@ -50,164 +50,71 @@ impl TricTrac {
         self.game_state.active_player_id - 1
     }
 
-    fn get_legal_actions(&self) -> Vec<usize> {
-        get_valid_action_indices(&self.game_state)
+    fn get_legal_actions(&self, player_id: u64) -> Vec<usize> {
+        if player_id == self.current_player_idx() {
+            get_valid_action_indices(&self.game_state)
+        } else {
+            vec![]
+        }
     }
 
-    /// Lance les dés ou utilise la séquence prédéfinie
-    fn roll_dice(&mut self) -> PyResult<(u8, u8)> {
+    fn action_to_string(&self, player_idx: u64, action_idx: usize) -> String {
+        TrictracAction::from_action_index(action_idx)
+            .map(|a| format!("{}:{}", player_idx, a))
+            .unwrap_or("unknown action".into())
+    }
+
+    fn apply_dice_roll(&mut self, dices: (u8, u8)) -> PyResult<()> {
         let player_id = self.game_state.active_player_id;
 
-        if self.game_state.turn_stage != TurnStage::RollDice {
+        if self.game_state.turn_stage != TurnStage::RollWaiting {
             return Err(pyo3::exceptions::PyRuntimeError::new_err(
-                "Not in RollDice stage",
+                "Not in RollWaiting stage",
             ));
         }
 
-        self.game_state.consume(&GameEvent::Roll { player_id });
-
-        let dice = if self.current_dice_index < self.dice_roll_sequence.len() {
-            let vals = self.dice_roll_sequence[self.current_dice_index];
-            self.current_dice_index += 1;
-            Dice { values: vals }
-        } else {
-            DiceRoller::default().roll()
-        };
-
+        let dice = Dice { values: dices };
         self.game_state
             .consume(&GameEvent::RollResult { player_id, dice });
-
-        Ok(dice.values)
-    }
-
-    /// Applique un mouvement (deux déplacements de dames)
-    fn apply_move(&mut self, from1: usize, to1: usize, from2: usize, to2: usize) -> PyResult<()> {
-        let player_id = self.game_state.active_player_id;
-
-        let m1 = CheckerMove::new(from1, to1)
-            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
-        let m2 = CheckerMove::new(from2, to2)
-            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
-
-        let moves = (m1, m2);
-
-        if !self
-            .game_state
-            .validate(&GameEvent::Move { player_id, moves })
-        {
-            return Err(pyo3::exceptions::PyValueError::new_err("Invalid move"));
-        }
-
-        self.game_state
-            .consume(&GameEvent::Move { player_id, moves });
         Ok(())
     }
 
-    /// Obtenir l'état du jeu sous forme de chaîne de caractères compacte
-    fn get_state_id(&self) -> String {
-        self.game_state.to_string_id()
-    }
-
-    /// Renvoie les positions des pièces pour un joueur spécifique
-    fn get_checker_positions(&self, color: Color) -> Vec<(usize, i8)> {
-        self.game_state.board.get_color_fields(color)
-    }
-
-    /// Obtenir la liste des mouvements légaux sous forme de paires (from, to)
-    fn get_available_moves(&self) -> Vec<((usize, usize), (usize, usize))> {
-        // L'agent joue toujours le joueur actif
-        let color = self
-            .game_state
-            .player_color_by_id(&self.game_state.active_player_id)
-            .unwrap_or(Color::White);
-
-        // Si ce n'est pas le moment de déplacer les pièces, retourner une liste vide
-        if self.game_state.turn_stage != TurnStage::Move
-            && self.game_state.turn_stage != TurnStage::HoldOrGoChoice
+    fn apply_action(&mut self, action_idx: usize) -> PyResult<()> {
+        if let Some(event) =
+            TrictracAction::from_action_index(action_idx).and_then(|a| a.to_event(&self.game_state))
         {
-            return vec![];
+            println!("get event {:?}", event);
+            if self.game_state.validate(&event) {
+                println!("valid event");
+                self.game_state.consume(&event);
+                println!("state {}", self.game_state);
+                return Ok(());
+            } else {
+                return Err(pyo3::exceptions::PyRuntimeError::new_err(
+                    "Action is invalid",
+                ));
+            }
         }
-
-        let rules = MoveRules::new(&color, &self.game_state.board, self.game_state.dice);
-        let possible_moves = rules.get_possible_moves_sequences(true, vec![]);
-
-        // Convertir les mouvements CheckerMove en tuples (from, to) pour Python
-        possible_moves
-            .into_iter()
-            .map(|(move1, move2)| {
-                (
-                    (move1.get_from(), move1.get_to()),
-                    (move2.get_from(), move2.get_to()),
-                )
-            })
-            .collect()
+        Err(pyo3::exceptions::PyRuntimeError::new_err(
+            "Could not apply action",
+        ))
     }
 
-    /// Calcule les points maximaux que le joueur actif peut obtenir avec les dés actuels
-    fn calculate_points(&self) -> u8 {
-        let active_player = self
-            .game_state
-            .players
-            .get(&self.game_state.active_player_id);
-
-        if let Some(player) = active_player {
-            let dice_roll_count = player.dice_roll_count;
-            let color = player.color;
-
-            let points_rules =
-                PointsRules::new(&color, &self.game_state.board, self.game_state.dice);
-            let (points, _) = points_rules.get_points(dice_roll_count);
-
-            points
-        } else {
-            0
-        }
-    }
-
-    /// Réinitialise la partie
-    fn reset(&mut self) {
-        self.game_state = GameState::new(false);
-
-        // Initialiser 2 joueurs
-        self.game_state.init_player("player1");
-        self.game_state.init_player("player2");
-
-        // Commencer la partie avec le joueur 1
-        self.game_state
-            .consume(&GameEvent::BeginGame { goes_first: 1 });
-
-        // Réinitialiser l'index de la séquence de dés
-        self.current_dice_index = 0;
-    }
-
-    /// Vérifie si la partie est terminée
-    fn is_done(&self) -> bool {
-        self.game_state.stage == Stage::Ended || self.game_state.determine_winner().is_some()
-    }
-
-    /// Obtenir le gagnant de la partie
-    fn get_winner(&self) -> Option<PlayerId> {
-        self.game_state.determine_winner()
-    }
-
-    /// Obtenir le score du joueur actif (nombre de trous)
+    /// Get a player total score (holes & points)
     fn get_score(&self, player_id: PlayerId) -> i32 {
         if let Some(player) = self.game_state.players.get(&player_id) {
-            player.holes as i32
+            player.holes as i32 * 12 + player.points as i32
         } else {
             -1
         }
     }
 
-    /// Obtenir l'ID du joueur actif
-    fn get_active_player_id(&self) -> PlayerId {
-        self.game_state.active_player_id
+    fn get_players_scores(&self) -> [i32; 2] {
+        [self.get_score(1), self.get_score(2)]
     }
 
-    /// Définir une séquence de dés à utiliser (pour la reproductibilité)
-    fn set_dice_sequence(&mut self, sequence: Vec<(u8, u8)>) {
-        self.dice_roll_sequence = sequence;
-        self.current_dice_index = 0;
+    fn get_tensor(&self, player: PlayerId) -> Vec<i8> {
+        self.game_state.to_vec()
     }
 
     /// Afficher l'état du jeu (pour le débogage)

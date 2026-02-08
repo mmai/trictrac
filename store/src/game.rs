@@ -90,7 +90,12 @@ impl fmt::Display for GameState {
             self.stage, self.turn_stage
         ));
         s.push_str(&format!("Dice: {:?}\n", self.dice));
-        // s.push_str(&format!("Who plays: {}\n", self.who_plays().map(|player| &player.name ).unwrap_or("")));
+        s.push_str(&format!(
+            "Who plays: {}\n",
+            self.who_plays()
+                .map(|player| &player.name)
+                .unwrap_or(&String::from(""))
+        ));
         s.push_str(&format!("Board: {:?}\n", self.board));
         // s.push_str(&format!("History: {:?}\n", self.history));
         write!(f, "{s}")

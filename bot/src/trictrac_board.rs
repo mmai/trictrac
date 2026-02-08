@@ -1,5 +1,4 @@
 // https://docs.rs/board-game/ implementation
-use crate::training_common::{get_valid_actions, TrictracAction};
 use board_game::board::{
     Board as BoardGameBoard, BoardDone, BoardMoves, Outcome, PlayError, Player as BoardGamePlayer,
 };
@@ -8,6 +7,7 @@ use internal_iterator::InternalIterator;
 use std::fmt;
 use std::hash::Hash;
 use std::ops::ControlFlow;
+use trictrac_store::training_common::{get_valid_actions, TrictracAction};
 use trictrac_store::Color;
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]

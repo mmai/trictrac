@@ -1,9 +1,9 @@
 use std::io::Write;
 
-use crate::training_common;
 use burn::{prelude::Backend, tensor::Tensor};
 use burn_rl::base::{Action, Environment, Snapshot, State};
 use rand::{rng, Rng};
+use trictrac_store::training_common;
 use trictrac_store::{GameEvent, GameState, PlayerId, PointsRules, Stage, TurnStage};
 
 const ERROR_REWARD: f32 = -1.0012121;

@@ -8,6 +8,7 @@ use crate::game::{GameEvent, GameState, Stage, TurnStage};
 use crate::game_rules_moves::MoveRules;
 use crate::game_rules_points::PointsRules;
 use crate::player::{Color, PlayerId};
+use crate::training_common::get_valid_action_indices;
 
 #[pyclass]
 struct TricTrac {
@@ -49,12 +50,9 @@ impl TricTrac {
         self.game_state.active_player_id - 1
     }
 
-    // fn get_legal_actions(&self) -> Vec<usize> {
-    //     get_valid_actions(&self.game_state)
-    //     .into_iter()
-    //     .map(|action| action.to_action_index())
-    //     .collect()
-    // }
+    fn get_legal_actions(&self) -> Vec<usize> {
+        get_valid_action_indices(&self.game_state)
+    }
 
     /// Lance les dés ou utilise la séquence prédéfinie
     fn roll_dice(&mut self) -> PyResult<(u8, u8)> {

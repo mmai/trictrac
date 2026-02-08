@@ -1,15 +1,16 @@
 pub mod burnrl;
 pub mod strategy;
-pub mod training_common;
 pub mod trictrac_board;
 
 use log::debug;
-use trictrac_store::{CheckerMove, Color, GameEvent, GameState, PlayerId, PointsRules, Stage, TurnStage};
 pub use strategy::default::DefaultStrategy;
 pub use strategy::dqnburn::DqnBurnStrategy;
 pub use strategy::erroneous_moves::ErroneousStrategy;
 pub use strategy::random::RandomStrategy;
 pub use strategy::stable_baselines3::StableBaselines3Strategy;
+use trictrac_store::{
+    CheckerMove, Color, GameEvent, GameState, PlayerId, PointsRules, Stage, TurnStage,
+};
 
 pub trait BotStrategy: std::fmt::Debug {
     fn get_game(&self) -> &GameState;

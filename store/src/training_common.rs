@@ -3,8 +3,8 @@
 use std::cmp::{max, min};
 use std::fmt::{Debug, Display, Formatter};
 
+use crate::{CheckerMove, GameEvent, GameState};
 use serde::{Deserialize, Serialize};
-use trictrac_store::{CheckerMove, GameEvent, GameState};
 
 // 1 (Roll) + 1 (Go) + 512 (mouvements possibles)
 // avec 512 = 2 (choix du dé) * 16 * 16 (choix de la dame 0-15 pour chaque from)
@@ -94,14 +94,13 @@ impl TrictracAction {
                     (state.dice.values.1, state.dice.values.0)
                 };
 
-                let color = &trictrac_store::Color::White;
+                let color = &crate::Color::White;
                 let from1 = state
                     .board
                     .get_checker_field(color, *checker1 as u8)
                     .unwrap_or(0);
                 let mut to1 = from1 + dice1 as usize;
-                let checker_move1 =
-                    trictrac_store::CheckerMove::new(from1, to1).unwrap_or_default();
+                let checker_move1 = CheckerMove::new(from1, to1).unwrap_or_default();
 
                 let mut tmp_board = state.board.clone();
                 let move_result = tmp_board.move_checker(color, checker_move1);
@@ -121,10 +120,8 @@ impl TrictracAction {
                         to2 -= 1;
                     }
 
-                    let checker_move1 =
-                        trictrac_store::CheckerMove::new(from1, to1).unwrap_or_default();
-                    let checker_move2 =
-                        trictrac_store::CheckerMove::new(from2, to2).unwrap_or_default();
+                    let checker_move1 = CheckerMove::new(from1, to1).unwrap_or_default();
+                    let checker_move2 = CheckerMove::new(from2, to2).unwrap_or_default();
 
                     Some(GameEvent::Move {
                         player_id: state.active_player_id,
@@ -182,8 +179,8 @@ impl TrictracAction {
     //             from2,
     //         } => {
     //             // Effectuer un mouvement
-    //             let checker_move1 = trictrac_store::CheckerMove::new(move1.0, move1.1).unwrap_or_default();
-    //             let checker_move2 = trictrac_store::CheckerMove::new(move2.0, move2.1).unwrap_or_default();
+    //             let checker_move1 = CheckerMove::new(move1.0, move1.1).unwrap_or_default();
+    //             let checker_move2 = CheckerMove::new(move2.0, move2.1).unwrap_or_default();
     //
     //             Some(GameEvent::Move {
     //                 player_id: self.agent_player_id,
@@ -195,8 +192,8 @@ impl TrictracAction {
 }
 
 /// Obtient les actions valides pour l'état de jeu actuel
-pub fn get_valid_actions(game_state: &crate::GameState) -> Vec<TrictracAction> {
-    use trictrac_store::TurnStage;
+pub fn get_valid_actions(game_state: &GameState) -> Vec<TrictracAction> {
+    use crate::TurnStage;
 
     let mut valid_actions = Vec::new();
 
@@ -219,12 +216,11 @@ pub fn get_valid_actions(game_state: &crate::GameState) -> Vec<TrictracAction> {
                 valid_actions.push(TrictracAction::Go);
 
                 // Ajoute aussi les mouvements possibles
-                let rules =
-                    trictrac_store::MoveRules::new(&color, &game_state.board, game_state.dice);
+                let rules = crate::MoveRules::new(&color, &game_state.board, game_state.dice);
                 let possible_moves = rules.get_possible_moves_sequences(true, vec![]);
 
                 // Modififier checker_moves_to_trictrac_action si on doit gérer Black
-                assert_eq!(color, trictrac_store::Color::White);
+                assert_eq!(color, crate::Color::White);
                 for (move1, move2) in possible_moves {
                     valid_actions.push(checker_moves_to_trictrac_action(
                         &move1, &move2, &color, game_state,
@@ -232,8 +228,7 @@ pub fn get_valid_actions(game_state: &crate::GameState) -> Vec<TrictracAction> {
                 }
             }
             TurnStage::Move => {
-                let rules =
-                    trictrac_store::MoveRules::new(&color, &game_state.board, game_state.dice);
+                let rules = crate::MoveRules::new(&color, &game_state.board, game_state.dice);
                 let mut possible_moves = rules.get_possible_moves_sequences(true, vec![]);
                 if possible_moves.is_empty() {
                     // Empty move
@@ -241,7 +236,7 @@ pub fn get_valid_actions(game_state: &crate::GameState) -> Vec<TrictracAction> {
                 }
 
                 // Modififier checker_moves_to_trictrac_action si on doit gérer Black
-                assert_eq!(color, trictrac_store::Color::White);
+                assert_eq!(color, crate::Color::White);
                 for (move1, move2) in possible_moves {
                     valid_actions.push(checker_moves_to_trictrac_action(
                         &move1, &move2, &color, game_state,
@@ -261,8 +256,8 @@ pub fn get_valid_actions(game_state: &crate::GameState) -> Vec<TrictracAction> {
 fn checker_moves_to_trictrac_action(
     move1: &CheckerMove,
     move2: &CheckerMove,
-    color: &trictrac_store::Color,
-    state: &crate::GameState,
+    color: &crate::Color,
+    state: &GameState,
 ) -> TrictracAction {
     let to1 = move1.get_to();
     let to2 = move2.get_to();
@@ -320,7 +315,7 @@ fn checker_moves_to_trictrac_action(
 }
 
 /// Retourne les indices des actions valides
-pub fn get_valid_action_indices(game_state: &crate::GameState) -> Vec<usize> {
+pub fn get_valid_action_indices(game_state: &GameState) -> Vec<usize> {
     get_valid_actions(game_state)
         .into_iter()
         .map(|action| action.to_action_index())
@@ -328,7 +323,7 @@ pub fn get_valid_action_indices(game_state: &crate::GameState) -> Vec<usize> {
 }
 
 /// Sélectionne une action valide aléatoire
-pub fn sample_valid_action(game_state: &crate::GameState) -> Option<TrictracAction> {
+pub fn sample_valid_action(game_state: &GameState) -> Option<TrictracAction> {
     use rand::{prelude::IndexedRandom, rng};
 
     let valid_actions = get_valid_actions(game_state);

@@ -63,6 +63,7 @@ impl MoveRules {
 
     fn get_board_from_color(color: &Color, board: &Board) -> Board {
         if *color == Color::Black {
+            println!("get_board_from_color -> mirror of {}", board);
             board.mirror()
         } else {
             board.clone()
@@ -74,6 +75,7 @@ impl MoveRules {
         moves: &(CheckerMove, CheckerMove),
         // ignored_rules: Vec<TricTracRule>,
     ) -> bool {
+        println!("in moves_follow_rules");
         // Check moves possibles on the board
         // Check moves conforms to the dice
         // Check move is allowed by the rules (to desactivate when playing with schools)
@@ -81,7 +83,8 @@ impl MoveRules {
             let is_allowed = self.moves_allowed(moves);
             // let is_allowed = self.moves_allowed(moves, ignored_rules);
             if is_allowed.is_err() {
-                info!("Move not allowed : {:?}", is_allowed.unwrap_err());
+                println!("Move not allowed : {:?}", is_allowed.unwrap_err());
+                // info!("Move not allowed : {:?}", is_allowed.unwrap_err());
                 false
             } else {
                 true
@@ -99,6 +102,10 @@ impl MoveRules {
             if let Ok((field_count, Some(field_color))) = self.board.get_field_checkers(move0_from)
             {
                 if color != field_color || field_count < 2 {
+                    println!(
+                        "Move not physically possible 1. field_color {:?}, count {}",
+                        field_color, field_count
+                    );
                     info!("Move not physically possible");
                     return false;
                 }
@@ -110,6 +117,7 @@ impl MoveRules {
             if !self.board.passage_possible(color, &moves.0)
                 || !self.board.move_possible(color, &chained_move)
             {
+                println!("Tout d'une : Move not physically possible");
                 info!("Tout d'une : Move not physically possible");
                 return false;
             }
@@ -117,6 +125,11 @@ impl MoveRules {
             || !self.board.move_possible(color, &moves.1)
         {
             // Move is not physically possible
+            println!("Move not physically possible 2");
+            println!(
+                "board: {}, color: {:?} move: {:?}",
+                self.board, color, moves
+            );
             info!("Move not physically possible");
             return false;
         }

@@ -71,7 +71,7 @@ impl Bot {
         debug!(">>>> {:?} BOT handle", self.color);
         let game = self.strategy.get_mut_game();
         let internal_event = if self.color == Color::Black {
-            &event.get_mirror()
+            &event.get_mirror(false)
         } else {
             event
         };
@@ -126,7 +126,7 @@ impl Bot {
             return if self.color == Color::Black {
                 debug!("   bot (internal) evt : {internal_event:?} ; points : {player_points:?}");
                 debug!("<<<< end {:?} BOT handle", self.color);
-                internal_event.map(|evt| evt.get_mirror())
+                internal_event.map(|evt| evt.get_mirror(false))
             } else {
                 debug!("<<<< end {:?} BOT handle", self.color);
                 internal_event

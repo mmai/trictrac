@@ -69,10 +69,26 @@ pub type PossibleJans = HashMap<Jan, Vec<(CheckerMove, CheckerMove)>>;
 pub trait PossibleJansMethods {
     fn push(&mut self, jan: Jan, cmoves: (CheckerMove, CheckerMove));
     fn merge(&mut self, other: Self);
+    fn mirror(&self) -> Self;
     // fn get_points(&self) -> u8;
 }
 
 impl PossibleJansMethods for PossibleJans {
+    fn mirror(&self) -> Self {
+        self.clone()
+            .into_iter()
+            .map(|(jan, moves)| {
+                (
+                    jan,
+                    moves
+                        .into_iter()
+                        .map(|(m1, m2)| (m1.mirror(), m2.mirror()))
+                        .collect(),
+                )
+            })
+            .collect()
+    }
+
     fn push(&mut self, jan: Jan, cmoves: (CheckerMove, CheckerMove)) {
         if let Some(ways) = self.get_mut(&jan) {
             if !ways.contains(&cmoves) {

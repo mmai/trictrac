@@ -2,13 +2,13 @@
 use crate::board::{Board, CheckerMove};
 use crate::dice::Dice;
 use crate::game_rules_moves::MoveRules;
-use crate::game_rules_points::{PointsRules, PossibleJans};
+use crate::game_rules_points::{PointsRules, PossibleJans, PossibleJansMethods};
 use crate::player::{Color, Player, PlayerId};
 use log::{debug, error};
 
 // use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::{fmt, str};
 
@@ -141,6 +141,40 @@ impl GameState {
             game.consume(&GameEvent::BeginGame { goes_first: p1 });
         }
         game
+    }
+
+    pub fn mirror(&self) -> GameState {
+        let mirrored_active_player = if self.active_player_id == 1 { 2 } else { 1 };
+        let mut mirrored_players = HashMap::new();
+        if let Some(p2) = self.players.get(&2) {
+            mirrored_players.insert(1, p2.mirror());
+        }
+        if let Some(p1) = self.players.get(&1) {
+            mirrored_players.insert(2, p1.mirror());
+        }
+        let mirrored_history = self
+            .history
+            .clone()
+            .iter()
+            .map(|evt| evt.get_mirror(false))
+            .collect();
+
+        let (move1, move2) = self.dice_moves;
+        GameState {
+            stage: self.stage,
+            turn_stage: self.turn_stage,
+            board: self.board.mirror(),
+            active_player_id: mirrored_active_player,
+            // active_player_id: self.active_player_id,
+            players: mirrored_players,
+            history: mirrored_history,
+            dice: self.dice,
+            dice_points: self.dice_points,
+            dice_moves: (move1.mirror(), move2.mirror()),
+            dice_jans: self.dice_jans.mirror(),
+            roll_first: self.roll_first,
+            schools_enabled: self.schools_enabled,
+        }
     }
 
     fn set_schools_enabled(&mut self, schools_enabled: bool) {
@@ -436,10 +470,12 @@ impl GameState {
             Roll { player_id } => {
                 // Check player exists
                 if !self.players.contains_key(player_id) {
+                    error!("unknown player_id");
                     return false;
                 }
                 // Check player is currently the one making their move
                 if self.active_player_id != *player_id {
+                    error!("not active player_id");
                     return false;
                 }
                 // Check the turn stage
@@ -536,6 +572,7 @@ impl GameState {
                     *moves
                 };
                 if !rules.moves_follow_rules(&moves) {
+                    // println!(">>> rules not followed ");
                     error!("rules not followed ");
                     return false;
                 }
@@ -555,7 +592,7 @@ impl GameState {
 
     pub fn init_player(&mut self, player_name: &str) -> Option<PlayerId> {
         if self.players.len() > 2 {
-            println!("more than two players");
+            // println!("more than two players");
             return None;
         }
 
@@ -869,10 +906,12 @@ impl GameEvent {
         }
     }
 
-    pub fn get_mirror(&self) -> Self {
+    pub fn get_mirror(&self, preserve_player: bool) -> Self {
         // let mut mirror = self.clone();
         let mirror_player_id = if let Some(player_id) = self.player_id() {
-            if player_id == 1 {
+            if preserve_player {
+                player_id
+            } else if player_id == 1 {
                 2
             } else {
                 1

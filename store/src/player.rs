@@ -48,6 +48,16 @@ impl Player {
         }
     }
 
+    pub fn mirror(&self) -> Self {
+        let mut player = self.clone();
+        player.color = if self.color == Color::White {
+            Color::Black
+        } else {
+            Color::White
+        };
+        player
+    }
+
     pub fn to_bits_string(&self) -> String {
         format!(
             "{:0>4b}{:0>4b}{:b}{:b}",

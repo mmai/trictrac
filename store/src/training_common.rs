@@ -3,7 +3,8 @@
 use std::cmp::{max, min};
 use std::fmt::{Debug, Display, Formatter};
 
-use crate::{CheckerMove, GameEvent, GameState};
+use crate::board::Board;
+use crate::{CheckerMove, Dice, GameEvent, GameState};
 use serde::{Deserialize, Serialize};
 
 // 1 (Roll) + 1 (Go) + 512 (mouvements possibles)
@@ -57,6 +58,22 @@ impl TrictracAction {
                 }
                 start + checker1 * 16 + checker2
             } // TrictracAction::Mark => 514,
+        }
+    }
+
+    pub fn mirror(&self) -> TrictracAction {
+        match self {
+            TrictracAction::Roll => TrictracAction::Roll,
+            TrictracAction::Go => TrictracAction::Go,
+            TrictracAction::Move {
+                dice_order,
+                checker1,
+                checker2,
+            } => TrictracAction::Move {
+                dice_order: *dice_order,
+                checker1: if *checker1 == 0 { 0 } else { 25 - checker1 },
+                checker2: if *checker2 == 0 { 0 } else { 25 - checker2 },
+            },
         }
     }
 
@@ -197,8 +214,6 @@ pub fn get_valid_actions(game_state: &GameState) -> Vec<TrictracAction> {
                 let rules = crate::MoveRules::new(&color, &game_state.board, game_state.dice);
                 let possible_moves = rules.get_possible_moves_sequences(true, vec![]);
 
-                // Modififier checker_moves_to_trictrac_action si on doit gérer Black
-                assert_eq!(color, crate::Color::White);
                 for (move1, move2) in possible_moves {
                     valid_actions.push(checker_moves_to_trictrac_action(
                         &move1, &move2, &color, game_state,
@@ -213,8 +228,6 @@ pub fn get_valid_actions(game_state: &GameState) -> Vec<TrictracAction> {
                     possible_moves.push((CheckerMove::default(), CheckerMove::default()));
                 }
 
-                // Modififier checker_moves_to_trictrac_action si on doit gérer Black
-                assert_eq!(color, crate::Color::White);
                 for (move1, move2) in possible_moves {
                     valid_actions.push(checker_moves_to_trictrac_action(
                         &move1, &move2, &color, game_state,
@@ -230,18 +243,40 @@ pub fn get_valid_actions(game_state: &GameState) -> Vec<TrictracAction> {
     valid_actions
 }
 
-// Valid only for White player
 fn checker_moves_to_trictrac_action(
     move1: &CheckerMove,
     move2: &CheckerMove,
     color: &crate::Color,
     state: &GameState,
 ) -> TrictracAction {
+    let dice = &state.dice;
+    let board = &state.board;
+
+    if color == &crate::Color::Black {
+        white_checker_moves_to_trictrac_action(
+            move1,
+            move2,
+            // &move1.clone().mirror(),
+            // &move2.clone().mirror(),
+            dice,
+            &board.clone().mirror(),
+        )
+        .mirror()
+    } else {
+        white_checker_moves_to_trictrac_action(move1, move2, dice, board)
+    }
+}
+
+fn white_checker_moves_to_trictrac_action(
+    move1: &CheckerMove,
+    move2: &CheckerMove,
+    dice: &Dice,
+    board: &Board,
+) -> TrictracAction {
     let to1 = move1.get_to();
     let to2 = move2.get_to();
     let from1 = move1.get_from();
     let from2 = move2.get_from();
-    let dice = state.dice;
 
     let mut diff_move1 = if to1 > 0 {
         // Mouvement sans sortie
@@ -277,14 +312,14 @@ fn checker_moves_to_trictrac_action(
     }
     let dice_order = diff_move1 == dice.values.0 as usize;
 
-    let checker1 = state.board.get_field_checker(color, from1) as usize;
-    let mut tmp_board = state.board.clone();
+    let checker1 = board.get_field_checker(&crate::Color::White, from1) as usize;
+    let mut tmp_board = board.clone();
     // should not raise an error for a valid action
-    let move_res = tmp_board.move_checker(color, *move1);
+    let move_res = tmp_board.move_checker(&crate::Color::White, *move1);
     if move_res.is_err() {
         panic!("error while moving checker {move_res:?}");
     }
-    let checker2 = tmp_board.get_field_checker(color, from2) as usize;
+    let checker2 = tmp_board.get_field_checker(&crate::Color::White, from2) as usize;
     TrictracAction::Move {
         dice_order,
         checker1,

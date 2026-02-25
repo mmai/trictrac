@@ -63,7 +63,6 @@ impl MoveRules {
 
     fn get_board_from_color(color: &Color, board: &Board) -> Board {
         if *color == Color::Black {
-            println!("get_board_from_color -> mirror of {}", board);
             board.mirror()
         } else {
             board.clone()
@@ -75,7 +74,6 @@ impl MoveRules {
         moves: &(CheckerMove, CheckerMove),
         // ignored_rules: Vec<TricTracRule>,
     ) -> bool {
-        println!("in moves_follow_rules");
         // Check moves possibles on the board
         // Check moves conforms to the dice
         // Check move is allowed by the rules (to desactivate when playing with schools)

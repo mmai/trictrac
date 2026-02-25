@@ -117,6 +117,10 @@ impl TrictracAction {
                     .get_checker_field(color, *checker1 as u8)
                     .unwrap_or(0);
                 let mut to1 = from1 + dice1 as usize;
+                if 24 < to1 {
+                    // exit board
+                    to1 = 0;
+                }
                 let checker_move1 = CheckerMove::new(from1, to1).unwrap_or_default();
 
                 let mut tmp_board = state.board.clone();
@@ -129,6 +133,10 @@ impl TrictracAction {
                         .get_checker_field(color, *checker2 as u8)
                         .unwrap_or(0);
                     let mut to2 = from2 + dice2 as usize;
+                    if 24 < to2 {
+                        // exit board
+                        to2 = 0;
+                    }
 
                     // Gestion prise de coin par puissance
                     let opp_rest_field = 13;

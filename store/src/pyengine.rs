@@ -1,20 +1,14 @@
 //! # Expose trictrac game state and rules in a python module
 use pyo3::prelude::*;
-use pyo3::types::PyDict;
 
-use crate::board::CheckerMove;
-use crate::dice::{Dice, DiceRoller};
+use crate::dice::Dice;
 use crate::game::{GameEvent, GameState, Stage, TurnStage};
-use crate::game_rules_moves::MoveRules;
-use crate::game_rules_points::PointsRules;
-use crate::player::{Color, PlayerId};
+use crate::player::PlayerId;
 use crate::training_common::{get_valid_action_indices, TrictracAction};
 
 #[pyclass]
 struct TricTrac {
     game_state: GameState,
-    dice_roll_sequence: Vec<(u8, u8)>,
-    current_dice_index: usize,
 }
 
 #[pymethods]
@@ -30,11 +24,7 @@ impl TricTrac {
         // Commencer la partie avec le joueur 1
         game_state.consume(&GameEvent::BeginGame { goes_first: 1 });
 
-        TricTrac {
-            game_state,
-            dice_roll_sequence: Vec::new(),
-            current_dice_index: 0,
-        }
+        TricTrac { game_state }
     }
 
     fn needs_roll(&self) -> bool {

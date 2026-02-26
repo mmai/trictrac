@@ -1,5 +1,6 @@
 use crate::{BotStrategy, CheckerMove, Color, GameState, PlayerId};
-use store::MoveRules;
+use rand::{prelude::IndexedRandom, rng};
+use trictrac_store::MoveRules;
 
 #[derive(Debug)]
 pub struct RandomStrategy {
@@ -51,8 +52,7 @@ impl BotStrategy for RandomStrategy {
         let rules = MoveRules::new(&self.color, &self.game.board, self.game.dice);
         let possible_moves = rules.get_possible_moves_sequences(true, vec![]);
 
-        use rand::{seq::SliceRandom, thread_rng};
-        let mut rng = thread_rng();
+        let mut rng = rng();
         let choosen_move = possible_moves
             .choose(&mut rng)
             .cloned()

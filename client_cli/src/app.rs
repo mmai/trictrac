@@ -1,11 +1,11 @@
-use bot::{
+use trictrac_bot::{
     BotStrategy, DefaultStrategy, DqnBurnStrategy, ErroneousStrategy, RandomStrategy,
     StableBaselines3Strategy,
 };
 use itertools::Itertools;
 
 use crate::game_runner::GameRunner;
-use store::{CheckerMove, GameEvent, GameState, Stage, TurnStage};
+use trictrac_store::{CheckerMove, GameEvent, GameState, Stage, TurnStage};
 
 #[derive(Debug, Default)]
 pub struct AppArgs {

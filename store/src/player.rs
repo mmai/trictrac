@@ -1,9 +1,11 @@
+use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
 // This just makes it easier to dissern between a player id and any ol' u64
 pub type PlayerId = u64;
 
+#[pyclass(eq, eq_int)]
 #[derive(Copy, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Color {
     White,
@@ -44,6 +46,16 @@ impl Player {
             can_big_bredouille: true,
             dice_roll_count: 0,
         }
+    }
+
+    pub fn mirror(&self) -> Self {
+        let mut player = self.clone();
+        player.color = if self.color == Color::White {
+            Color::Black
+        } else {
+            Color::White
+        };
+        player
     }
 
     pub fn to_bits_string(&self) -> String {

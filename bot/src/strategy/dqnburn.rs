@@ -4,11 +4,13 @@ use burn_rl::base::{ElemType, Model, State};
 
 use crate::{BotStrategy, CheckerMove, Color, GameState, PlayerId};
 use log::info;
-use store::MoveRules;
+use trictrac_store::MoveRules;
 
 use crate::burnrl::algos::dqn;
 use crate::burnrl::environment;
-use crate::training_common::{get_valid_action_indices, sample_valid_action, TrictracAction};
+use trictrac_store::training_common::{
+    get_valid_action_indices, sample_valid_action, TrictracAction,
+};
 
 type DqnBurnNetwork = dqn::Net<NdArray<ElemType>>;
 
@@ -152,7 +154,7 @@ impl BotStrategy for DqnBurnStrategy {
                 to1 = if fto1 < 0 { 0 } else { fto1 as usize };
             }
 
-            let checker_move1 = store::CheckerMove::new(from1, to1).unwrap_or_default();
+            let checker_move1 = trictrac_store::CheckerMove::new(from1, to1).unwrap_or_default();
 
             let mut tmp_board = self.game.board.clone();
             let move_res = tmp_board.move_checker(&self.color, checker_move1);

@@ -1,4 +1,4 @@
-use rand::distributions::{Distribution, Uniform};
+use rand::distr::{Distribution, Uniform};
 use rand::{rngs::StdRng, SeedableRng};
 use serde::{Deserialize, Serialize};
 
@@ -17,7 +17,7 @@ impl DiceRoller {
     pub fn new(opt_seed: Option<u64>) -> Self {
         Self {
             rng: match opt_seed {
-                None => StdRng::from_rng(rand::thread_rng()).unwrap(),
+                None => StdRng::from_rng(&mut rand::rng()),
                 Some(seed) => SeedableRng::seed_from_u64(seed),
             },
         }
@@ -26,7 +26,7 @@ impl DiceRoller {
     /// Roll the dices which generates two random numbers between 1 and 6, replicating a perfect
     /// dice. We use the operating system's random number generator.
     pub fn roll(&mut self) -> Dice {
-        let between = Uniform::new_inclusive(1, 6);
+        let between = Uniform::new_inclusive(1, 6).expect("1 > 6 !?");
 
         let v = (between.sample(&mut self.rng), between.sample(&mut self.rng));
 

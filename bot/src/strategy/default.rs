@@ -1,5 +1,5 @@
 use crate::{BotStrategy, CheckerMove, Color, GameState, PlayerId};
-use store::MoveRules;
+use trictrac_store::MoveRules;
 
 #[derive(Debug)]
 pub struct DefaultStrategy {

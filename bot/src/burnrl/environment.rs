@@ -1,10 +1,10 @@
 use std::io::Write;
 
-use crate::training_common;
 use burn::{prelude::Backend, tensor::Tensor};
 use burn_rl::base::{Action, Environment, Snapshot, State};
-use rand::{thread_rng, Rng};
-use store::{GameEvent, GameState, PlayerId, PointsRules, Stage, TurnStage};
+use rand::{rng, Rng};
+use trictrac_store::training_common;
+use trictrac_store::{GameEvent, GameState, PlayerId, PointsRules, Stage, TurnStage};
 
 const ERROR_REWARD: f32 = -1.0012121;
 const REWARD_VALID_MOVE: f32 = 1.0012121;
@@ -52,10 +52,10 @@ pub struct TrictracAction {
 
 impl Action for TrictracAction {
     fn random() -> Self {
-        use rand::{thread_rng, Rng};
-        let mut rng = thread_rng();
+        use rand::{rng, Rng};
+        let mut rng = rng();
         TrictracAction {
-            index: rng.gen_range(0..Self::size() as u32),
+            index: rng.random_range(0..Self::size() as u32),
         }
     }
 
@@ -288,11 +288,11 @@ impl TrictracEnvironment {
                 // reward += REWARD_VALID_MOVE;
                 // Simuler le résultat des dés après un Roll
                 if matches!(action, TrictracAction::Roll) {
-                    let mut rng = thread_rng();
-                    let dice_values = (rng.gen_range(1..=6), rng.gen_range(1..=6));
+                    let mut rng = rng();
+                    let dice_values = (rng.random_range(1..=6), rng.random_range(1..=6));
                     let dice_event = GameEvent::RollResult {
                         player_id: self.active_player_id,
-                        dice: store::Dice {
+                        dice: trictrac_store::Dice {
                             values: dice_values,
                         },
                     };
@@ -340,18 +340,18 @@ impl TrictracEnvironment {
 
             // Exécuter l'action selon le turn_stage
             let mut calculate_points = false;
-            let opponent_color = store::Color::Black;
+            let opponent_color = trictrac_store::Color::Black;
             let event = match self.game.turn_stage {
                 TurnStage::RollDice => GameEvent::Roll {
                     player_id: self.opponent_id,
                 },
                 TurnStage::RollWaiting => {
-                    let mut rng = thread_rng();
-                    let dice_values = (rng.gen_range(1..=6), rng.gen_range(1..=6));
+                    let mut rng = rng();
+                    let dice_values = (rng.random_range(1..=6), rng.random_range(1..=6));
                     calculate_points = true;
                     GameEvent::RollResult {
                         player_id: self.opponent_id,
-                        dice: store::Dice {
+                        dice: trictrac_store::Dice {
                             values: dice_values,
                         },
                     }
@@ -371,7 +371,7 @@ impl TrictracEnvironment {
                     }
                 }
                 TurnStage::MarkAdvPoints => {
-                    let opponent_color = store::Color::Black;
+                    let opponent_color = trictrac_store::Color::Black;
                     let dice_roll_count = self
                         .game
                         .players

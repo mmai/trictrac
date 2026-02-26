@@ -7,12 +7,15 @@ edition = "2021"
 
 [lib]
 name = "trictrac_store"
-# "cdylib" is necessary to produce a shared library for Python to import from.
-# Only "rlib" is needed for other Rust crates to use this library
-crate-type = ["cdylib", "rlib"]
+# "cdylib"   → Python .so built by maturin (pyengine)
+# "rlib"     → used by other workspace crates (bot, client_cli)
+# "staticlib" → used by the C++ OpenSpiel game (cxxengine)
+crate-type = ["cdylib", "rlib", "staticlib"]
 
 [dependencies]
+anyhow = "1.0"
 base64 = "0.21.7"
+cxx = "1.0"
 # provides macros for creating log messages to be used by a logger (for example env_logger)
 log = "0.4.20"
 merge = "0.1.0"
@@ -21,3 +24,6 @@ pyo3 = { version = "0.23", features = ["extension-module", "abi3-py38"] }
 rand = "0.9"
 serde = { version = "1.0", features = ["derive"] }
 transpose = "0.2.2"
+
+[build-dependencies]
+cxx-build = "1.0"

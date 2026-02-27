@@ -43,10 +43,10 @@ impl TricTrac {
     fn get_legal_actions(&self, player_idx: u64) -> Vec<usize> {
         if player_idx == self.current_player_idx() {
             if player_idx == 0 {
-                get_valid_action_indices(&self.game_state)
+                get_valid_action_indices(&self.game_state).unwrap()
             } else {
                 let mirror = self.game_state.mirror();
-                get_valid_action_indices(&mirror)
+                get_valid_action_indices(&mirror).unwrap()
             }
         } else {
             vec![]

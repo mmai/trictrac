@@ -195,7 +195,7 @@ impl TrictracAction {
 }
 
 /// Obtient les actions valides pour l'état de jeu actuel
-pub fn get_valid_actions(game_state: &GameState) -> Vec<TrictracAction> {
+pub fn get_valid_actions(game_state: &GameState) -> anyhow::Result<Vec<TrictracAction>> {
     use crate::TurnStage;
 
     let mut valid_actions = Vec::new();
@@ -246,9 +246,9 @@ pub fn get_valid_actions(game_state: &GameState) -> Vec<TrictracAction> {
     }
 
     if valid_actions.is_empty() {
-        panic!("empty valid_actions for state {game_state}");
+        anyhow::bail!("empty valid_actions for state {game_state}");
     }
-    valid_actions
+    Ok(valid_actions)
 }
 
 fn checker_moves_to_trictrac_action(
@@ -336,11 +336,12 @@ fn white_checker_moves_to_trictrac_action(
 }
 
 /// Retourne les indices des actions valides
-pub fn get_valid_action_indices(game_state: &GameState) -> Vec<usize> {
-    get_valid_actions(game_state)
+pub fn get_valid_action_indices(game_state: &GameState) -> anyhow::Result<Vec<usize>> {
+    let actions = get_valid_actions(game_state)?;
+    Ok(actions
         .into_iter()
         .map(|action| action.to_action_index())
-        .collect()
+        .collect())
 }
 
 /// Sélectionne une action valide aléatoire
@@ -349,7 +350,7 @@ pub fn sample_valid_action(game_state: &GameState) -> Option<TrictracAction> {
 
     let valid_actions = get_valid_actions(game_state);
     let mut rng = rng();
-    valid_actions.choose(&mut rng).cloned()
+    valid_actions.unwrap().choose(&mut rng).cloned()
 }
 
 #[cfg(test)]

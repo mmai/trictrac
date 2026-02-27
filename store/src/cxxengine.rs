@@ -57,7 +57,7 @@ pub mod ffi {
 
         /// Legal action indices for `player_idx` in [0, 513].
         /// Returns an empty vector when it is not that player's turn.
-        fn get_legal_actions(self: &TricTracEngine, player_idx: u64) -> Vec<u64>;
+        fn get_legal_actions(self: &TricTracEngine, player_idx: u64) -> Result<Vec<u64>>;
 
         /// Human-readable description of an action index.
         fn action_to_string(self: &TricTracEngine, player_idx: u64, action_idx: u64) -> String;
@@ -123,21 +123,16 @@ impl TricTracEngine {
         self.game_state.active_player_id - 1
     }
 
-    fn get_legal_actions(&self, player_idx: u64) -> Vec<u64> {
+    fn get_legal_actions(&self, player_idx: u64) -> anyhow::Result<Vec<u64>> {
         if player_idx != self.current_player_idx() {
-            return vec![];
+            return Ok(vec![]);
         }
         if player_idx == 0 {
             get_valid_action_indices(&self.game_state)
-                .into_iter()
-                .map(|i| i as u64)
-                .collect()
+                .map(|v| v.into_iter().map(|i| i as u64).collect())
         } else {
             let mirror = self.game_state.mirror();
-            get_valid_action_indices(&mirror)
-                .into_iter()
-                .map(|i| i as u64)
-                .collect()
+            get_valid_action_indices(&mirror).map(|v| v.into_iter().map(|i| i as u64).collect())
         }
     }
 
@@ -184,8 +179,10 @@ impl TricTracEngine {
 
     fn apply_dice_roll(&mut self, dice: ffi::DicePair) -> anyhow::Result<()> {
         if self.game_state.turn_stage != TurnStage::RollWaiting {
-            anyhow::bail!("apply_dice_roll: not in RollWaiting stage (currently {:?})",
-                self.game_state.turn_stage);
+            anyhow::bail!(
+                "apply_dice_roll: not in RollWaiting stage (currently {:?})",
+                self.game_state.turn_stage
+            );
         }
         let player_id = self.game_state.active_player_id;
         let dice = Dice {
@@ -214,10 +211,14 @@ impl TricTracEngine {
                 self.game_state.consume(&evt);
                 Ok(())
             }
-            Some(_) => anyhow::bail!("apply_action: action {} is not valid in current state",
-                action_idx),
-            None => anyhow::bail!("apply_action: could not build event from action index {}",
-                action_idx),
+            Some(_) => anyhow::bail!(
+                "apply_action: action {} is not valid in current state",
+                action_idx
+            ),
+            None => anyhow::bail!(
+                "apply_action: could not build event from action index {}",
+                action_idx
+            ),
         }
     }
 }

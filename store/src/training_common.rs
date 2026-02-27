@@ -210,7 +210,7 @@ pub fn get_valid_actions(game_state: &GameState) -> anyhow::Result<Vec<TrictracA
             }
             TurnStage::MarkPoints | TurnStage::MarkAdvPoints | TurnStage::RollWaiting => {
                 // valid_actions.push(TrictracAction::Mark);
-                panic!(
+                anyhow::bail!(
                     "get_valid_actions not implemented for turn stage {:?}",
                     game_state.turn_stage
                 );
@@ -225,7 +225,7 @@ pub fn get_valid_actions(game_state: &GameState) -> anyhow::Result<Vec<TrictracA
                 for (move1, move2) in possible_moves {
                     valid_actions.push(checker_moves_to_trictrac_action(
                         &move1, &move2, &color, game_state,
-                    ));
+                    )?);
                 }
             }
             TurnStage::Move => {
@@ -239,7 +239,7 @@ pub fn get_valid_actions(game_state: &GameState) -> anyhow::Result<Vec<TrictracA
                 for (move1, move2) in possible_moves {
                     valid_actions.push(checker_moves_to_trictrac_action(
                         &move1, &move2, &color, game_state,
-                    ));
+                    )?);
                 }
             }
         }
@@ -256,7 +256,7 @@ fn checker_moves_to_trictrac_action(
     move2: &CheckerMove,
     color: &crate::Color,
     state: &GameState,
-) -> TrictracAction {
+) -> anyhow::Result<TrictracAction> {
     let dice = &state.dice;
     let board = &state.board;
 
@@ -269,7 +269,7 @@ fn checker_moves_to_trictrac_action(
             dice,
             &board.clone().mirror(),
         )
-        .mirror()
+        .map(|a| a.mirror())
     } else {
         white_checker_moves_to_trictrac_action(move1, move2, dice, board)
     }
@@ -280,7 +280,7 @@ fn white_checker_moves_to_trictrac_action(
     move2: &CheckerMove,
     dice: &Dice,
     board: &Board,
-) -> TrictracAction {
+) -> anyhow::Result<TrictracAction> {
     let to1 = move1.get_to();
     let to2 = move2.get_to();
     let from1 = move1.get_from();
@@ -328,11 +328,11 @@ fn white_checker_moves_to_trictrac_action(
         panic!("error while moving checker {move_res:?}");
     }
     let checker2 = tmp_board.get_field_checker(&crate::Color::White, from2) as usize;
-    TrictracAction::Move {
+    Ok(TrictracAction::Move {
         dice_order,
         checker1,
         checker2,
-    }
+    })
 }
 
 /// Retourne les indices des actions valides
@@ -350,7 +350,9 @@ pub fn sample_valid_action(game_state: &GameState) -> Option<TrictracAction> {
 
     let valid_actions = get_valid_actions(game_state);
     let mut rng = rng();
-    valid_actions.unwrap().choose(&mut rng).cloned()
+    valid_actions
+        .map(|va| va.choose(&mut rng).cloned())
+        .unwrap_or_default()
 }
 
 #[cfg(test)]

@@ -159,6 +159,9 @@ impl InternalIterator for TrictracAvailableMovesIterator<'_> {
     where
         F: FnMut(Self::Item) -> ControlFlow<R>,
     {
-        get_valid_actions(&self.board.0).into_iter().try_for_each(f)
+        get_valid_actions(&self.board.0)
+            .unwrap()
+            .into_iter()
+            .try_for_each(f)
     }
 }

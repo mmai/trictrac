@@ -229,15 +229,13 @@ impl TrictracEnvironment {
         use training_common::get_valid_actions;
 
         // Obtenir les actions valides dans le contexte actuel
-        let valid_actions = get_valid_actions(&self.game);
-
-        if valid_actions.is_empty() {
-            return None;
+        if let Ok(valid_actions) = get_valid_actions(&self.game) {
+            // Mapper l'index d'action sur une action valide
+            let action_index = (action.index as usize) % valid_actions.len();
+            Some(valid_actions[action_index])
+        } else {
+            None
         }
-
-        // Mapper l'index d'action sur une action valide
-        let action_index = (action.index as usize) % valid_actions.len();
-        Some(valid_actions[action_index])
     }
 
     /// Exécute une action Trictrac dans le jeu

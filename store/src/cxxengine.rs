@@ -211,9 +211,10 @@ impl TricTracEngine {
                 self.game_state.consume(&evt);
                 Ok(())
             }
-            Some(_) => anyhow::bail!(
-                "apply_action: action {} is not valid in current state",
-                action_idx
+            Some(evt) => anyhow::bail!(
+                "apply_action: event {:?} is not valid in current state {}",
+                evt,
+                self.game_state
             ),
             None => anyhow::bail!(
                 "apply_action: could not build event from action index {}",

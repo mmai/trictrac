@@ -270,6 +270,9 @@ impl MoveRules {
     ) -> Result<(), MoveError> {
         let filling_moves_sequences = self.get_quarter_filling_moves_sequences();
         if !filling_moves_sequences.contains(moves) && !filling_moves_sequences.is_empty() {
+            if *moves == (CheckerMove::default(), CheckerMove::default()) {
+                println!("filling moves sequences: {:?}", filling_moves_sequences);
+            }
             return Err(MoveError::MustFillQuarter);
         }
         Ok(())
@@ -341,24 +344,73 @@ impl MoveRules {
         }
 
         // - la dame choisie doit être la plus éloignée de la sortie
-        let mut checkers = self.board.get_color_fields(Color::White);
+        // For chained moves (tout d'une), we need to check the board state AFTER the first move
+        let board_to_check = if moves.0.get_to() == moves.1.get_from() {
+            // Chained move: apply first move to get the board state
+            let mut board_copy = self.board.clone();
+            let _ = board_copy.move_checker(&Color::White, moves.0);
+            board_copy
+        } else {
+            self.board.clone()
+        };
+
+        let mut checkers = board_to_check.get_color_fields(Color::White);
         checkers.sort_by(|a, b| b.0.cmp(&a.0));
+
+        // Check if we have a filled quarter that must be preserved
+        let has_filled_quarter = board_to_check.any_quarter_filled(Color::White);
+
         let mut farthest = 24;
         let mut next_farthest = 24;
         let mut has_two_checkers = false;
-        if let Some((field, count)) = checkers.first() {
-            farthest = *field;
-            if *count > 1 {
-                next_farthest = *field;
-                has_two_checkers = true;
-            } else if let Some((field, _count)) = checkers.get(1) {
-                next_farthest = *field;
-                has_two_checkers = true;
+
+        if has_filled_quarter {
+            // When a quarter is filled, we can only exit from fields with >2 checkers
+            // Find the farthest field with >2 checkers (removing one won't break the quarter)
+            let mut available_checkers: Vec<_> = checkers.iter()
+                .filter(|(_, count)| *count > 2)
+                .collect();
+
+            if !available_checkers.is_empty() {
+                // Use the farthest available checker (that won't break the quarter)
+                farthest = available_checkers[0].0;
+                if available_checkers[0].1 > 3 {
+                    next_farthest = available_checkers[0].0;
+                    has_two_checkers = true;
+                } else if available_checkers.len() > 1 {
+                    next_farthest = available_checkers[1].0;
+                    has_two_checkers = true;
+                }
+            } else {
+                // No fields with >2 checkers, fall back to original logic
+                // This shouldn't happen if MustFillQuarter rule is working correctly
+                if let Some((field, count)) = checkers.first() {
+                    farthest = *field;
+                    if *count > 1 {
+                        next_farthest = *field;
+                        has_two_checkers = true;
+                    } else if let Some((field, _count)) = checkers.get(1) {
+                        next_farthest = *field;
+                        has_two_checkers = true;
+                    }
+                }
+            }
+        } else {
+            // No filled quarter to preserve, use original logic
+            if let Some((field, count)) = checkers.first() {
+                farthest = *field;
+                if *count > 1 {
+                    next_farthest = *field;
+                    has_two_checkers = true;
+                } else if let Some((field, _count)) = checkers.get(1) {
+                    next_farthest = *field;
+                    has_two_checkers = true;
+                }
             }
         }
 
         // s'il reste au moins deux dames, on vérifie que les plus éloignées soint choisies
-        if has_two_checkers {
+        if has_two_checkers || has_filled_quarter {
             if moves.0.get_to() == 0 && moves.1.get_to() == 0 {
                 // Deux coups sortants en excédant
                 if cmp::max(moves.0.get_from(), moves.1.get_from()) > next_farthest {
@@ -1299,6 +1351,22 @@ mod tests {
         let moves = (
             CheckerMove::new(9, 11).unwrap(),
             CheckerMove::new(11, 14).unwrap(),
+        );
+        assert_eq!(
+            vec![moves],
+            state.get_possible_moves_sequences(true, vec![])
+        );
+
+        state.board.set_positions(
+            &Color::White,
+            [
+                -8, -4, -1, 0, 0, 0, 0, -1, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 3, 2, 2, 2,
+            ],
+        );
+        state.dice.values = (1, 4);
+        let moves = (
+            CheckerMove::new(21, 22).unwrap(),
+            CheckerMove::new(22, 0).unwrap(),
         );
         assert_eq!(
             vec![moves],

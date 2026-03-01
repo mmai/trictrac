@@ -55,8 +55,12 @@ impl BoardGameBoard for TrictracBoard {
 
     fn play(&mut self, mv: Self::Move) -> Result<(), PlayError> {
         self.check_can_play(mv)?;
-        self.0.consume(&mv.to_event(&self.0).unwrap());
-        Ok(())
+        if let Some(evt) = mv.to_event(&self.0) {
+            self.0.consume(&evt);
+            Ok(())
+        } else {
+            Err(PlayError::UnavailableMove)
+        }
     }
 
     fn outcome(&self) -> Option<Outcome> {
@@ -159,9 +163,9 @@ impl InternalIterator for TrictracAvailableMovesIterator<'_> {
     where
         F: FnMut(Self::Item) -> ControlFlow<R>,
     {
-        get_valid_actions(&self.board.0)
-            .unwrap()
-            .into_iter()
-            .try_for_each(f)
+        match get_valid_actions(&self.board.0) {
+            Ok(actions) => actions.into_iter().try_for_each(f),
+            Err(_) => ControlFlow::Continue(()),
+        }
     }
 }

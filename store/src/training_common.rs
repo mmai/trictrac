@@ -323,10 +323,7 @@ fn white_checker_moves_to_trictrac_action(
     let checker1 = board.get_field_checker(&crate::Color::White, from1) as usize;
     let mut tmp_board = board.clone();
     // should not raise an error for a valid action
-    let move_res = tmp_board.move_checker(&crate::Color::White, *move1);
-    if move_res.is_err() {
-        panic!("error while moving checker {move_res:?}");
-    }
+    tmp_board.move_checker(&crate::Color::White, *move1)?;
     let checker2 = tmp_board.get_field_checker(&crate::Color::White, from2) as usize;
     Ok(TrictracAction::Move {
         dice_order,

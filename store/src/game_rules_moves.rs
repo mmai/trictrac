@@ -343,7 +343,7 @@ impl MoveRules {
             return Err(MoveError::ExitByEffectPossible);
         }
 
-        // - la dame choisie doit être la plus éloignée de la sortie
+        // The chosen checker must be the farthest from exit
         // For chained moves (tout d'une), we need to check the board state AFTER the first move
         let board_to_check = if moves.0.get_to() == moves.1.get_from() {
             // Chained move: apply first move to get the board state
@@ -367,9 +367,8 @@ impl MoveRules {
         if has_filled_quarter {
             // When a quarter is filled, we can only exit from fields with >2 checkers
             // Find the farthest field with >2 checkers (removing one won't break the quarter)
-            let mut available_checkers: Vec<_> = checkers.iter()
-                .filter(|(_, count)| *count > 2)
-                .collect();
+            let mut available_checkers: Vec<_> =
+                checkers.iter().filter(|(_, count)| *count > 2).collect();
 
             if !available_checkers.is_empty() {
                 // Use the farthest available checker (that won't break the quarter)
@@ -409,7 +408,7 @@ impl MoveRules {
             }
         }
 
-        // s'il reste au moins deux dames, on vérifie que les plus éloignées soint choisies
+        // s'il reste au moins deux dames, on vérifie que les plus éloignées soient choisies
         if has_two_checkers || has_filled_quarter {
             if moves.0.get_to() == 0 && moves.1.get_to() == 0 {
                 // Deux coups sortants en excédant

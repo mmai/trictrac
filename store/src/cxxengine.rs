@@ -9,9 +9,27 @@
 //! and events are mirrored back before being applied — exactly as in
 //! pyengine.rs.
 
+use std::panic::{self, AssertUnwindSafe};
+
 use crate::dice::Dice;
 use crate::game::{GameEvent, GameState, Stage, TurnStage};
 use crate::training_common::{get_valid_action_indices, TrictracAction};
+
+/// Catch any Rust panic and convert it to anyhow::Error so it never
+/// crosses the C FFI boundary as undefined behaviour.
+fn catch_panics<F, T>(f: F) -> anyhow::Result<T>
+where
+    F: FnOnce() -> anyhow::Result<T> + panic::UnwindSafe,
+{
+    panic::catch_unwind(f).unwrap_or_else(|e| {
+        let msg = e
+            .downcast_ref::<String>()
+            .map(|s| s.as_str())
+            .or_else(|| e.downcast_ref::<&str>().copied())
+            .unwrap_or("unknown panic payload");
+        Err(anyhow::anyhow!("Rust panic in FFI: {}", msg))
+    })
+}
 
 // ── cxx bridge declaration ────────────────────────────────────────────────────
 
@@ -98,7 +116,9 @@ pub fn new_trictrac_engine() -> Box<TricTracEngine> {
     let mut game_state = GameState::new(false); // schools_enabled = false
     game_state.init_player("player1");
     game_state.init_player("player2");
-    game_state.consume(&GameEvent::BeginGame { goes_first: 1 });
+    game_state
+        .consume(&GameEvent::BeginGame { goes_first: 1 })
+        .expect("BeginGame failed during engine initialization");
     Box::new(TricTracEngine { game_state })
 }
 
@@ -127,13 +147,16 @@ impl TricTracEngine {
         if player_idx != self.current_player_idx() {
             return Ok(vec![]);
         }
-        if player_idx == 0 {
-            get_valid_action_indices(&self.game_state)
-                .map(|v| v.into_iter().map(|i| i as u64).collect())
-        } else {
-            let mirror = self.game_state.mirror();
-            get_valid_action_indices(&mirror).map(|v| v.into_iter().map(|i| i as u64).collect())
-        }
+        catch_panics(AssertUnwindSafe(|| {
+            if player_idx == 0 {
+                get_valid_action_indices(&self.game_state)
+                    .map(|v| v.into_iter().map(|i| i as u64).collect())
+            } else {
+                let mirror = self.game_state.mirror();
+                get_valid_action_indices(&mirror)
+                    .map(|v| v.into_iter().map(|i| i as u64).collect())
+            }
+        }))
     }
 
     fn action_to_string(&self, player_idx: u64, action_idx: u64) -> String {
@@ -188,38 +211,42 @@ impl TricTracEngine {
         let dice = Dice {
             values: (dice.die1, dice.die2),
         };
-        self.game_state
-            .consume(&GameEvent::RollResult { player_id, dice });
-        Ok(())
+        catch_panics(AssertUnwindSafe(|| {
+            self.game_state
+                .consume(&GameEvent::RollResult { player_id, dice })
+                .map_err(|e| anyhow::anyhow!(e))
+        }))
     }
 
     fn apply_action(&mut self, action_idx: u64) -> anyhow::Result<()> {
-        let needs_mirror = self.game_state.active_player_id == 2;
+        catch_panics(AssertUnwindSafe(|| {
+            let needs_mirror = self.game_state.active_player_id == 2;
 
-        let event = TrictracAction::from_action_index(action_idx as usize).and_then(|a| {
-            let state = if needs_mirror {
-                &self.game_state.mirror()
-            } else {
-                &self.game_state
-            };
-            a.to_event(state)
-                .map(|e| if needs_mirror { e.get_mirror(false) } else { e })
-        });
+            let event = TrictracAction::from_action_index(action_idx as usize).and_then(|a| {
+                let state = if needs_mirror {
+                    &self.game_state.mirror()
+                } else {
+                    &self.game_state
+                };
+                a.to_event(state)
+                    .map(|e| if needs_mirror { e.get_mirror(false) } else { e })
+            });
 
-        match event {
-            Some(evt) if self.game_state.validate(&evt) => {
-                self.game_state.consume(&evt);
-                Ok(())
+            match event {
+                Some(evt) if self.game_state.validate(&evt) => self
+                    .game_state
+                    .consume(&evt)
+                    .map_err(|e| anyhow::anyhow!(e)),
+                Some(evt) => anyhow::bail!(
+                    "apply_action: event {:?} is not valid in current state {}",
+                    evt,
+                    self.game_state
+                ),
+                None => anyhow::bail!(
+                    "apply_action: could not build event from action index {}",
+                    action_idx
+                ),
             }
-            Some(evt) => anyhow::bail!(
-                "apply_action: event {:?} is not valid in current state {}",
-                evt,
-                self.game_state
-            ),
-            None => anyhow::bail!(
-                "apply_action: could not build event from action index {}",
-                action_idx
-            ),
-        }
+        }))
     }
 }

@@ -377,4 +377,25 @@ mod tests {
         };
         assert_eq!(Some(action), TrictracAction::from_action_index(54));
     }
+
+    #[test]
+    fn get_valid_actions_fillquarter() {
+        let mut state = GameState::new_with_players("white", "black");
+        state.active_player_id = 2;
+        state.dice = Dice { values: (5, 3) };
+        state.turn_stage = crate::TurnStage::Move;
+        state.board.set_positions(
+            &crate::Color::White,
+            [
+                -3, -3, -2, -2, -2, -2, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 1, 3, 8,
+            ],
+        );
+
+        let actions = vec![TrictracAction::Move {
+            dice_order: true,
+            checker1: 11,
+            checker2: 14,
+        }];
+        assert_eq!(Some(actions), get_valid_actions(&state).ok());
+    }
 }

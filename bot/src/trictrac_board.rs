@@ -56,7 +56,7 @@ impl BoardGameBoard for TrictracBoard {
     fn play(&mut self, mv: Self::Move) -> Result<(), PlayError> {
         self.check_can_play(mv)?;
         if let Some(evt) = mv.to_event(&self.0) {
-            self.0.consume(&evt);
+            let _ = self.0.consume(&evt);
             Ok(())
         } else {
             Err(PlayError::UnavailableMove)

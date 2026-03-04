@@ -109,7 +109,7 @@ impl Environment for TrictracEnvironment {
         let player2_id = 2;
 
         // Commencer la partie
-        game.consume(&GameEvent::BeginGame { goes_first: 1 });
+        let _ = game.consume(&GameEvent::BeginGame { goes_first: 1 });
 
         let current_state = TrictracState::from_game_state(&game);
         TrictracEnvironment {
@@ -136,7 +136,7 @@ impl Environment for TrictracEnvironment {
         self.game.init_player("Opponent");
 
         // Commencer la partie
-        self.game.consume(&GameEvent::BeginGame { goes_first: 1 });
+        let _ = self.game.consume(&GameEvent::BeginGame { goes_first: 1 });
 
         self.current_state = TrictracState::from_game_state(&self.game);
         self.episode_reward = 0.0;
@@ -252,7 +252,7 @@ impl TrictracEnvironment {
         // Appliquer l'événement si valide
         if let Some(event) = action.to_event(&self.game) {
             if self.game.validate(&event) {
-                self.game.consume(&event);
+                let _ = self.game.consume(&event);
                 // reward += REWARD_VALID_MOVE;
                 // Simuler le résultat des dés après un Roll
                 if matches!(action, TrictracAction::Roll) {
@@ -265,7 +265,7 @@ impl TrictracEnvironment {
                         },
                     };
                     if self.game.validate(&dice_event) {
-                        self.game.consume(&dice_event);
+                        let _ = self.game.consume(&dice_event);
                         let (points, adv_points) = self.game.dice_points;
                         reward += REWARD_RATIO * (points as f32 - adv_points as f32);
                         if points > 0 {
@@ -367,7 +367,7 @@ impl TrictracEnvironment {
             };
 
             if self.game.validate(&event) {
-                self.game.consume(&event);
+                let _ = self.game.consume(&event);
                 if calculate_points {
                     let dice_roll_count = self
                         .game

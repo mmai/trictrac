@@ -9,7 +9,7 @@ use log::{debug, error};
 
 // use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::{fmt, str};
 
@@ -140,7 +140,9 @@ impl GameState {
         let mut game = Self::default();
         if let Some(p1) = game.init_player(p1_name) {
             game.init_player(p2_name);
-            game.consume(&GameEvent::BeginGame { goes_first: p1 });
+            let _ = game
+                .consume(&GameEvent::BeginGame { goes_first: p1 })
+                .inspect_err(|e| error!("{}", e));
         }
         game
     }
@@ -327,7 +329,7 @@ impl GameState {
         let mut bit_count: u8 = 0;
 
         // helper to push a single bit
-        let mut push_bit = |bit: u8, output: &mut Vec<u8>, current: &mut u8, bit_count: &mut u8| {
+        let push_bit = |bit: u8, output: &mut Vec<u8>, current: &mut u8, bit_count: &mut u8| {
             *current = (*current << 1) | (bit & 1);
             *bit_count += 1;
 
@@ -339,7 +341,7 @@ impl GameState {
         };
 
         // helper to push a string of '0'/'1'
-        let mut push_bits_str =
+        let push_bits_str =
             |bits: &str, output: &mut Vec<u8>, current: &mut u8, bit_count: &mut u8| {
                 for b in bits.bytes() {
                     push_bit(b - b'0', output, current, bit_count);
@@ -1120,7 +1122,7 @@ mod tests {
         let mut game_state = init_test_gamestate(TurnStage::MarkPoints);
         game_state.schools_enabled = true;
         let pid = game_state.active_player_id;
-        game_state.consume(
+        let _ = game_state.consume(
             &(GameEvent::Mark {
                 player_id: pid,
                 points: 13,
@@ -1132,7 +1134,7 @@ mod tests {
         assert_eq!(game_state.turn_stage, TurnStage::HoldOrGoChoice);
 
         // Go
-        game_state.consume(
+        let _ = game_state.consume(
             &(GameEvent::Go {
                 player_id: game_state.active_player_id,
             }),
@@ -1146,7 +1148,7 @@ mod tests {
         let mut game_state = init_test_gamestate(TurnStage::MarkPoints);
         game_state.schools_enabled = true;
         let pid = game_state.active_player_id;
-        game_state.consume(
+        let _ = game_state.consume(
             &(GameEvent::Mark {
                 player_id: pid,
                 points: 13,
@@ -1156,7 +1158,7 @@ mod tests {
             CheckerMove::new(1, 3).unwrap(),
             CheckerMove::new(1, 3).unwrap(),
         );
-        game_state.consume(
+        let _ = game_state.consume(
             &(GameEvent::Move {
                 player_id: game_state.active_player_id,
                 moves,

@@ -124,6 +124,7 @@ impl TrictracAction {
                 let checker_move1 = CheckerMove::new(from1, to1).unwrap_or_default();
 
                 let mut tmp_board = state.board.clone();
+                println!("mv training_common 127");
                 let move_result = tmp_board.move_checker(color, checker_move1);
                 if move_result.is_err() {
                     None
@@ -262,14 +263,14 @@ fn checker_moves_to_trictrac_action(
 
     if color == &crate::Color::Black {
         white_checker_moves_to_trictrac_action(
-            move1,
-            move2,
-            // &move1.clone().mirror(),
-            // &move2.clone().mirror(),
+            // move1,
+            // move2,
+            &move1.clone().mirror(),
+            &move2.clone().mirror(),
             dice,
             &board.clone().mirror(),
         )
-        .map(|a| a.mirror())
+        // .map(|a| a.mirror())
     } else {
         white_checker_moves_to_trictrac_action(move1, move2, dice, board)
     }
@@ -323,8 +324,10 @@ fn white_checker_moves_to_trictrac_action(
     let checker1 = board.get_field_checker(&crate::Color::White, from1) as usize;
     let mut tmp_board = board.clone();
     // should not raise an error for a valid action
+    println!("mv training_common 327");
     tmp_board.move_checker(&crate::Color::White, *move1)?;
     let checker2 = tmp_board.get_field_checker(&crate::Color::White, from2) as usize;
+    println!("white action {checker1} {checker2}");
     Ok(TrictracAction::Move {
         dice_order,
         checker1,
@@ -379,7 +382,7 @@ mod tests {
     }
 
     #[test]
-    fn get_valid_actions_fillquarter() {
+    fn get_valid_actions() {
         let mut state = GameState::new_with_players("white", "black");
         state.active_player_id = 2;
         state.dice = Dice { values: (5, 3) };
@@ -394,8 +397,64 @@ mod tests {
         let actions = vec![TrictracAction::Move {
             dice_order: true,
             checker1: 11,
-            checker2: 14,
+            checker2: 13,
         }];
-        assert_eq!(Some(actions), get_valid_actions(&state).ok());
+        assert_eq!(Some(actions), super::get_valid_actions(&state).ok());
+    }
+
+    #[test]
+    fn checker_moves_to_trictrac_action() {
+        let mut state = GameState::new_with_players("white", "black");
+        state.turn_stage = crate::TurnStage::Move;
+        state.dice = Dice { values: (5, 3) };
+
+        // White player
+        state.active_player_id = 1;
+        state.board.set_positions(
+            &crate::Color::White,
+            [
+                -8, -3, -1, -1, 0, -1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 3, 3,
+            ],
+        );
+
+        let ttaction = super::checker_moves_to_trictrac_action(
+            &CheckerMove::new(23, 0).unwrap(),
+            &CheckerMove::new(24, 0).unwrap(),
+            &crate::Color::White,
+            &state,
+        );
+
+        assert_eq!(
+            Some(TrictracAction::Move {
+                dice_order: true,
+                checker1: 11,
+                checker2: 13, // because the 11th has left
+            }),
+            ttaction.ok()
+        );
+
+        // Black player
+        state.active_player_id = 2;
+        state.board.set_positions(
+            &crate::Color::White,
+            [
+                -3, -3, -2, -2, -2, -2, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 1, 3, 8,
+            ],
+        );
+        let ttaction = super::checker_moves_to_trictrac_action(
+            &CheckerMove::new(2, 0).unwrap(),
+            &CheckerMove::new(1, 0).unwrap(),
+            &crate::Color::Black,
+            &state,
+        );
+
+        assert_eq!(
+            Some(TrictracAction::Move {
+                dice_order: true,
+                checker1: 11,
+                checker2: 13, // because the 11th has left
+            }),
+            ttaction.ok()
+        );
     }
 }

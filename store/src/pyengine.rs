@@ -22,7 +22,7 @@ impl TricTrac {
         game_state.init_player("player2");
 
         // Commencer la partie avec le joueur 1
-        game_state.consume(&GameEvent::BeginGame { goes_first: 1 });
+        let _ = game_state.consume(&GameEvent::BeginGame { goes_first: 1 });
 
         TricTrac { game_state }
     }
@@ -69,7 +69,8 @@ impl TricTrac {
         }
 
         let dice = Dice { values: dices };
-        self.game_state
+        let _ = self
+            .game_state
             .consume(&GameEvent::RollResult { player_id, dice });
         Ok(())
     }
@@ -86,7 +87,7 @@ impl TricTrac {
                 .map(|e| if needs_mirror { e.get_mirror(false) } else { e })
         }) {
             if self.game_state.validate(&event) {
-                self.game_state.consume(&event);
+                let _ = self.game_state.consume(&event);
                 return Ok(());
             } else {
                 return Err(pyo3::exceptions::PyRuntimeError::new_err(

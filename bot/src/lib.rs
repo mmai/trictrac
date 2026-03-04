@@ -78,7 +78,7 @@ impl Bot {
 
         let init_player_points = game.who_plays().map(|p| (p.points, p.holes));
         let turn_stage = game.turn_stage;
-        game.consume(internal_event);
+        let _ = game.consume(internal_event);
         if game.stage == Stage::Ended {
             debug!("<<<< end {:?} BOT handle", self.color);
             return None;

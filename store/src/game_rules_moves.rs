@@ -349,7 +349,6 @@ impl MoveRules {
         let board_to_check = if moves.0.get_to() == moves.1.get_from() {
             // Chained move: apply first move to get the board state
             let mut board_copy = self.board.clone();
-            println!("mv 352");
             let _ = board_copy.move_checker(&Color::White, moves.0);
             board_copy
         } else {
@@ -531,11 +530,8 @@ impl MoveRules {
         let ignored_rules = vec![TricTracRule::Exit, TricTracRule::MustFillQuarter];
         for moves in self.get_possible_moves_sequences(true, ignored_rules) {
             let mut board = self.board.clone();
-            println!("mv 534");
             board.move_checker(color, moves.0).unwrap();
-            println!("mv 536 {:?}  {:?}", self.board, moves);
             board.move_checker(color, moves.1).unwrap();
-            println!("done 536");
             // println!("get_quarter_filling_moves_sequences board : {:?}", board);
             if board.any_quarter_filled(*color) && !moves_seqs.contains(&moves) {
                 moves_seqs.push(moves);
@@ -561,7 +557,6 @@ impl MoveRules {
                 .get_possible_moves(*color, dice1, with_excedents, false, forbid_exits)
         {
             let mut board2 = self.board.clone();
-            println!("mv 560");
             if board2.move_checker(color, first_move).is_err() {
                 println!("err move");
                 continue;
@@ -1406,6 +1401,25 @@ mod tests {
             ],
         );
         let moves = (
+            CheckerMove::new(23, 0).unwrap(),
+            CheckerMove::new(24, 0).unwrap(),
+        );
+        assert_eq!(
+            vec![moves],
+            state.get_possible_moves_sequences(true, vec![])
+        );
+
+        let mut board = Board::new();
+        board.set_positions(
+            &crate::Color::White,
+            [
+                -3, -3, -2, -2, -2, -2, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 1, 3, 8,
+            ],
+        );
+        let state = MoveRules::new(&Color::Black, &board, Dice { values: (5, 3) });
+        let moves = (
+            // CheckerMove::new(2, 0).unwrap(),
+            // CheckerMove::new(1, 0).unwrap(),
             CheckerMove::new(23, 0).unwrap(),
             CheckerMove::new(24, 0).unwrap(),
         );

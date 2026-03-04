@@ -124,7 +124,6 @@ impl TrictracAction {
                 let checker_move1 = CheckerMove::new(from1, to1).unwrap_or_default();
 
                 let mut tmp_board = state.board.clone();
-                println!("mv training_common 127");
                 let move_result = tmp_board.move_checker(color, checker_move1);
                 if move_result.is_err() {
                     None
@@ -262,11 +261,12 @@ fn checker_moves_to_trictrac_action(
     let board = &state.board;
 
     if color == &crate::Color::Black {
+        // Moves are already 'white', so we don't mirror them
         white_checker_moves_to_trictrac_action(
-            // move1,
-            // move2,
-            &move1.clone().mirror(),
-            &move2.clone().mirror(),
+            move1,
+            move2,
+            // &move1.clone().mirror(),
+            // &move2.clone().mirror(),
             dice,
             &board.clone().mirror(),
         )
@@ -324,10 +324,8 @@ fn white_checker_moves_to_trictrac_action(
     let checker1 = board.get_field_checker(&crate::Color::White, from1) as usize;
     let mut tmp_board = board.clone();
     // should not raise an error for a valid action
-    println!("mv training_common 327");
     tmp_board.move_checker(&crate::Color::White, *move1)?;
     let checker2 = tmp_board.get_field_checker(&crate::Color::White, from2) as usize;
-    println!("white action {checker1} {checker2}");
     Ok(TrictracAction::Move {
         dice_order,
         checker1,
@@ -442,8 +440,10 @@ mod tests {
             ],
         );
         let ttaction = super::checker_moves_to_trictrac_action(
-            &CheckerMove::new(2, 0).unwrap(),
-            &CheckerMove::new(1, 0).unwrap(),
+            // &CheckerMove::new(2, 0).unwrap(),
+            // &CheckerMove::new(1, 0).unwrap(),
+            &CheckerMove::new(23, 0).unwrap(),
+            &CheckerMove::new(24, 0).unwrap(),
             &crate::Color::Black,
             &state,
         );

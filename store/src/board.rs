@@ -454,7 +454,7 @@ impl Board {
             }
         };
 
-        let mut farthest_exit_move = 25;
+        // let mut farthest_exit_move = 25;
         for (field, count) in self.get_color_fields(color) {
             // check rest corner exit
             if field == self.get_color_corner(&color) && count == 2 && check_rest_corner_exit {
@@ -468,7 +468,7 @@ impl Board {
                 // if with_excedants && !forbid_exits && field < farthest_exit_move && 2 < count {
                 if with_excedants && !forbid_exits {
                     dest = 0;
-                    farthest_exit_move = field;
+                    // farthest_exit_move = field;
                     // println!("farthest is now {farthest_exit_move}");
                 } else {
                     continue;

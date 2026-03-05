@@ -346,89 +346,85 @@ impl MoveRules {
 
         // The chosen checker must be the farthest from exit
         // For chained moves (tout d'une), we need to check the board state AFTER the first move
-        let board_to_check = if moves.0.get_to() == moves.1.get_from() {
-            // Chained move: apply first move to get the board state
-            let mut board_copy = self.board.clone();
-            let _ = board_copy.move_checker(&Color::White, moves.0);
-            board_copy
-        } else {
-            self.board.clone()
-        };
+        // let board_to_check = if moves.0.get_to() == moves.1.get_from() {
+        //     // Chained move: apply first move to get the board state
+        //     let mut board_copy = self.board.clone();
+        //     let _ = board_copy.move_checker(&Color::White, moves.0);
+        //     board_copy
+        // } else {
+        //     self.board.clone()
+        // };
 
-        let mut checkers = board_to_check.get_color_fields(Color::White);
+        let mut board_to_check = self.board.clone();
+        let farthest_on_move1 = Self::get_board_exit_farthest(&board_to_check);
+
+        let _ = board_to_check.move_checker(&Color::White, moves.0);
+        let farthest_on_move2 = Self::get_board_exit_farthest(&board_to_check);
+
+        let (is_move1_exedant, is_move2_exedant) = self.move_excedants(moves);
+        if (is_move1_exedant && moves.0.get_from() != farthest_on_move1)
+            || (is_move2_exedant && moves.1.get_from() != farthest_on_move2)
+        {
+            return Err(MoveError::ExitNotFarthest);
+        }
+
+        Ok(())
+    }
+
+    fn move_excedants(&self, moves: &(CheckerMove, CheckerMove)) -> (bool, bool) {
+        let move1to = if moves.0.get_to() == 0 {
+            25
+        } else {
+            moves.0.get_to()
+        };
+        let dist1 = move1to - moves.0.get_from();
+
+        let move2to = if moves.1.get_to() == 0 {
+            25
+        } else {
+            moves.1.get_to()
+        };
+        let dist2 = move2to - moves.1.get_from();
+
+        let dist_min = cmp::min(dist1, dist2);
+        let dist_max = cmp::max(dist1, dist2);
+
+        let dice_min = cmp::min(self.dice.values.0, self.dice.values.1) as usize;
+        let dice_max = cmp::max(self.dice.values.0, self.dice.values.1) as usize;
+
+        let min_excedant = dist_min != 0 && dist_min < dice_min;
+        let max_excedant = dist_max != 0 && dist_max < dice_max;
+
+        if dist_min == dist1 {
+            (min_excedant, max_excedant)
+        } else {
+            (max_excedant, min_excedant)
+        }
+    }
+
+    fn get_board_exit_farthest(board: &Board) -> Field {
+        let mut checkers = board.get_color_fields(Color::White);
         checkers.sort_by(|a, b| a.0.cmp(&b.0));
 
+        let mut farthest = 25;
         // Check if we have a filled quarter that must be preserved
-        let has_filled_quarter = board_to_check.any_quarter_filled(Color::White);
-
-        let mut farthest = 24;
-        let mut next_farthest = 24;
-        let mut has_two_checkers = false;
-
+        let has_filled_quarter = board.any_quarter_filled(Color::White);
         if has_filled_quarter {
             // When a quarter is filled, we can only exit from fields with >2 checkers
             // Find the farthest field with >2 checkers (removing one won't break the quarter)
             let available_checkers: Vec<_> =
                 checkers.iter().filter(|(_, count)| *count > 2).collect();
-
             if !available_checkers.is_empty() {
                 // Use the farthest available checker (that won't break the quarter)
                 farthest = available_checkers[0].0;
-                if available_checkers[0].1 > 3 {
-                    next_farthest = available_checkers[0].0;
-                    has_two_checkers = true;
-                } else if available_checkers.len() > 1 {
-                    next_farthest = available_checkers[1].0;
-                    has_two_checkers = true;
-                }
-            } else {
-                // No fields with >2 checkers, fall back to original logic
-                // This shouldn't happen if MustFillQuarter rule is working correctly
-                if let Some((field, count)) = checkers.first() {
-                    farthest = *field;
-                    if *count > 1 {
-                        next_farthest = *field;
-                        has_two_checkers = true;
-                    } else if let Some((field, _count)) = checkers.get(1) {
-                        next_farthest = *field;
-                        has_two_checkers = true;
-                    }
-                }
             }
-        } else {
-            // No filled quarter to preserve, use original logic
-            if let Some((field, count)) = checkers.first() {
+        }
+        if farthest == 25 {
+            if let Some((field, _)) = checkers.first() {
                 farthest = *field;
-                if *count > 1 {
-                    next_farthest = *field;
-                    has_two_checkers = true;
-                } else if let Some((field, _count)) = checkers.get(1) {
-                    next_farthest = *field;
-                    has_two_checkers = true;
-                }
             }
         }
-
-        // s'il reste au moins deux dames, on vérifie que les plus éloignées soient choisies
-        if has_two_checkers || has_filled_quarter {
-            if moves.0.get_to() == 0 && moves.1.get_to() == 0 {
-                // Deux coups sortants en excédant
-                if cmp::max(moves.0.get_from(), moves.1.get_from()) > next_farthest {
-                    return Err(MoveError::ExitNotFarthest);
-                }
-            } else {
-                // Un seul coup sortant en excédant le coup sortant doit concerner la plus éloignée du bord
-                let exit_move_field = if moves.0.get_to() == 0 {
-                    moves.0.get_from()
-                } else {
-                    moves.1.get_from()
-                };
-                if exit_move_field != farthest {
-                    return Err(MoveError::ExitNotFarthest);
-                }
-            }
-        }
-        Ok(())
+        farthest
     }
 
     pub fn get_possible_moves_sequences(
@@ -569,21 +565,43 @@ impl MoveRules {
             for second_move in
                 board2.get_possible_moves(*color, dice2, with_excedents, true, forbid_exits)
             {
-                if self.check_corner_rules(&(first_move, second_move)).is_ok()
+                if self
+                    .check_corner_rules(&(first_move, second_move))
+                    // .inspect_err(|e| {
+                    //     println!(
+                    //         " 2nd (corner rule): {:?} - {:?}, {:?}",
+                    //         e, first_move, second_move
+                    //     )
+                    // })
+                    .is_ok()
                     && self
                         .check_opponent_can_fill_quarter_rule(&(first_move, second_move))
+                        // .inspect_err(|e| {
+                        //     println!(
+                        //         " 2nd (op fill quarter): {:?} - {:?}, {:?}",
+                        //         e, first_move, second_move
+                        //     )
+                        // })
                         .is_ok()
                     && !(self.is_move_by_puissance(&(first_move, second_move))
                         && self.can_take_corner_by_effect())
                     && (ignored_rules.contains(&TricTracRule::Exit)
-                        || self.check_exit_rules(&(first_move, second_move)).is_ok())
+                        || self
+                            .check_exit_rules(&(first_move, second_move))
+                            // .inspect_err(|e| {
+                            //     println!(
+                            //         " 2nd (exit rule): {:?} - {:?}, {:?}",
+                            //         e, first_move, second_move
+                            //     )
+                            // })
+                            .is_ok())
                     && (ignored_rules.contains(&TricTracRule::MustFillQuarter)
                         || self
                             .check_must_fill_quarter_rule(&(first_move, second_move))
                             // .inspect_err(|e| {
                             //     println!(
-                            //         " 2nd (must fill quar): {:?} - {:?}, {:?}",
-                            //         e, first_move, second_move
+                            //         " 2nd: {:?} - {:?}, {:?} for {:?}",
+                            //         e, first_move, second_move, self.board
                             //     )
                             // })
                             .is_ok())
@@ -866,6 +884,19 @@ mod tests {
             CheckerMove::new(0, 0).unwrap(),
         );
         assert!(state.moves_follows_dices(&moves));
+        assert!(state.moves_allowed(&moves).is_ok());
+
+        state.board.set_positions(
+            &Color::White,
+            [
+                -5, -2, -2, -4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 2, 2, 3, 2, 3,
+            ],
+        );
+        state.dice.values = (4, 5);
+        let moves = (
+            CheckerMove::new(19, 24).unwrap(),
+            CheckerMove::new(22, 0).unwrap(),
+        );
         assert!(state.moves_allowed(&moves).is_ok());
     }
 
@@ -1427,6 +1458,26 @@ mod tests {
             vec![moves],
             state.get_possible_moves_sequences(true, vec![])
         );
+
+        let mut board = Board::new();
+        board.set_positions(
+            &crate::Color::White,
+            [
+                -7, -4, -2, 0, 0, 0, 0, 0, 0, 0, 0, 0, -2, 0, 0, 0, 0, 0, 3, 2, 1, 2, 3, 4,
+            ],
+        );
+        let state = MoveRules::new(&Color::White, &board, Dice { values: (2, 6) });
+        let moves = vec![
+            (
+                CheckerMove::new(23, 0).unwrap(),
+                CheckerMove::new(19, 21).unwrap(),
+            ),
+            (
+                CheckerMove::new(19, 21).unwrap(),
+                CheckerMove::new(23, 0).unwrap(),
+            ),
+        ];
+        assert_eq!(moves, state.get_possible_moves_sequences(true, vec![]));
     }
 
     #[test]
@@ -1454,5 +1505,104 @@ mod tests {
                 vec![]
             )
         );
+
+        state.dice.values = (4, 5);
+        state.board.set_positions(
+            &crate::Color::White,
+            [
+                -5, -2, -2, -4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 2, 2, 3, 2, 3,
+            ],
+        );
+        let moves = vec![(
+            CheckerMove::new(19, 23).unwrap(),
+            CheckerMove::new(22, 0).unwrap(),
+        )];
+        assert_eq!(
+            moves,
+            state.get_possible_moves_sequences_by_dices(
+                state.dice.values.0,
+                state.dice.values.1,
+                true,
+                false,
+                vec![]
+            )
+        );
+        let moves = vec![(
+            CheckerMove::new(19, 24).unwrap(),
+            CheckerMove::new(22, 0).unwrap(),
+        )];
+        assert_eq!(
+            moves,
+            state.get_possible_moves_sequences_by_dices(
+                state.dice.values.1,
+                state.dice.values.0,
+                true,
+                false,
+                vec![]
+            )
+        );
+
+        let mut board = Board::new();
+        board.set_positions(
+            &crate::Color::White,
+            [
+                -7, -4, -2, 0, 0, 0, 0, 0, 0, 0, 0, 0, -2, 0, 0, 0, 0, 0, 3, 2, 1, 2, 3, 4,
+            ],
+        );
+        let state = MoveRules::new(&Color::White, &board, Dice { values: (2, 6) });
+        let moves = (
+            CheckerMove::new(19, 21).unwrap(),
+            CheckerMove::new(23, 0).unwrap(),
+        );
+        assert_eq!(
+            vec![moves],
+            state.get_possible_moves_sequences_by_dices(
+                state.dice.values.0,
+                state.dice.values.1,
+                true,
+                false,
+                vec![]
+            )
+        );
+    }
+
+    #[test]
+    fn check_exit_rules() {
+        let mut state = MoveRules::default();
+        state.dice.values = (4, 5);
+        state.board.set_positions(
+            &crate::Color::White,
+            [
+                -5, -2, -2, -4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 2, 2, 3, 2, 3,
+            ],
+        );
+        let moves = (
+            CheckerMove::new(19, 23).unwrap(),
+            CheckerMove::new(22, 0).unwrap(),
+        );
+        assert!(state.check_exit_rules(&moves).is_ok());
+
+        let moves = (
+            CheckerMove::new(19, 24).unwrap(),
+            CheckerMove::new(22, 0).unwrap(),
+        );
+        assert!(state.check_exit_rules(&moves).is_ok());
+    }
+
+    #[test]
+    fn check_must_fill_quarter_rule() {
+        let mut state = MoveRules::default();
+        state.dice.values = (4, 5);
+        state.board.set_positions(
+            &crate::Color::White,
+            [
+                -5, -2, -2, -4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 2, 2, 3, 2, 3,
+            ],
+        );
+        let moves = (
+            CheckerMove::new(19, 24).unwrap(),
+            CheckerMove::new(22, 0).unwrap(),
+        );
+        assert!(state.check_must_fill_quarter_rule(&moves).is_ok());
     }
 }

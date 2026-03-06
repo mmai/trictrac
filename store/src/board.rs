@@ -598,6 +598,20 @@ impl Board {
         core::array::from_fn(|i| i + min)
     }
 
+    /// Returns cumulative white-checker counts: result[i] = # white checkers in fields 1..=i.
+    /// result[0] = 0.
+    pub fn white_checker_cumulative(&self) -> [u8; 25] {
+        let mut cum = [0u8; 25];
+        let mut total = 0u8;
+        for (i, &count) in self.positions.iter().enumerate() {
+            if count > 0 {
+                total += count as u8;
+            }
+            cum[i + 1] = total;
+        }
+        cum
+    }
+
     pub fn move_checker(&mut self, color: &Color, cmove: CheckerMove) -> Result<(), Error> {
         self.remove_checker(color, cmove.from)?;
         self.add_checker(color, cmove.to)?;

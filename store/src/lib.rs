@@ -16,3 +16,11 @@ pub use board::CheckerMove;
 
 mod dice;
 pub use dice::{Dice, DiceRoller};
+
+pub mod training_common;
+
+// python interface "trictrac_engine" (for AI training..)
+mod pyengine;
+
+// C++ interface via cxx.rs (for OpenSpiel C++ integration)
+pub mod cxxengine;

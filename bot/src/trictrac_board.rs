@@ -1,5 +1,4 @@
 // https://docs.rs/board-game/ implementation
-use crate::training_common::{get_valid_actions, TrictracAction};
 use board_game::board::{
     Board as BoardGameBoard, BoardDone, BoardMoves, Outcome, PlayError, Player as BoardGamePlayer,
 };
@@ -8,7 +7,8 @@ use internal_iterator::InternalIterator;
 use std::fmt;
 use std::hash::Hash;
 use std::ops::ControlFlow;
-use store::Color;
+use trictrac_store::training_common::{get_valid_actions, TrictracAction};
+use trictrac_store::Color;
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct TrictracBoard(crate::GameState);
@@ -55,8 +55,12 @@ impl BoardGameBoard for TrictracBoard {
 
     fn play(&mut self, mv: Self::Move) -> Result<(), PlayError> {
         self.check_can_play(mv)?;
-        self.0.consume(&mv.to_event(&self.0).unwrap());
-        Ok(())
+        if let Some(evt) = mv.to_event(&self.0) {
+            let _ = self.0.consume(&evt);
+            Ok(())
+        } else {
+            Err(PlayError::UnavailableMove)
+        }
     }
 
     fn outcome(&self) -> Option<Outcome> {
@@ -159,6 +163,9 @@ impl InternalIterator for TrictracAvailableMovesIterator<'_> {
     where
         F: FnMut(Self::Item) -> ControlFlow<R>,
     {
-        get_valid_actions(&self.board.0).into_iter().try_for_each(f)
+        match get_valid_actions(&self.board.0) {
+            Ok(actions) => actions.into_iter().try_for_each(f),
+            Err(_) => ControlFlow::Continue(()),
+        }
     }
 }

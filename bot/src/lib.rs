@@ -1,15 +1,16 @@
 pub mod burnrl;
 pub mod strategy;
-pub mod training_common;
 pub mod trictrac_board;
 
 use log::debug;
-use store::{CheckerMove, Color, GameEvent, GameState, PlayerId, PointsRules, Stage, TurnStage};
 pub use strategy::default::DefaultStrategy;
 pub use strategy::dqnburn::DqnBurnStrategy;
 pub use strategy::erroneous_moves::ErroneousStrategy;
 pub use strategy::random::RandomStrategy;
 pub use strategy::stable_baselines3::StableBaselines3Strategy;
+use trictrac_store::{
+    CheckerMove, Color, GameEvent, GameState, PlayerId, PointsRules, Stage, TurnStage,
+};
 
 pub trait BotStrategy: std::fmt::Debug {
     fn get_game(&self) -> &GameState;
@@ -70,14 +71,14 @@ impl Bot {
         debug!(">>>> {:?} BOT handle", self.color);
         let game = self.strategy.get_mut_game();
         let internal_event = if self.color == Color::Black {
-            &event.get_mirror()
+            &event.get_mirror(false)
         } else {
             event
         };
 
         let init_player_points = game.who_plays().map(|p| (p.points, p.holes));
         let turn_stage = game.turn_stage;
-        game.consume(internal_event);
+        let _ = game.consume(internal_event);
         if game.stage == Stage::Ended {
             debug!("<<<< end {:?} BOT handle", self.color);
             return None;
@@ -125,7 +126,7 @@ impl Bot {
             return if self.color == Color::Black {
                 debug!("   bot (internal) evt : {internal_event:?} ; points : {player_points:?}");
                 debug!("<<<< end {:?} BOT handle", self.color);
-                internal_event.map(|evt| evt.get_mirror())
+                internal_event.map(|evt| evt.get_mirror(false))
             } else {
                 debug!("<<<< end {:?} BOT handle", self.color);
                 internal_event
@@ -144,7 +145,7 @@ impl Bot {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use store::{Dice, Stage};
+    use trictrac_store::{Dice, Stage};
 
     #[test]
     fn test_new() {

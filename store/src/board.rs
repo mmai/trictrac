@@ -8,7 +8,7 @@ use std::fmt;
 pub type Field = usize;
 pub type FieldWithCount = (Field, i8);
 
-#[derive(Debug, Copy, Clone, Serialize, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Copy, Clone, Serialize, PartialEq, Eq, Deserialize, Hash)]
 pub struct CheckerMove {
     from: Field,
     to: Field,
@@ -439,6 +439,7 @@ impl Board {
         check_rest_corner_exit: bool,
         forbid_exits: bool,
     ) -> Vec<CheckerMove> {
+        // println!("------- board.get_possible_moves...");
         let mut moves = Vec::new();
 
         let get_dest = |from| {
@@ -453,6 +454,7 @@ impl Board {
             }
         };
 
+        // let mut farthest_exit_move = 25;
         for (field, count) in self.get_color_fields(color) {
             // check rest corner exit
             if field == self.get_color_corner(&color) && count == 2 && check_rest_corner_exit {
@@ -463,8 +465,11 @@ impl Board {
                 continue;
             }
             if !(0..25).contains(&dest) {
+                // if with_excedants && !forbid_exits && field < farthest_exit_move && 2 < count {
                 if with_excedants && !forbid_exits {
                     dest = 0;
+                    // farthest_exit_move = field;
+                    // println!("farthest is now {farthest_exit_move}");
                 } else {
                     continue;
                 }
@@ -833,5 +838,28 @@ mod tests {
         );
         assert_eq!(4, board.get_field_checker(&Color::White, 2));
         assert_eq!(6, board.get_field_checker(&Color::White, 3));
+    }
+
+    #[test]
+    fn get_possible_moves() {
+        let mut board = Board::new();
+        board.set_positions(
+            &Color::White,
+            [
+                -8, -3, -1, -1, 0, -1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 3, 3,
+            ],
+        );
+        let moves = vec![
+            CheckerMove::new(19, 22).unwrap(),
+            CheckerMove::new(20, 23).unwrap(),
+            CheckerMove::new(21, 24).unwrap(),
+            CheckerMove::new(22, 0).unwrap(),
+            CheckerMove::new(23, 0).unwrap(),
+            CheckerMove::new(24, 0).unwrap(),
+        ];
+        assert_eq!(
+            moves,
+            board.get_possible_moves(Color::White, 3, true, true, false,)
+        );
     }
 }

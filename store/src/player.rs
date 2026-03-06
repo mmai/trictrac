@@ -1,9 +1,11 @@
+use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
 // This just makes it easier to dissern between a player id and any ol' u64
 pub type PlayerId = u64;
 
+#[pyclass(eq, eq_int)]
 #[derive(Copy, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Color {
     White,
@@ -46,6 +48,16 @@ impl Player {
         }
     }
 
+    pub fn mirror(&self) -> Self {
+        let mut player = self.clone();
+        player.color = if self.color == Color::White {
+            Color::Black
+        } else {
+            Color::White
+        };
+        player
+    }
+
     pub fn to_bits_string(&self) -> String {
         format!(
             "{:0>4b}{:0>4b}{:b}{:b}",
@@ -59,8 +71,8 @@ impl Player {
         }
         let points = u8::from_str_radix(&bits[0..4], 2).map_err(|e| e.to_string())?;
         let holes = u8::from_str_radix(&bits[4..8], 2).map_err(|e| e.to_string())?;
-        let can_bredouille = bits.chars().nth(8).unwrap() == '1';
-        let can_big_bredouille = bits.chars().nth(9).unwrap() == '1';
+        let can_bredouille = bits.chars().nth(8).ok_or_else(|| "8th bit unreadable")? == '1';
+        let can_big_bredouille = bits.chars().nth(9).ok_or_else(|| "9th bit unreadable")? == '1';
 
         Ok(Player {
             name,

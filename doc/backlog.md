@@ -53,6 +53,10 @@ Client
 
 ### Epic : Bot
 
+- PGX
+  - https://joe-antognini.github.io/ml/jax-tic-tac-toe
+  - https://www.sotets.uk/pgx/api_usage/
+
 - OpenAi gym
   - doc gymnasium <https://gymnasium.farama.org/introduction/basic_usage/>
   - Rust implementation for OpenAi gym <https://github.com/MathisWellmann/gym-rs>

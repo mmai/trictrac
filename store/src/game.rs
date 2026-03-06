@@ -2,8 +2,9 @@
 use crate::board::{Board, CheckerMove};
 use crate::dice::Dice;
 use crate::game_rules_moves::MoveRules;
-use crate::game_rules_points::{PointsRules, PossibleJans};
+use crate::game_rules_points::{PointsRules, PossibleJans, PossibleJansMethods};
 use crate::player::{Color, Player, PlayerId};
+// use anyhow::{Context, Result};
 use log::{debug, error};
 
 // use itertools::Itertools;
@@ -90,7 +91,13 @@ impl fmt::Display for GameState {
             self.stage, self.turn_stage
         ));
         s.push_str(&format!("Dice: {:?}\n", self.dice));
-        // s.push_str(&format!("Who plays: {}\n", self.who_plays().map(|player| &player.name ).unwrap_or("")));
+        let empty_string = String::from("");
+        s.push_str(&format!(
+            "Who plays: {}\n",
+            self.who_plays()
+                .map(|player| &player.name)
+                .unwrap_or_else(|| &empty_string)
+        ));
         s.push_str(&format!("Board: {:?}\n", self.board));
         // s.push_str(&format!("History: {:?}\n", self.history));
         write!(f, "{s}")
@@ -133,9 +140,45 @@ impl GameState {
         let mut game = Self::default();
         if let Some(p1) = game.init_player(p1_name) {
             game.init_player(p2_name);
-            game.consume(&GameEvent::BeginGame { goes_first: p1 });
+            let _ = game
+                .consume(&GameEvent::BeginGame { goes_first: p1 })
+                .inspect_err(|e| error!("{}", e));
         }
         game
+    }
+
+    pub fn mirror(&self) -> GameState {
+        let mirrored_active_player = if self.active_player_id == 1 { 2 } else { 1 };
+        let mut mirrored_players = HashMap::new();
+        if let Some(p2) = self.players.get(&2) {
+            mirrored_players.insert(1, p2.mirror());
+        }
+        if let Some(p1) = self.players.get(&1) {
+            mirrored_players.insert(2, p1.mirror());
+        }
+        let mirrored_history = self
+            .history
+            .clone()
+            .iter()
+            .map(|evt| evt.get_mirror(false))
+            .collect();
+
+        let (move1, move2) = self.dice_moves;
+        GameState {
+            stage: self.stage,
+            turn_stage: self.turn_stage,
+            board: self.board.mirror(),
+            active_player_id: mirrored_active_player,
+            // active_player_id: self.active_player_id,
+            players: mirrored_players,
+            history: mirrored_history,
+            dice: self.dice,
+            dice_points: self.dice_points,
+            dice_moves: (move1.mirror(), move2.mirror()),
+            dice_jans: self.dice_jans.mirror(),
+            roll_first: self.roll_first,
+            schools_enabled: self.schools_enabled,
+        }
     }
 
     fn set_schools_enabled(&mut self, schools_enabled: bool) {
@@ -194,20 +237,13 @@ impl GameState {
         // points, trous, bredouille, grande bredouille length=4 x2 joueurs = 8
         let white_player: Vec<i8> = self
             .get_white_player()
-            .unwrap()
-            .to_vec()
-            .iter()
-            .map(|&x| x as i8)
-            .collect();
+            .map(|p| p.to_vec().iter().map(|&x| x as i8).collect())
+            .unwrap_or(vec![0; 10]);
         state.extend(white_player);
         let black_player: Vec<i8> = self
             .get_black_player()
-            .unwrap()
-            .to_vec()
-            .iter()
-            .map(|&x| x as i8)
-            .collect();
-        // .iter().map(|&x| x as i8) .collect()
+            .map(|p| p.to_vec().iter().map(|&x| x as i8).collect())
+            .unwrap_or(vec![0; 10]);
         state.extend(black_player);
 
         // ensure state has length state_len
@@ -219,7 +255,7 @@ impl GameState {
     }
 
     /// Calculate game state id :
-    pub fn to_string_id(&self) -> String {
+    pub fn to_string_id_slow(&self) -> String {
         // Pieces placement -> 77 bits (24 + 23 + 30 max)
         let mut pos_bits = self.board.to_gnupg_pos_id();
 
@@ -254,20 +290,139 @@ impl GameState {
         pos_bits.push_str(&dice_bits);
 
         // points 10bits x2 joueurs = 20bits
-        let white_bits = self.get_white_player().unwrap().to_bits_string();
-        let black_bits = self.get_black_player().unwrap().to_bits_string();
+        let white_bits = self
+            .get_white_player()
+            .map(|p| p.to_bits_string())
+            .unwrap_or("0000000000".into());
+        let black_bits = self
+            .get_black_player()
+            .map(|p| p.to_bits_string())
+            .unwrap_or("0000000000".into());
         pos_bits.push_str(&white_bits);
         pos_bits.push_str(&black_bits);
 
         pos_bits = format!("{pos_bits:0<108}");
         // println!("{}", pos_bits);
+        // let pos_u8 = pos_bits
+        //     .as_bytes()
+        //     .chunks(6)
+        //     .map(|chunk| str::from_utf8(chunk).unwrap())
+        //     .map(|chunk| u8::from_str_radix(chunk, 2).unwrap())
+        //     .collect::<Vec<u8>>();
+
         let pos_u8 = pos_bits
             .as_bytes()
             .chunks(6)
-            .map(|chunk| str::from_utf8(chunk).unwrap())
-            .map(|chunk| u8::from_str_radix(chunk, 2).unwrap())
+            .map(|chunk| chunk.iter().fold(0u8, |acc, &b| (acc << 1) | (b - b'0')))
             .collect::<Vec<u8>>();
+
         general_purpose::STANDARD.encode(pos_u8)
+    }
+
+    pub fn to_string_id(&self) -> String {
+        const TOTAL_BITS: usize = 108;
+        const TOTAL_BYTES: usize = TOTAL_BITS / 6; // 18 bytes
+
+        let mut output = Vec::with_capacity(TOTAL_BYTES);
+
+        let mut current: u8 = 0;
+        let mut bit_count: u8 = 0;
+
+        // helper to push a single bit
+        let push_bit = |bit: u8, output: &mut Vec<u8>, current: &mut u8, bit_count: &mut u8| {
+            *current = (*current << 1) | (bit & 1);
+            *bit_count += 1;
+
+            if *bit_count == 6 {
+                output.push(*current);
+                *current = 0;
+                *bit_count = 0;
+            }
+        };
+
+        // helper to push a string of '0'/'1'
+        let push_bits_str =
+            |bits: &str, output: &mut Vec<u8>, current: &mut u8, bit_count: &mut u8| {
+                for b in bits.bytes() {
+                    push_bit(b - b'0', output, current, bit_count);
+                }
+            };
+
+        // --------------------------------------------------
+        // 1️⃣ Board position bits
+        // --------------------------------------------------
+        push_bits_str(
+            &self.board.to_gnupg_pos_id(),
+            &mut output,
+            &mut current,
+            &mut bit_count,
+        );
+
+        // --------------------------------------------------
+        // 2️⃣ Active player (1 bit)
+        // --------------------------------------------------
+        let active_bit = self
+            .who_plays()
+            .map(|player| (player.color == Color::Black) as u8)
+            .unwrap_or(0);
+
+        push_bit(active_bit, &mut output, &mut current, &mut bit_count);
+
+        // --------------------------------------------------
+        // 3️⃣ Turn stage (3 bits)
+        // --------------------------------------------------
+        let stage_bits: u8 = match self.turn_stage {
+            TurnStage::RollWaiting => 0b000,
+            TurnStage::RollDice => 0b001,
+            TurnStage::MarkPoints => 0b010,
+            TurnStage::HoldOrGoChoice => 0b011,
+            TurnStage::Move => 0b100,
+            TurnStage::MarkAdvPoints => 0b101,
+        };
+
+        for i in (0..3).rev() {
+            push_bit(
+                (stage_bits >> i) & 1,
+                &mut output,
+                &mut current,
+                &mut bit_count,
+            );
+        }
+
+        // --------------------------------------------------
+        // 4️⃣ Dice (6 bits)
+        // --------------------------------------------------
+        push_bits_str(
+            &self.dice.to_bits_string(),
+            &mut output,
+            &mut current,
+            &mut bit_count,
+        );
+
+        // --------------------------------------------------
+        // 5️⃣ Players points (10 bits each)
+        // --------------------------------------------------
+        let white_bits = self
+            .get_white_player()
+            .map(|p| p.to_bits_string())
+            .unwrap_or_else(|| "0000000000".to_string());
+
+        let black_bits = self
+            .get_black_player()
+            .map(|p| p.to_bits_string())
+            .unwrap_or_else(|| "0000000000".to_string());
+
+        push_bits_str(&white_bits, &mut output, &mut current, &mut bit_count);
+        push_bits_str(&black_bits, &mut output, &mut current, &mut bit_count);
+
+        // --------------------------------------------------
+        // 6️⃣ Pad remaining bits (if needed)
+        // --------------------------------------------------
+        while output.len() < TOTAL_BYTES {
+            push_bit(0, &mut output, &mut current, &mut bit_count);
+        }
+
+        base64::engine::general_purpose::STANDARD.encode(output)
     }
 
     pub fn from_string_id(id: &str) -> Result<Self, String> {
@@ -287,7 +442,9 @@ impl GameState {
         let board_bits = &bits[0..77];
         let board = Board::from_gnupg_pos_id(board_bits)?;
 
-        let active_player_bit = bits.chars().nth(77).unwrap();
+        let Some(active_player_bit) = bits.chars().nth(77) else {
+            return Err("No bit at 77th position".to_string());
+        };
         let active_player_color = if active_player_bit == '1' {
             Color::Black
         } else {
@@ -431,10 +588,12 @@ impl GameState {
             Roll { player_id } => {
                 // Check player exists
                 if !self.players.contains_key(player_id) {
+                    error!("unknown player_id");
                     return false;
                 }
                 // Check player is currently the one making their move
                 if self.active_player_id != *player_id {
+                    error!("not active player_id");
                     return false;
                 }
                 // Check the turn stage
@@ -531,6 +690,7 @@ impl GameState {
                     *moves
                 };
                 if !rules.moves_follow_rules(&moves) {
+                    // println!(">>> rules not followed ");
                     error!("rules not followed ");
                     return false;
                 }
@@ -550,7 +710,7 @@ impl GameState {
 
     pub fn init_player(&mut self, player_name: &str) -> Option<PlayerId> {
         if self.players.len() > 2 {
-            println!("more than two players");
+            // println!("more than two players");
             return None;
         }
 
@@ -579,23 +739,14 @@ impl GameState {
             .next();
         self.active_player_id = other_player_id.unwrap_or(0);
     }
+
     /// Consumes an event, modifying the GameState and adding the event to its history
     /// NOTE: consume assumes the event to have already been validated and will accept *any* event passed to it
-    pub fn consume(&mut self, valid_event: &GameEvent) {
+    pub fn consume(&mut self, valid_event: &GameEvent) -> Result<(), String> {
         use GameEvent::*;
         match valid_event {
             BeginGame { goes_first } => {
                 self.active_player_id = *goes_first;
-                // if self.who_plays().is_none() {
-                //     let active_color = match self.dice.coin() {
-                //         false => Color::Black,
-                //         true => Color::White,
-                //     };
-                //     let color_player_id = self.player_id_by_color(active_color);
-                //     if color_player_id.is_some() {
-                //         self.active_player_id = *color_player_id.unwrap();
-                //     }
-                // }
                 self.stage = Stage::InGame;
                 self.turn_stage = TurnStage::RollDice;
             }
@@ -631,14 +782,16 @@ impl GameState {
                 self.dice = *dice;
                 self.inc_roll_count(self.active_player_id);
                 self.turn_stage = TurnStage::MarkPoints;
-                (self.dice_jans, self.dice_points) = self.get_rollresult_jans(dice);
+                (self.dice_jans, self.dice_points) = self.get_rollresult_jans(dice)?;
                 debug!("points from result : {:?}", self.dice_points);
                 if !self.schools_enabled {
                     // Schools are not enabled. We mark points automatically
                     // the points earned by the opponent will be marked on its turn
                     let new_hole = self.mark_points(self.active_player_id, self.dice_points.0);
                     if new_hole {
-                        let holes_count = self.get_active_player().unwrap().holes;
+                        let Some(holes_count) = self.get_active_player().map(|p| p.holes) else {
+                            return Err("No active player".into());
+                        };
                         debug!("new hole  -> {holes_count:?}");
                         if holes_count > 12 {
                             self.stage = Stage::Ended;
@@ -654,7 +807,10 @@ impl GameState {
                 if self.schools_enabled {
                     let new_hole = self.mark_points(*player_id, *points);
                     if new_hole {
-                        if self.get_active_player().unwrap().holes > 12 {
+                        let Some(holes) = self.get_active_player().map(|p| p.holes) else {
+                            return Err("No active player".into());
+                        };
+                        if holes > 12 {
                             self.stage = Stage::Ended;
                         } else {
                             self.turn_stage = if self.turn_stage == TurnStage::MarkAdvPoints {
@@ -674,17 +830,26 @@ impl GameState {
             }
             Go { player_id: _ } => self.new_pick_up(),
             Move { player_id, moves } => {
-                let player = self.players.get(player_id).unwrap();
-                self.board.move_checker(&player.color, moves.0).unwrap();
-                self.board.move_checker(&player.color, moves.1).unwrap();
+                let Some(player) = self.players.get(player_id) else {
+                    return Err("unknown player {player_id}".into());
+                };
+                self.board
+                    .move_checker(&player.color, moves.0)
+                    .map_err(|e| e.to_string())?;
+                self.board
+                    .move_checker(&player.color, moves.1)
+                    .map_err(|e| e.to_string())?;
                 self.dice_moves = *moves;
-                self.active_player_id = *self.players.keys().find(|id| *id != player_id).unwrap();
+                let Some(active_player_id) = self.players.keys().find(|id| *id != player_id) else {
+                    return Err("Can't find player id {id}".into());
+                };
+                self.active_player_id = *active_player_id;
                 self.turn_stage = if self.schools_enabled {
                     TurnStage::MarkAdvPoints
                 } else {
                     // The player has moved, we can mark its opponent's points (which is now the current player)
                     let new_hole = self.mark_points(self.active_player_id, self.dice_points.1);
-                    if new_hole && self.get_active_player().unwrap().holes > 12 {
+                    if new_hole && self.get_active_player().map(|p| p.holes).unwrap_or(0) > 12 {
                         self.stage = Stage::Ended;
                     }
                     TurnStage::RollDice
@@ -693,6 +858,7 @@ impl GameState {
             PlayError => {}
         }
         self.history.push(valid_event.clone());
+        Ok(())
     }
 
     /// Set a new pick up ('relevé') after a player won a hole and choose to 'go',
@@ -715,14 +881,16 @@ impl GameState {
         self.board = Board::new();
     }
 
-    fn get_rollresult_jans(&self, dice: &Dice) -> (PossibleJans, (u8, u8)) {
-        let player = &self.players.get(&self.active_player_id).unwrap();
+    fn get_rollresult_jans(&self, dice: &Dice) -> Result<(PossibleJans, (u8, u8)), String> {
+        let Some(player) = &self.players.get(&self.active_player_id) else {
+            return Err("No active player".into());
+        };
         debug!(
             "get rollresult for {:?} {:?} {:?} (roll count {:?})",
             player.color, self.board, dice, player.dice_roll_count
         );
         let points_rules = PointsRules::new(&player.color, &self.board, *dice);
-        points_rules.get_result_jans(player.dice_roll_count)
+        Ok(points_rules.get_result_jans(player.dice_roll_count))
     }
 
     /// Determines if someone has won the game
@@ -864,10 +1032,12 @@ impl GameEvent {
         }
     }
 
-    pub fn get_mirror(&self) -> Self {
+    pub fn get_mirror(&self, preserve_player: bool) -> Self {
         // let mut mirror = self.clone();
         let mirror_player_id = if let Some(player_id) = self.player_id() {
-            if player_id == 1 {
+            if preserve_player {
+                player_id
+            } else if player_id == 1 {
                 2
             } else {
                 1
@@ -952,7 +1122,7 @@ mod tests {
         let mut game_state = init_test_gamestate(TurnStage::MarkPoints);
         game_state.schools_enabled = true;
         let pid = game_state.active_player_id;
-        game_state.consume(
+        let _ = game_state.consume(
             &(GameEvent::Mark {
                 player_id: pid,
                 points: 13,
@@ -964,7 +1134,7 @@ mod tests {
         assert_eq!(game_state.turn_stage, TurnStage::HoldOrGoChoice);
 
         // Go
-        game_state.consume(
+        let _ = game_state.consume(
             &(GameEvent::Go {
                 player_id: game_state.active_player_id,
             }),
@@ -978,7 +1148,7 @@ mod tests {
         let mut game_state = init_test_gamestate(TurnStage::MarkPoints);
         game_state.schools_enabled = true;
         let pid = game_state.active_player_id;
-        game_state.consume(
+        let _ = game_state.consume(
             &(GameEvent::Mark {
                 player_id: pid,
                 points: 13,
@@ -988,7 +1158,7 @@ mod tests {
             CheckerMove::new(1, 3).unwrap(),
             CheckerMove::new(1, 3).unwrap(),
         );
-        game_state.consume(
+        let _ = game_state.consume(
             &(GameEvent::Move {
                 player_id: game_state.active_player_id,
                 moves,

@@ -20,8 +20,13 @@ profile:
   cargo build --profile profiling
   samply record ./target/profiling/client_cli --bot dummy,dummy
 pythonlib:
+  rm -rf target/wheels
   maturin build -m store/Cargo.toml --release
   pip install --no-deps --force-reinstall --prefix .devenv/state/venv target/wheels/*.whl
+cxxlib:
+  cargo build --release -p trictrac-store
+  @echo "Static lib: $(ls target/release/libtrictrac_store.a)"
+  @echo "CXX header: $(find target -name 'cxxengine.rs.h' | head -1)"
 trainbot algo:
   #python ./store/python/trainModel.py
   # cargo run --bin=train_dqn # ok

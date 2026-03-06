@@ -1,6 +1,6 @@
-use bot::{Bot, BotStrategy};
 use log::{debug, error};
-use store::{CheckerMove, DiceRoller, GameEvent, GameState, PlayerId, TurnStage};
+use trictrac_bot::{Bot, BotStrategy};
+use trictrac_store::{CheckerMove, DiceRoller, GameEvent, GameState, PlayerId, TurnStage};
 
 // Application Game
 #[derive(Debug, Default)]
@@ -67,7 +67,7 @@ impl GameRunner {
                 "--------------- new valid event {event:?} (stage {:?}) -----------",
                 self.state.turn_stage
             );
-            self.state.consume(event);
+            let _ = self.state.consume(event).inspect_err(|e| error!("{}", e));
             debug!(
                 " --> stage {:?} ; active player points {:?}",
                 self.state.turn_stage,
@@ -117,8 +117,8 @@ impl GameRunner {
         }
 
         if let Some(winner) = self.state.determine_winner() {
-            next_event = Some(store::GameEvent::EndGame {
-                reason: store::EndGameReason::PlayerWon { winner },
+            next_event = Some(trictrac_store::GameEvent::EndGame {
+                reason: trictrac_store::EndGameReason::PlayerWon { winner },
             });
         }
 

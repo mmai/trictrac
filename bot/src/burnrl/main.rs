@@ -1,7 +1,7 @@
-use bot::burnrl::algos::{dqn, dqn_valid, ppo, ppo_valid, sac, sac_valid};
-use bot::burnrl::environment::TrictracEnvironment;
-use bot::burnrl::environment_valid::TrictracEnvironment as TrictracEnvironmentValid;
-use bot::burnrl::utils::{demo_model, Config};
+use trictrac_bot::burnrl::algos::{dqn, dqn_valid, ppo, ppo_valid, sac, sac_valid};
+use trictrac_bot::burnrl::environment::TrictracEnvironment;
+use trictrac_bot::burnrl::environment_valid::TrictracEnvironment as TrictracEnvironmentValid;
+use trictrac_bot::burnrl::utils::{demo_model, Config};
 use burn::backend::{Autodiff, NdArray};
 use burn_rl::base::ElemType;
 use std::env;

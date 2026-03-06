@@ -361,17 +361,24 @@ impl MoveRules {
         let _ = board_to_check.move_checker(&Color::White, moves.0);
         let farthest_on_move2 = Self::get_board_exit_farthest(&board_to_check);
 
-        let (is_move1_exedant, is_move2_exedant) = self.move_excedants(moves);
-        if (is_move1_exedant && moves.0.get_from() != farthest_on_move1)
-            || (is_move2_exedant && moves.1.get_from() != farthest_on_move2)
-        {
+        // dice normal order
+        let (is_move1_exedant, is_move2_exedant) = self.move_excedants(moves, true);
+        let is_not_farthest1 = (is_move1_exedant && moves.0.get_from() != farthest_on_move1)
+            || (is_move2_exedant && moves.1.get_from() != farthest_on_move2);
+
+        // dice reversed order
+        let (is_move1_exedant, is_move2_exedant) = self.move_excedants(moves, false);
+        let is_not_farthest2 = (is_move1_exedant && moves.0.get_from() != farthest_on_move1)
+            || (is_move2_exedant && moves.1.get_from() != farthest_on_move2);
+
+        if is_not_farthest1 && is_not_farthest2 {
             return Err(MoveError::ExitNotFarthest);
         }
 
         Ok(())
     }
 
-    fn move_excedants(&self, moves: &(CheckerMove, CheckerMove)) -> (bool, bool) {
+    fn move_excedants(&self, moves: &(CheckerMove, CheckerMove), dice_order: bool) -> (bool, bool) {
         let move1to = if moves.0.get_to() == 0 {
             25
         } else {
@@ -386,20 +393,16 @@ impl MoveRules {
         };
         let dist2 = move2to - moves.1.get_from();
 
-        let dist_min = cmp::min(dist1, dist2);
-        let dist_max = cmp::max(dist1, dist2);
-
-        let dice_min = cmp::min(self.dice.values.0, self.dice.values.1) as usize;
-        let dice_max = cmp::max(self.dice.values.0, self.dice.values.1) as usize;
-
-        let min_excedant = dist_min != 0 && dist_min < dice_min;
-        let max_excedant = dist_max != 0 && dist_max < dice_max;
-
-        if dist_min == dist1 {
-            (min_excedant, max_excedant)
+        let (dice1, dice2) = if dice_order {
+            self.dice.values
         } else {
-            (max_excedant, min_excedant)
-        }
+            (self.dice.values.1, self.dice.values.0)
+        };
+
+        (
+            dist1 != 0 && dist1 < dice1 as usize,
+            dist2 != 0 && dist2 < dice2 as usize,
+        )
     }
 
     fn get_board_exit_farthest(board: &Board) -> Field {
@@ -1585,6 +1588,19 @@ mod tests {
         let moves = (
             CheckerMove::new(19, 24).unwrap(),
             CheckerMove::new(22, 0).unwrap(),
+        );
+        assert!(state.check_exit_rules(&moves).is_ok());
+
+        state.dice.values = (6, 4);
+        state.board.set_positions(
+            &crate::Color::White,
+            [
+                -4, -1, -2, -1, 0, 0, 0, -1, 0, 0, 0, 0, -5, -1, 0, 0, 0, 0, 2, 3, 2, 2, 5, 1,
+            ],
+        );
+        let moves = (
+            CheckerMove::new(20, 24).unwrap(),
+            CheckerMove::new(23, 0).unwrap(),
         );
         assert!(state.check_exit_rules(&moves).is_ok());
     }

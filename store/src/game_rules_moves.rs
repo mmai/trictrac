@@ -534,14 +534,16 @@ impl MoveRules {
         let mut moves_seqs = Vec::new();
         let color = &Color::White;
         let ignored_rules = vec![TricTracRule::Exit, TricTracRule::MustFillQuarter];
+        let mut board = self.board.clone();
         for moves in self.get_possible_moves_sequences(true, ignored_rules) {
-            let mut board = self.board.clone();
             board.move_checker(color, moves.0).unwrap();
             board.move_checker(color, moves.1).unwrap();
             // println!("get_quarter_filling_moves_sequences board : {:?}", board);
             if board.any_quarter_filled(*color) && !moves_seqs.contains(&moves) {
                 moves_seqs.push(moves);
             }
+            board.unmove_checker(color, moves.1);
+            board.unmove_checker(color, moves.0);
         }
         moves_seqs
     }
@@ -558,13 +560,13 @@ impl MoveRules {
         let mut moves_seqs = Vec::new();
         let color = &Color::White;
         let forbid_exits = self.has_checkers_outside_last_quarter();
+        let mut board = self.board.clone();
         // println!("==== First");
         for first_move in
             self.board
                 .get_possible_moves(*color, dice1, with_excedents, false, forbid_exits)
         {
-            let mut board2 = self.board.clone();
-            if board2.move_checker(color, first_move).is_err() {
+            if board.move_checker(color, first_move).is_err() {
                 println!("err move");
                 continue;
             }
@@ -574,7 +576,7 @@ impl MoveRules {
             let mut has_second_dice_move = false;
             // println!("     ==== Second");
             for second_move in
-                board2.get_possible_moves(*color, dice2, with_excedents, true, forbid_exits)
+                board.get_possible_moves(*color, dice2, with_excedents, true, forbid_exits)
             {
                 if self
                     .check_corner_rules(&(first_move, second_move))
@@ -637,7 +639,7 @@ impl MoveRules {
                 // empty move
                 moves_seqs.push((first_move, EMPTY_MOVE));
             }
-            //if board2.get_color_fields(*color).is_empty() {
+            board.unmove_checker(color, first_move);
         }
         moves_seqs
     }

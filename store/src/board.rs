@@ -604,6 +604,20 @@ impl Board {
         Ok(())
     }
 
+    /// Reverse a previously applied `move_checker`. No validation: assumes the move was valid.
+    pub fn unmove_checker(&mut self, color: &Color, cmove: CheckerMove) {
+        let unit = match color {
+            Color::White => 1,
+            Color::Black => -1,
+        };
+        if cmove.from != 0 {
+            self.positions[cmove.from - 1] += unit;
+        }
+        if cmove.to != 0 {
+            self.positions[cmove.to - 1] -= unit;
+        }
+    }
+
     pub fn remove_checker(&mut self, color: &Color, field: Field) -> Result<(), Error> {
         if field == 0 {
             return Ok(());

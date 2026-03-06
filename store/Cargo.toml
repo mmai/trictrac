@@ -25,5 +25,9 @@ rand = "0.9"
 serde = { version = "1.0", features = ["derive"] }
 transpose = "0.2.2"
 
+[[bin]]
+name = "random_game"
+path = "src/bin/random_game.rs"
+
 [build-dependencies]
 cxx-build = "1.0"

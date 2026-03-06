@@ -220,7 +220,7 @@ impl MoveRules {
         // Si possible, les deux dés doivent être joués
         if moves.0.get_from() == 0 || moves.1.get_from() == 0 {
             let mut possible_moves_sequences = self.get_possible_moves_sequences(true, vec![]);
-            possible_moves_sequences.retain(|moves| self.check_exit_rules(moves).is_ok());
+            possible_moves_sequences.retain(|moves| self.check_exit_rules(moves, None).is_ok());
             // possible_moves_sequences.retain(|moves| self.check_corner_rules(moves).is_ok());
             if !possible_moves_sequences.contains(moves) && !possible_moves_sequences.is_empty() {
                 if *moves == (EMPTY_MOVE, EMPTY_MOVE) {
@@ -238,7 +238,7 @@ impl MoveRules {
 
         // check exit rules
         // if !ignored_rules.contains(&TricTracRule::Exit) {
-        self.check_exit_rules(moves)?;
+        self.check_exit_rules(moves, None)?;
         // }
 
         // --- interdit de jouer dans un cadran que l'adversaire peut encore remplir ----
@@ -321,7 +321,11 @@ impl MoveRules {
             .is_empty()
     }
 
-    fn check_exit_rules(&self, moves: &(CheckerMove, CheckerMove)) -> Result<(), MoveError> {
+    fn check_exit_rules(
+        &self,
+        moves: &(CheckerMove, CheckerMove),
+        exit_seqs: Option<&[(CheckerMove, CheckerMove)]>,
+    ) -> Result<(), MoveError> {
         if !moves.0.is_exit() && !moves.1.is_exit() {
             return Ok(());
         }
@@ -331,16 +335,22 @@ impl MoveRules {
         }
 
         // toutes les sorties directes sont autorisées, ainsi que les nombres défaillants
-        let ignored_rules = vec![TricTracRule::Exit];
-        let possible_moves_sequences_without_excedent =
-            self.get_possible_moves_sequences(false, ignored_rules);
-        if possible_moves_sequences_without_excedent.contains(moves) {
+        let owned;
+        let seqs = match exit_seqs {
+            Some(s) => s,
+            None => {
+                owned = self
+                    .get_possible_moves_sequences(false, vec![TricTracRule::Exit]);
+                &owned
+            }
+        };
+        if seqs.contains(moves) {
             return Ok(());
         }
         // À ce stade au moins un des déplacements concerne un nombre en excédant
         // - si d'autres séquences de mouvements sans nombre en excédant sont possibles, on
         // refuse cette séquence
-        if !possible_moves_sequences_without_excedent.is_empty() {
+        if !seqs.is_empty() {
             return Err(MoveError::ExitByEffectPossible);
         }
 
@@ -441,12 +451,18 @@ impl MoveRules {
         } else {
             (dice2, dice1)
         };
+        let filling_seqs = if !ignored_rules.contains(&TricTracRule::MustFillQuarter) {
+            Some(self.get_quarter_filling_moves_sequences())
+        } else {
+            None
+        };
         let mut moves_seqs = self.get_possible_moves_sequences_by_dices(
             dice_max,
             dice_min,
             with_excedents,
             false,
-            ignored_rules.clone(),
+            &ignored_rules,
+            filling_seqs.as_deref(),
         );
         // if we got valid sequences with the highest die, we don't accept sequences using only the
         // lowest die
@@ -456,7 +472,8 @@ impl MoveRules {
             dice_max,
             with_excedents,
             ignore_empty,
-            ignored_rules,
+            &ignored_rules,
+            filling_seqs.as_deref(),
         );
         moves_seqs.append(&mut moves_seqs_order2);
         let empty_removed = moves_seqs
@@ -527,14 +544,16 @@ impl MoveRules {
         let mut moves_seqs = Vec::new();
         let color = &Color::White;
         let ignored_rules = vec![TricTracRule::Exit, TricTracRule::MustFillQuarter];
+        let mut board = self.board.clone();
         for moves in self.get_possible_moves_sequences(true, ignored_rules) {
-            let mut board = self.board.clone();
             board.move_checker(color, moves.0).unwrap();
             board.move_checker(color, moves.1).unwrap();
             // println!("get_quarter_filling_moves_sequences board : {:?}", board);
             if board.any_quarter_filled(*color) && !moves_seqs.contains(&moves) {
                 moves_seqs.push(moves);
             }
+            board.unmove_checker(color, moves.1);
+            board.unmove_checker(color, moves.0);
         }
         moves_seqs
     }
@@ -545,18 +564,27 @@ impl MoveRules {
         dice2: u8,
         with_excedents: bool,
         ignore_empty: bool,
-        ignored_rules: Vec<TricTracRule>,
+        ignored_rules: &[TricTracRule],
+        filling_seqs: Option<&[(CheckerMove, CheckerMove)]>,
     ) -> Vec<(CheckerMove, CheckerMove)> {
         let mut moves_seqs = Vec::new();
         let color = &Color::White;
         let forbid_exits = self.has_checkers_outside_last_quarter();
+        // Precompute non-excedant sequences once so check_exit_rules need not repeat
+        // the full move generation for every exit-move candidate.
+        // Only needed when Exit is not already ignored and exits are actually reachable.
+        let exit_seqs = if !ignored_rules.contains(&TricTracRule::Exit) && !forbid_exits {
+            Some(self.get_possible_moves_sequences(false, vec![TricTracRule::Exit]))
+        } else {
+            None
+        };
+        let mut board = self.board.clone();
         // println!("==== First");
         for first_move in
             self.board
                 .get_possible_moves(*color, dice1, with_excedents, false, forbid_exits)
         {
-            let mut board2 = self.board.clone();
-            if board2.move_checker(color, first_move).is_err() {
+            if board.move_checker(color, first_move).is_err() {
                 println!("err move");
                 continue;
             }
@@ -566,7 +594,7 @@ impl MoveRules {
             let mut has_second_dice_move = false;
             // println!("     ==== Second");
             for second_move in
-                board2.get_possible_moves(*color, dice2, with_excedents, true, forbid_exits)
+                board.get_possible_moves(*color, dice2, with_excedents, true, forbid_exits)
             {
                 if self
                     .check_corner_rules(&(first_move, second_move))
@@ -590,24 +618,10 @@ impl MoveRules {
                         && self.can_take_corner_by_effect())
                     && (ignored_rules.contains(&TricTracRule::Exit)
                         || self
-                            .check_exit_rules(&(first_move, second_move))
-                            // .inspect_err(|e| {
-                            //     println!(
-                            //         " 2nd (exit rule): {:?} - {:?}, {:?}",
-                            //         e, first_move, second_move
-                            //     )
-                            // })
+                            .check_exit_rules(&(first_move, second_move), exit_seqs.as_deref())
                             .is_ok())
-                    && (ignored_rules.contains(&TricTracRule::MustFillQuarter)
-                        || self
-                            .check_must_fill_quarter_rule(&(first_move, second_move))
-                            // .inspect_err(|e| {
-                            //     println!(
-                            //         " 2nd: {:?} - {:?}, {:?} for {:?}",
-                            //         e, first_move, second_move, self.board
-                            //     )
-                            // })
-                            .is_ok())
+                    && filling_seqs
+                        .map_or(true, |seqs| seqs.is_empty() || seqs.contains(&(first_move, second_move)))
                 {
                     if second_move.get_to() == 0
                         && first_move.get_to() == 0
@@ -630,16 +644,14 @@ impl MoveRules {
                 && !(self.is_move_by_puissance(&(first_move, EMPTY_MOVE))
                     && self.can_take_corner_by_effect())
                 && (ignored_rules.contains(&TricTracRule::Exit)
-                    || self.check_exit_rules(&(first_move, EMPTY_MOVE)).is_ok())
-                && (ignored_rules.contains(&TricTracRule::MustFillQuarter)
-                    || self
-                        .check_must_fill_quarter_rule(&(first_move, EMPTY_MOVE))
-                        .is_ok())
+                    || self.check_exit_rules(&(first_move, EMPTY_MOVE), exit_seqs.as_deref()).is_ok())
+                && filling_seqs
+                    .map_or(true, |seqs| seqs.is_empty() || seqs.contains(&(first_move, EMPTY_MOVE)))
             {
                 // empty move
                 moves_seqs.push((first_move, EMPTY_MOVE));
             }
-            //if board2.get_color_fields(*color).is_empty() {
+            board.unmove_checker(color, first_move);
         }
         moves_seqs
     }
@@ -1498,6 +1510,7 @@ mod tests {
             CheckerMove::new(23, 0).unwrap(),
             CheckerMove::new(24, 0).unwrap(),
         );
+        let filling_seqs = Some(state.get_quarter_filling_moves_sequences());
         assert_eq!(
             vec![moves],
             state.get_possible_moves_sequences_by_dices(
@@ -1505,7 +1518,8 @@ mod tests {
                 state.dice.values.1,
                 true,
                 false,
-                vec![]
+                &[],
+                filling_seqs.as_deref(),
             )
         );
 
@@ -1520,6 +1534,7 @@ mod tests {
             CheckerMove::new(19, 23).unwrap(),
             CheckerMove::new(22, 0).unwrap(),
         )];
+        let filling_seqs = Some(state.get_quarter_filling_moves_sequences());
         assert_eq!(
             moves,
             state.get_possible_moves_sequences_by_dices(
@@ -1527,7 +1542,8 @@ mod tests {
                 state.dice.values.1,
                 true,
                 false,
-                vec![]
+                &[],
+                filling_seqs.as_deref(),
             )
         );
         let moves = vec![(
@@ -1541,7 +1557,8 @@ mod tests {
                 state.dice.values.0,
                 true,
                 false,
-                vec![]
+                &[],
+                filling_seqs.as_deref(),
             )
         );
 
@@ -1557,6 +1574,7 @@ mod tests {
             CheckerMove::new(19, 21).unwrap(),
             CheckerMove::new(23, 0).unwrap(),
         );
+        let filling_seqs = Some(state.get_quarter_filling_moves_sequences());
         assert_eq!(
             vec![moves],
             state.get_possible_moves_sequences_by_dices(
@@ -1564,7 +1582,8 @@ mod tests {
                 state.dice.values.1,
                 true,
                 false,
-                vec![]
+                &[],
+                filling_seqs.as_deref(),
             )
         );
     }
@@ -1583,13 +1602,13 @@ mod tests {
             CheckerMove::new(19, 23).unwrap(),
             CheckerMove::new(22, 0).unwrap(),
         );
-        assert!(state.check_exit_rules(&moves).is_ok());
+        assert!(state.check_exit_rules(&moves, None).is_ok());
 
         let moves = (
             CheckerMove::new(19, 24).unwrap(),
             CheckerMove::new(22, 0).unwrap(),
         );
-        assert!(state.check_exit_rules(&moves).is_ok());
+        assert!(state.check_exit_rules(&moves, None).is_ok());
 
         state.dice.values = (6, 4);
         state.board.set_positions(
@@ -1602,7 +1621,7 @@ mod tests {
             CheckerMove::new(20, 24).unwrap(),
             CheckerMove::new(23, 0).unwrap(),
         );
-        assert!(state.check_exit_rules(&moves).is_ok());
+        assert!(state.check_exit_rules(&moves, None).is_ok());
     }
 
     #[test]

@@ -156,13 +156,6 @@ impl GameState {
         if let Some(p1) = self.players.get(&1) {
             mirrored_players.insert(2, p1.mirror());
         }
-        let mirrored_history = self
-            .history
-            .clone()
-            .iter()
-            .map(|evt| evt.get_mirror(false))
-            .collect();
-
         let (move1, move2) = self.dice_moves;
         GameState {
             stage: self.stage,
@@ -171,7 +164,7 @@ impl GameState {
             active_player_id: mirrored_active_player,
             // active_player_id: self.active_player_id,
             players: mirrored_players,
-            history: mirrored_history,
+            history: Vec::new(),
             dice: self.dice,
             dice_points: self.dice_points,
             dice_moves: (move1.mirror(), move2.mirror()),

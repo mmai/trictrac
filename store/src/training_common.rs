@@ -3,7 +3,6 @@
 use std::cmp::{max, min};
 use std::fmt::{Debug, Display, Formatter};
 
-use crate::board::Board;
 use crate::{CheckerMove, Dice, GameEvent, GameState};
 use serde::{Deserialize, Serialize};
 
@@ -221,10 +220,11 @@ pub fn get_valid_actions(game_state: &GameState) -> anyhow::Result<Vec<TrictracA
                 // Ajoute aussi les mouvements possibles
                 let rules = crate::MoveRules::new(&color, &game_state.board, game_state.dice);
                 let possible_moves = rules.get_possible_moves_sequences(true, vec![]);
-
+                // rules.board is already White-perspective (mirrored if Black): compute cum once.
+                let cum = rules.board.white_checker_cumulative();
                 for (move1, move2) in possible_moves {
-                    valid_actions.push(checker_moves_to_trictrac_action(
-                        &move1, &move2, &color, game_state,
+                    valid_actions.push(white_checker_moves_to_trictrac_action(
+                        &move1, &move2, &game_state.dice, &cum,
                     )?);
                 }
             }
@@ -235,10 +235,11 @@ pub fn get_valid_actions(game_state: &GameState) -> anyhow::Result<Vec<TrictracA
                     // Empty move
                     possible_moves.push((CheckerMove::default(), CheckerMove::default()));
                 }
-
+                // rules.board is already White-perspective (mirrored if Black): compute cum once.
+                let cum = rules.board.white_checker_cumulative();
                 for (move1, move2) in possible_moves {
-                    valid_actions.push(checker_moves_to_trictrac_action(
-                        &move1, &move2, &color, game_state,
+                    valid_actions.push(white_checker_moves_to_trictrac_action(
+                        &move1, &move2, &game_state.dice, &cum,
                     )?);
                 }
             }
@@ -251,36 +252,27 @@ pub fn get_valid_actions(game_state: &GameState) -> anyhow::Result<Vec<TrictracA
     Ok(valid_actions)
 }
 
+#[cfg(test)]
 fn checker_moves_to_trictrac_action(
     move1: &CheckerMove,
     move2: &CheckerMove,
     color: &crate::Color,
     state: &GameState,
 ) -> anyhow::Result<TrictracAction> {
-    let dice = &state.dice;
-    let board = &state.board;
-
-    if color == &crate::Color::Black {
-        // Moves are already 'white', so we don't mirror them
-        white_checker_moves_to_trictrac_action(
-            move1,
-            move2,
-            // &move1.clone().mirror(),
-            // &move2.clone().mirror(),
-            dice,
-            &board.clone().mirror(),
-        )
-        // .map(|a| a.mirror())
+    // Moves are always in White's coordinate system. For Black, mirror the board first.
+    let cum = if color == &crate::Color::Black {
+        state.board.mirror().white_checker_cumulative()
     } else {
-        white_checker_moves_to_trictrac_action(move1, move2, dice, board)
-    }
+        state.board.white_checker_cumulative()
+    };
+    white_checker_moves_to_trictrac_action(move1, move2, &state.dice, &cum)
 }
 
 fn white_checker_moves_to_trictrac_action(
     move1: &CheckerMove,
     move2: &CheckerMove,
     dice: &Dice,
-    board: &Board,
+    cum: &[u8; 25],
 ) -> anyhow::Result<TrictracAction> {
     let to1 = move1.get_to();
     let to2 = move2.get_to();
@@ -321,11 +313,21 @@ fn white_checker_moves_to_trictrac_action(
     }
     let dice_order = diff_move1 == dice.values.0 as usize;
 
-    let checker1 = board.get_field_checker(&crate::Color::White, from1) as usize;
-    let mut tmp_board = board.clone();
-    // should not raise an error for a valid action
-    tmp_board.move_checker(&crate::Color::White, *move1)?;
-    let checker2 = tmp_board.get_field_checker(&crate::Color::White, from2) as usize;
+    // cum[i] = # white checkers in fields 1..=i (precomputed by the caller).
+    // checker1 is the ordinal of the last checker at from1.
+    let checker1 = cum[from1] as usize;
+    // checker2 is the ordinal on the board after move1 (removed from from1, added to to1).
+    // Adjust the cumulative in O(1) without cloning the board.
+    let checker2 = {
+        let mut c = cum[from2];
+        if from1 > 0 && from2 >= from1 {
+            c -= 1; // one checker was removed from from1, shifting later ordinals down
+        }
+        if from1 > 0 && to1 > 0 && from2 >= to1 {
+            c += 1; // one checker was added at to1, shifting later ordinals up
+        }
+        c as usize
+    };
     Ok(TrictracAction::Move {
         dice_order,
         checker1,

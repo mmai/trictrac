@@ -65,7 +65,7 @@ pub mod trainer;
 
 pub use replay::{ReplayBuffer, TrainSample};
 pub use selfplay::{BurnEvaluator, generate_episode};
-pub use trainer::train_step;
+pub use trainer::{cosine_lr, train_step};
 
 use crate::mcts::MctsConfig;
 
@@ -87,8 +87,17 @@ pub struct AlphaZeroConfig {
     pub batch_size: usize,
     /// Maximum number of samples in the replay buffer.
     pub replay_capacity: usize,
-    /// Adam learning rate.
+    /// Initial (peak) Adam learning rate.
     pub learning_rate: f64,
+    /// Minimum learning rate for cosine annealing (floor of the schedule).
+    ///
+    /// Pass `learning_rate == lr_min` to disable scheduling (constant LR).
+    /// Compute the current LR with [`cosine_lr`]:
+    ///
+    /// ```rust,ignore
+    /// let lr = cosine_lr(config.learning_rate, config.lr_min, step, total_steps);
+    /// ```
+    pub lr_min: f64,
     /// Number of outer iterations (self-play + train) to run.
     pub n_iterations: usize,
     /// Move index after which the action temperature drops to 0 (greedy play).
@@ -110,6 +119,7 @@ impl Default for AlphaZeroConfig {
             batch_size: 64,
             replay_capacity: 50_000,
             learning_rate: 1e-3,
+            lr_min: 1e-4,    // cosine annealing floor
             n_iterations: 100,
             temperature_drop_move: 30,
         }

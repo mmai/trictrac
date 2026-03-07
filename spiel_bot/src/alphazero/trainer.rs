@@ -5,6 +5,24 @@
 //! - **Value loss** — mean-squared error between the predicted value and the
 //!   actual game outcome.
 //!
+//! # Learning-rate scheduling
+//!
+//! [`cosine_lr`] implements one-cycle cosine annealing:
+//!
+//! ```text
+//! lr(t) = lr_min + 0.5 · (lr_max − lr_min) · (1 + cos(π · t / T))
+//! ```
+//!
+//! Typical usage in the outer loop:
+//!
+//! ```rust,ignore
+//! for step in 0..total_train_steps {
+//!     let lr = cosine_lr(config.learning_rate, config.lr_min, step, total_train_steps);
+//!     let (m, loss) = train_step(model, &mut optimizer, &batch, &device, lr);
+//!     model = m;
+//! }
+//! ```
+//!
 //! # Backend
 //!
 //! `train_step` requires an `AutodiffBackend` (e.g. `Autodiff<NdArray<f32>>`).
@@ -96,6 +114,30 @@ where
     (model, loss_scalar)
 }
 
+// ── Learning-rate schedule ─────────────────────────────────────────────────
+
+/// Cosine learning-rate schedule (one half-period, no warmup).
+///
+/// Returns the learning rate for training step `step` out of `total_steps`:
+///
+/// ```text
+/// lr(t) = lr_min + 0.5 · (initial − lr_min) · (1 + cos(π · t / total))
+/// ```
+///
+/// - At `t = 0` returns `initial`.
+/// - At `t = total_steps` (or beyond) returns `lr_min`.
+///
+/// # Panics
+///
+/// Does not panic.  When `total_steps == 0`, returns `lr_min`.
+pub fn cosine_lr(initial: f64, lr_min: f64, step: usize, total_steps: usize) -> f64 {
+    if total_steps == 0 || step >= total_steps {
+        return lr_min;
+    }
+    let progress = step as f64 / total_steps as f64;
+    lr_min + 0.5 * (initial - lr_min) * (1.0 + (std::f64::consts::PI * progress).cos())
+}
+
 // ── Tests ──────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -168,5 +210,49 @@ mod tests {
         let batch = dummy_batch(1, 2, 2);
         let (_, loss) = train_step(model, &mut optimizer, &batch, &device(), 1e-3);
         assert!(loss.is_finite());
+    }
+
+    // ── cosine_lr ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn cosine_lr_at_step_zero_is_initial() {
+        let lr = super::cosine_lr(1e-3, 1e-5, 0, 100);
+        assert!((lr - 1e-3).abs() < 1e-10, "expected initial lr, got {lr}");
+    }
+
+    #[test]
+    fn cosine_lr_at_end_is_min() {
+        let lr = super::cosine_lr(1e-3, 1e-5, 100, 100);
+        assert!((lr - 1e-5).abs() < 1e-10, "expected min lr, got {lr}");
+    }
+
+    #[test]
+    fn cosine_lr_beyond_end_is_min() {
+        let lr = super::cosine_lr(1e-3, 1e-5, 200, 100);
+        assert!((lr - 1e-5).abs() < 1e-10, "expected min lr beyond end, got {lr}");
+    }
+
+    #[test]
+    fn cosine_lr_midpoint_is_average() {
+        // At t = total/2, cos(π/2) = 0, so lr = (initial + min) / 2.
+        let lr = super::cosine_lr(1e-3, 1e-5, 50, 100);
+        let expected = (1e-3 + 1e-5) / 2.0;
+        assert!((lr - expected).abs() < 1e-10, "expected midpoint {expected}, got {lr}");
+    }
+
+    #[test]
+    fn cosine_lr_monotone_decreasing() {
+        let mut prev = f64::INFINITY;
+        for step in 0..=100 {
+            let lr = super::cosine_lr(1e-3, 1e-5, step, 100);
+            assert!(lr <= prev + 1e-15, "lr increased at step {step}: {lr} > {prev}");
+            prev = lr;
+        }
+    }
+
+    #[test]
+    fn cosine_lr_zero_total_steps_returns_min() {
+        let lr = super::cosine_lr(1e-3, 1e-5, 0, 0);
+        assert!((lr - 1e-5).abs() < 1e-10);
     }
 }

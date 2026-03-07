@@ -401,8 +401,12 @@ mod tests {
         };
 
         let root = run_mcts(&env, &state, &ZeroEval(514), &config, &mut r);
-        assert!(root.n > 0);
+        // root.n = 1 (expansion) + n_simulations (one backup per simulation).
+        assert_eq!(root.n, 1 + config.n_simulations as u32);
+        // Children visit counts may sum to less than n_simulations when some
+        // simulations cross a chance node at depth 1 (turn ends after one move)
+        // and evaluate with the network directly without updating child.n.
         let total: u32 = root.children.iter().map(|(_, c)| c.n).sum();
-        assert_eq!(total, 5);
+        assert!(total <= config.n_simulations as u32);
     }
 }

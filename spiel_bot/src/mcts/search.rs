@@ -138,8 +138,14 @@ pub(super) fn simulate<E: GameEnv>(
     // ── Apply action + advance through any chance nodes ───────────────────
     let mut next_state = state;
     env.apply(&mut next_state, action);
+
+    // Track whether we crossed a chance node (dice roll) on the way down.
+    // If we did, the child's cached legal actions are for a *different* dice
+    // outcome and must not be reused — evaluate with the network directly.
+    let mut crossed_chance = false;
     while env.current_player(&next_state).is_chance() {
         env.apply_chance(&mut next_state, rng);
+        crossed_chance = true;
     }
 
     let next_cp = env.current_player(&next_state);
@@ -153,7 +159,15 @@ pub(super) fn simulate<E: GameEnv>(
         returns[player_idx]
     } else {
         let child_player = next_cp.index().unwrap();
-        let v = if child.expanded {
+        let v = if crossed_chance {
+            // Outcome sampling: after dice, evaluate the resulting position
+            // directly with the network.  Do NOT build the tree across chance
+            // boundaries — the dice change which actions are legal, so any
+            // previously cached children would be for a different outcome.
+            let obs = env.observation(&next_state, child_player);
+            let (_, value) = evaluator.evaluate(&obs);
+            value
+        } else if child.expanded {
             simulate(child, next_state, env, evaluator, config, rng, child_player)
         } else {
             expand::<E>(child, &next_state, env, evaluator, child_player)

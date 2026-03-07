@@ -113,11 +113,11 @@ impl TricTrac {
         [self.get_score(1), self.get_score(2)]
     }
 
-    fn get_tensor(&self, player_idx: u64) -> Vec<i8> {
+    fn get_tensor(&self, player_idx: u64) -> Vec<f32> {
         if player_idx == 0 {
-            self.game_state.to_vec()
+            self.game_state.to_tensor()
         } else {
-            self.game_state.mirror().to_vec()
+            self.game_state.mirror().to_tensor()
         }
     }
 

@@ -83,8 +83,8 @@ pub mod ffi {
         /// Both players' scores.
         fn get_players_scores(self: &TricTracEngine) -> PlayerScores;
 
-        /// 36-element state vector (i8).  Mirrored for player_idx == 1.
-        fn get_tensor(self: &TricTracEngine, player_idx: u64) -> Vec<i8>;
+        /// 217-element state tensor (f32), normalized to [0,1].  Mirrored for player_idx == 1.
+        fn get_tensor(self: &TricTracEngine, player_idx: u64) -> Vec<f32>;
 
         /// Human-readable state description for `player_idx`.
         fn get_observation_string(self: &TricTracEngine, player_idx: u64) -> String;
@@ -180,11 +180,11 @@ impl TricTracEngine {
             .unwrap_or(-1)
     }
 
-    fn get_tensor(&self, player_idx: u64) -> Vec<i8> {
+    fn get_tensor(&self, player_idx: u64) -> Vec<f32> {
         if player_idx == 0 {
-            self.game_state.to_vec()
+            self.game_state.to_tensor()
         } else {
-            self.game_state.mirror().to_vec()
+            self.game_state.mirror().to_tensor()
         }
     }
 

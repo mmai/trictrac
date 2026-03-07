@@ -153,8 +153,7 @@ impl TricTracEngine {
                     .map(|v| v.into_iter().map(|i| i as u64).collect())
             } else {
                 let mirror = self.game_state.mirror();
-                get_valid_action_indices(&mirror)
-                    .map(|v| v.into_iter().map(|i| i as u64).collect())
+                get_valid_action_indices(&mirror).map(|v| v.into_iter().map(|i| i as u64).collect())
             }
         }))
     }
@@ -243,8 +242,9 @@ impl TricTracEngine {
                     self.game_state
                 ),
                 None => anyhow::bail!(
-                    "apply_action: could not build event from action index {}",
-                    action_idx
+                    "apply_action: could not build event from action index {} in state {}",
+                    action_idx,
+                    self.game_state
                 ),
             }
         }))

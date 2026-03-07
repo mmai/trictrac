@@ -7,3 +7,4 @@ edition = "2021"
 trictrac-store = { path = "../store" }
 anyhow         = "1"
 rand           = "0.9"
+burn           = { version = "0.20", features = ["ndarray", "autodiff"] }

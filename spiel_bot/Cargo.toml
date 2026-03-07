@@ -1,0 +1,9 @@
+[package]
+name    = "spiel_bot"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+trictrac-store = { path = "../store" }
+anyhow         = "1"
+rand           = "0.9"

@@ -224,7 +224,10 @@ pub fn get_valid_actions(game_state: &GameState) -> anyhow::Result<Vec<TrictracA
                 let cum = rules.board.white_checker_cumulative();
                 for (move1, move2) in possible_moves {
                     valid_actions.push(white_checker_moves_to_trictrac_action(
-                        &move1, &move2, &game_state.dice, &cum,
+                        &move1,
+                        &move2,
+                        &game_state.dice,
+                        &cum,
                     )?);
                 }
             }
@@ -239,7 +242,10 @@ pub fn get_valid_actions(game_state: &GameState) -> anyhow::Result<Vec<TrictracA
                 let cum = rules.board.white_checker_cumulative();
                 for (move1, move2) in possible_moves {
                     valid_actions.push(white_checker_moves_to_trictrac_action(
-                        &move1, &move2, &game_state.dice, &cum,
+                        &move1,
+                        &move2,
+                        &game_state.dice,
+                        &cum,
                     )?);
                 }
             }
@@ -294,7 +300,7 @@ fn white_checker_moves_to_trictrac_action(
             }
         } else {
             // double sortie
-            if from1 < from2 {
+            if from1 < from2 || from2 == 0 {
                 max(dice.values.0, dice.values.1) as usize
             } else {
                 min(dice.values.0, dice.values.1) as usize
@@ -455,6 +461,49 @@ mod tests {
                 dice_order: true,
                 checker1: 11,
                 checker2: 13, // because the 11th has left
+            }),
+            ttaction.ok()
+        );
+
+        // Black player
+        state.active_player_id = 2;
+        state.dice = Dice { values: (6, 3) };
+        state.board.set_positions(
+            &crate::Color::White,
+            [
+                2, -11, 0, -2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 2, 6, 4,
+            ],
+        );
+        let ttaction = super::checker_moves_to_trictrac_action(
+            &CheckerMove::new(21, 0).unwrap(),
+            &CheckerMove::new(0, 0).unwrap(),
+            &crate::Color::Black,
+            &state,
+        );
+
+        assert_eq!(
+            Some(TrictracAction::Move {
+                dice_order: true,
+                checker1: 2,
+                checker2: 0, // blocked by white on last field
+            }),
+            ttaction.ok()
+        );
+
+        // same with dice order reversed
+        state.dice = Dice { values: (3, 6) };
+        let ttaction = super::checker_moves_to_trictrac_action(
+            &CheckerMove::new(21, 0).unwrap(),
+            &CheckerMove::new(0, 0).unwrap(),
+            &crate::Color::Black,
+            &state,
+        );
+
+        assert_eq!(
+            Some(TrictracAction::Move {
+                dice_order: false,
+                checker1: 2,
+                checker2: 0, // blocked by white on last field
             }),
             ttaction.ok()
         );

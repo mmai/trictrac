@@ -9,6 +9,7 @@ anyhow         = "1"
 rand           = "0.9"
 rand_distr     = "0.5"
 burn           = { version = "0.20", features = ["ndarray", "autodiff"] }
+rayon          = "1"
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }

@@ -31,6 +31,10 @@ impl<B: Backend, N: PolicyValueNet<B>> BurnEvaluator<B, N> {
     pub fn into_model(self) -> N {
         self.model
     }
+
+    pub fn model_ref(&self) -> &N {
+        &self.model
+    }
 }
 
 // Safety: NdArray<f32> modules are Send; we never share across threads without

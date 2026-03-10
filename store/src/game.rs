@@ -1011,6 +1011,16 @@ impl GameState {
         self.mark_points(player_id, points)
     }
 
+    /// Total accumulated score for a player: `holes × 12 + points`.
+    ///
+    /// Returns `0` if `player_id` is not found (e.g. before `init_player`).
+    pub fn total_score(&self, player_id: PlayerId) -> i32 {
+        self.players
+            .get(&player_id)
+            .map(|p| p.holes as i32 * 12 + p.points as i32)
+            .unwrap_or(0)
+    }
+
     fn mark_points(&mut self, player_id: PlayerId, points: u8) -> bool {
         // Update player points and holes
         let mut new_hole = false;

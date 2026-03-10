@@ -200,6 +200,18 @@ impl GameEnv for TrictracEnv {
     }
 }
 
+// ── DQN helpers ───────────────────────────────────────────────────────────────
+
+impl TrictracEnv {
+    /// Score snapshot for DQN reward computation.
+    ///
+    /// Returns `[p1_total, p2_total]` where `total = holes × 12 + points`.
+    /// Index 0 = Player 1 (White, player_id 1), index 1 = Player 2 (Black, player_id 2).
+    pub fn score_snapshot(s: &GameState) -> [i32; 2] {
+        [s.total_score(1), s.total_score(2)]
+    }
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]

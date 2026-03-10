@@ -43,9 +43,11 @@
 //! before passing to softmax.
 
 pub mod mlp;
+pub mod qnet;
 pub mod resnet;
 
 pub use mlp::{MlpConfig, MlpNet};
+pub use qnet::{QNet, QNetConfig};
 pub use resnet::{ResNet, ResNetConfig};
 
 use burn::{module::Module, tensor::backend::Backend, tensor::Tensor};
@@ -56,9 +58,21 @@ use burn::{module::Module, tensor::backend::Backend, tensor::Tensor};
 /// - `obs`: `[batch, obs_size]`
 /// - policy output: `[batch, action_size]`  — raw logits (no softmax applied)
 /// - value output:  `[batch, 1]`            — tanh-squashed ∈ (-1, 1)
+///
 /// Note: `Sync` is intentionally absent — Burn's `Module` internally uses
 /// `OnceCell` for lazy parameter initialisation, which is not `Sync`.
 /// Use an `Arc<Mutex<N>>` wrapper if cross-thread sharing is needed.
 pub trait PolicyValueNet<B: Backend>: Module<B> + Send + 'static {
     fn forward(&self, obs: Tensor<B, 2>) -> (Tensor<B, 2>, Tensor<B, 2>);
+}
+
+/// A neural network that outputs one Q-value per action.
+///
+/// # Shapes
+/// - `obs`: `[batch, obs_size]`
+/// - output: `[batch, action_size]` — raw Q-values (no activation)
+///
+/// Note: `Sync` is intentionally absent for the same reason as [`PolicyValueNet`].
+pub trait QValueNet<B: Backend>: Module<B> + Send + 'static {
+    fn forward(&self, obs: Tensor<B, 2>) -> Tensor<B, 2>;
 }

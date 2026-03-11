@@ -156,7 +156,13 @@ pub(super) fn simulate<E: GameEnv>(
         let returns = env
             .returns(&next_state)
             .expect("terminal node must have returns");
-        returns[player_idx]
+        let v = returns[player_idx];
+        // Update child stats so PUCT and mcts_policy count terminal visits.
+        // Store from player_idx's perspective so child.q() is directly usable
+        // by the parent's PUCT selection (high = good for the selecting player).
+        child.n += 1;
+        child.w += v;
+        v
     } else {
         let child_player = next_cp.index().unwrap();
         let v = if crossed_chance {
@@ -166,6 +172,13 @@ pub(super) fn simulate<E: GameEnv>(
             // previously cached children would be for a different outcome.
             let obs = env.observation(&next_state, child_player);
             let (_, value) = evaluator.evaluate(&obs);
+            // Store from player_idx's (parent's) perspective so PUCT works correctly.
+            // `value` is from child_player's POV; negate when child is the opponent
+            // so that child.q() = expected return for the player CHOOSING this child.
+            // Without the negation, root would maximise the opponent's Q-value and
+            // systematically pick the worst action.
+            child.n += 1;
+            child.w += if child_player == player_idx { value } else { -value };
             value
         } else if child.expanded {
             simulate(child, next_state, env, evaluator, config, rng, child_player)

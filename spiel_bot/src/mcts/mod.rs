@@ -403,10 +403,10 @@ mod tests {
         let root = run_mcts(&env, &state, &ZeroEval(514), &config, &mut r);
         // root.n = 1 (expansion) + n_simulations (one backup per simulation).
         assert_eq!(root.n, 1 + config.n_simulations as u32);
-        // Children visit counts may sum to less than n_simulations when some
-        // simulations cross a chance node at depth 1 (turn ends after one move)
-        // and evaluate with the network directly without updating child.n.
+        // Every simulation crosses a chance node at depth 1 (dice roll after
+        // the player's move).  Since the fix now updates child.n in that case,
+        // children visit counts must sum to exactly n_simulations.
         let total: u32 = root.children.iter().map(|(_, c)| c.n).sum();
-        assert!(total <= config.n_simulations as u32);
+        assert_eq!(total, config.n_simulations as u32);
     }
 }

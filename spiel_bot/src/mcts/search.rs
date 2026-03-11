@@ -166,6 +166,12 @@ pub(super) fn simulate<E: GameEnv>(
             // previously cached children would be for a different outcome.
             let obs = env.observation(&next_state, child_player);
             let (_, value) = evaluator.evaluate(&obs);
+            // Record the visit so that PUCT and mcts_policy use real counts.
+            // Without this, child.n stays 0 for every simulation in games where
+            // every player action is immediately followed by a chance node (e.g.
+            // Trictrac), causing mcts_policy to always return a uniform policy.
+            child.n += 1;
+            child.w += value;
             value
         } else if child.expanded {
             simulate(child, next_state, env, evaluator, config, rng, child_player)

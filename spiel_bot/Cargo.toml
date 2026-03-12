@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 trictrac-store = { path = "../store" }
+trictrac-bot   = { path = "../bot" }
 anyhow         = "1"
 rand           = "0.9"
 rand_distr     = "0.5"

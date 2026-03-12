@@ -6009,6 +6009,7 @@ dependencies = [
  "criterion",
  "rand 0.9.2",
  "rand_distr",
+ "trictrac-bot",
  "trictrac-store",
 ]
 
@@ -6854,6 +6855,7 @@ dependencies = [
  "pico-args",
  "pretty_assertions",
  "renet",
+ "spiel_bot",
  "trictrac-bot",
  "trictrac-store",
 ]

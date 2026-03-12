@@ -23,8 +23,14 @@ OPTIONS:
                       - dummy: Default strategy selecting the first valid move
                       - ai: AI strategy using the default model at models/trictrac_ppo.zip
                       - ai:/path/to/model.zip: AI strategy using a custom model
-                      - dqn: DQN strategy using native Rust implementation with Burn
-                      - dqn:/path/to/model: DQN strategy using a custom model
+                      - dqnburn: DQN strategy (burn-rl backend)
+                      - dqnburn:/path/to/model: DQN strategy (burn-rl backend) with custom model
+                      - az: AlphaZero MlpNet (random weights)
+                      - az:/path/to/model.mpk: AlphaZero MlpNet checkpoint
+                      - az-resnet: AlphaZero ResNet (random weights)
+                      - az-resnet:/path/to/model.mpk: AlphaZero ResNet checkpoint
+                      - az-dqn: DQN QNet (random weights, first-legal-move fallback)
+                      - az-dqn:/path/to/model.mpk: DQN QNet checkpoint
 
 ARGS:
   <INPUT>

@@ -12,6 +12,10 @@ name = "trictrac_store"
 # "staticlib" → used by the C++ OpenSpiel game (cxxengine)
 crate-type = ["cdylib", "rlib", "staticlib"]
 
+[features]
+# Enable Python bindings (required for maturin / AI training). Not available on wasm32.
+python = ["pyo3"]
+
 [dependencies]
 anyhow = "1.0"
 base64 = "0.21.7"
@@ -20,7 +24,7 @@ cxx = "1.0"
 log = "0.4.20"
 merge = "0.1.0"
 # generate python lib (with maturin) to be used in AI training
-pyo3 = { version = "0.23", features = ["extension-module", "abi3-py38"] }
+pyo3 = { version = "0.23", features = ["extension-module", "abi3-py38"], optional = true }
 rand = "0.9"
 serde = { version = "1.0", features = ["derive"] }
 transpose = "0.2.2"

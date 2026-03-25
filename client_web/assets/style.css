@@ -1,0 +1,9 @@
+/* Trictrac web client — placeholder styles */
+body {
+    font-family: sans-serif;
+    display: flex;
+    justify-content: center;
+    background: #f4f0e8;
+    margin: 0;
+    padding: 1rem;
+}

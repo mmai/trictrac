@@ -8,6 +8,19 @@ shell:
 	devenv shell
 runcli:
 	RUST_LOG=info cargo run --bin=client_cli
+
+[working-directory: 'client_web/']
+dev-leptos:
+  trunk serve
+
+[working-directory: 'client_web']
+build-leptos:
+  trunk build --release
+  cp dist/index.html /home/henri/travaux/programmes/forks/multiplayer/deploy/trictrac.html
+  cp dist/*.wasm /home/henri/travaux/programmes/forks/multiplayer/deploy/
+  cp dist/*.js /home/henri/travaux/programmes/forks/multiplayer/deploy/
+  cp dist/*.css /home/henri/travaux/programmes/forks/multiplayer/deploy/
+
 runclibots:
 	cargo run --bin=client_cli -- --bot random,dqnburn:./bot/models/burnrl_dqn_40.mpk
 	#cargo run --bin=client_cli -- --bot dqn:./bot/models/dqn_model_final.json,dummy

@@ -5,6 +5,9 @@ let
 in
 {
   packages = [
+    # for Leptos
+    pkgs.trunk
+    # pkgs.wasm-bindgen-cli_0_2_114
 
     # pour burn-rs
     pkgs.SDL2_gfx

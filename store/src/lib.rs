@@ -24,4 +24,5 @@ pub mod training_common;
 mod pyengine;
 
 // C++ interface via cxx.rs (for OpenSpiel C++ integration)
+#[cfg(feature = "cpp")]
 pub mod cxxengine;

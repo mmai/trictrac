@@ -1,9 +1,176 @@
-/* Trictrac web client — placeholder styles */
+/* ── Reset & base ──────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
 body {
     font-family: sans-serif;
+    background: #c8b084;
     display: flex;
     justify-content: center;
-    background: #f4f0e8;
-    margin: 0;
-    padding: 1rem;
+    padding: 1.5rem;
+    min-height: 100vh;
+}
+
+/* ── Login / Connecting screens ────────────────────────────────────── */
+.login-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    max-width: 320px;
+    margin-top: 4rem;
+}
+
+.login-container h1 { font-size: 2rem; text-align: center; margin-bottom: 0.5rem; }
+
+input[type="text"] {
+    padding: 0.5rem 0.75rem;
+    font-size: 1rem;
+    border: 1px solid #aaa;
+    border-radius: 4px;
+}
+
+.error-msg { color: #c00; font-size: 0.9rem; }
+
+.connecting { font-size: 1.2rem; margin-top: 4rem; text-align: center; }
+
+/* ── Buttons ────────────────────────────────────────────────────────── */
+.btn {
+    padding: 0.5rem 1.25rem;
+    font-size: 1rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: opacity 0.15s;
+}
+.btn:disabled { opacity: 0.4; cursor: default; }
+.btn-primary   { background: #3a6b3a; color: #fff; }
+.btn-secondary { background: #5a4a2a; color: #fff; }
+.btn:not(:disabled):hover { opacity: 0.85; }
+
+/* ── Game container ─────────────────────────────────────────────────── */
+.game-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    max-width: 900px;
+}
+
+/* ── Score panel ────────────────────────────────────────────────────── */
+.score-panel {
+    display: flex;
+    gap: 2rem;
+    background: #f5edd8;
+    border-radius: 6px;
+    padding: 0.5rem 1.5rem;
+    font-size: 0.95rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+.score-row { display: flex; gap: 1rem; align-items: center; }
+.score-name { font-weight: bold; min-width: 80px; }
+
+/* ── Status / action bars ───────────────────────────────────────────── */
+.status-bar {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    font-size: 1.05rem;
+    font-weight: 500;
+}
+.dice { font-weight: bold; color: #2a4a8a; }
+
+.action-bar { display: flex; gap: 0.75rem; min-height: 2.5rem; }
+
+/* ── Board ──────────────────────────────────────────────────────────── */
+.board {
+    background: #2e6b2e;
+    border: 4px solid #1a3d1a;
+    border-radius: 8px;
+    padding: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    user-select: none;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+
+.board-row {
+    display: flex;
+    gap: 4px;
+}
+
+.board-quarter {
+    display: flex;
+    gap: 2px;
+}
+
+.board-bar {
+    width: 20px;
+    background: #1a3d1a;
+    border-radius: 3px;
+}
+
+.board-center-bar {
+    height: 12px;
+    background: #1a3d1a;
+    border-radius: 3px;
+}
+
+/* ── Fields ─────────────────────────────────────────────────────────── */
+.field {
+    width: 60px;
+    height: 110px;
+    background: #d4a843;
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 4px 2px;
+    position: relative;
+    transition: background 0.1s;
+}
+
+/* Alternating field colours */
+.board-quarter .field:nth-child(odd)  { background: #c49030; }
+.board-quarter .field:nth-child(even) { background: #d4a843; }
+
+.top-row .field { justify-content: flex-start; }
+
+.field.clickable { cursor: pointer; }
+.field.clickable:hover { background: #e8c060 !important; }
+.field.selected  { background: #88bb44 !important; outline: 2px solid #446622; }
+.field.dest      { background: #aad060 !important; }
+
+.field-num {
+    font-size: 0.65rem;
+    color: rgba(0,0,0,0.45);
+    position: absolute;
+    bottom: 2px;
+}
+
+.top-row .field-num { bottom: auto; top: 2px; }
+
+/* ── Checkers ───────────────────────────────────────────────────────── */
+.checkers {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    font-weight: bold;
+    border: 2px solid rgba(0,0,0,0.3);
+    box-shadow: inset 0 2px 4px rgba(255,255,255,0.3), 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.checkers.white {
+    background: radial-gradient(circle at 35% 35%, #ffffff, #cccccc);
+    color: #333;
+}
+
+.checkers.black {
+    background: radial-gradient(circle at 35% 35%, #555555, #111111);
+    color: #eee;
 }

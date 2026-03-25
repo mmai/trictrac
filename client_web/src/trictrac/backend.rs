@@ -100,6 +100,7 @@ impl BackEndArchitecture<PlayerAction, GameDelta, ViewState> for TrictracBackend
         if self.arrived[0] && self.arrived[1] && self.game.stage == trictrac_store::Stage::PreGame
         {
             let _ = self.game.consume(&GameEvent::BeginGame { goes_first: HOST_PLAYER_ID });
+            self.sync_view_state();
             self.commands.push(BackendCommand::ResetViewState);
         } else {
             self.broadcast_state();
@@ -193,5 +194,109 @@ impl BackEndArchitecture<PlayerAction, GameDelta, ViewState> for TrictracBackend
 
     fn drain_commands(&mut self) -> Vec<BackendCommand<GameDelta>> {
         std::mem::take(&mut self.commands)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use backbone_lib::traits::BackEndArchitecture;
+
+    fn make_backend() -> TrictracBackend {
+        TrictracBackend::new(0)
+    }
+
+    /// Helper: drain and return only Delta commands, extracting their ViewStates.
+    fn drain_deltas(b: &mut TrictracBackend) -> Vec<ViewState> {
+        b.drain_commands()
+            .into_iter()
+            .filter_map(|cmd| match cmd {
+                BackendCommand::Delta(d) => Some(d.state),
+                BackendCommand::ResetViewState => Some(b.view_state.clone()),
+                _ => None,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn both_players_arrive_starts_game() {
+        let mut b = make_backend();
+        b.player_arrival(0); // host
+        b.drain_commands();
+        b.player_arrival(1); // guest
+        let cmds = b.drain_commands();
+
+        // ResetViewState should have been issued after BeginGame.
+        let has_reset = cmds.iter().any(|c| matches!(c, BackendCommand::ResetViewState));
+        assert!(has_reset, "expected ResetViewState after both players arrive");
+
+        // Game should now be InGame.
+        use crate::trictrac::types::SerStage;
+        assert_eq!(b.get_view_state().stage, SerStage::InGame);
+    }
+
+    #[test]
+    fn unknown_player_kicked() {
+        let mut b = make_backend();
+        b.player_arrival(99);
+        let cmds = b.drain_commands();
+        assert!(cmds.iter().any(|c| matches!(c, BackendCommand::KickPlayer { player: 99 })));
+    }
+
+    #[test]
+    fn roll_advances_to_move_or_hold() {
+        let mut b = make_backend();
+        b.player_arrival(0);
+        b.player_arrival(1);
+        b.drain_commands();
+
+        // Host rolls (player_id 0, whose store id == HOST_PLAYER_ID == active after BeginGame).
+        b.inform_rpc(0, PlayerAction::Roll);
+        let states = drain_deltas(&mut b);
+        assert!(!states.is_empty(), "expected a state broadcast after roll");
+
+        use crate::trictrac::types::SerTurnStage;
+        let last = states.last().unwrap();
+        assert!(
+            matches!(last.turn_stage, SerTurnStage::Move | SerTurnStage::HoldOrGoChoice),
+            "expected Move or HoldOrGoChoice after roll, got {:?}", last.turn_stage
+        );
+        assert_eq!(last.dice, b.get_view_state().dice);
+        assert!(last.dice.0 >= 1 && last.dice.0 <= 6);
+        assert!(last.dice.1 >= 1 && last.dice.1 <= 6);
+    }
+
+    #[test]
+    fn wrong_player_roll_ignored() {
+        let mut b = make_backend();
+        b.player_arrival(0);
+        b.player_arrival(1);
+        b.drain_commands();
+
+        // Guest tries to roll when it's the host's turn.
+        b.inform_rpc(1, PlayerAction::Roll);
+        let cmds = b.drain_commands();
+        assert!(cmds.is_empty(), "guest roll should be ignored when it's host's turn");
+    }
+
+    #[test]
+    fn departure_sets_reconnect_timer() {
+        let mut b = make_backend();
+        b.player_arrival(0);
+        b.drain_commands();
+        b.player_departure(0);
+        let cmds = b.drain_commands();
+        assert!(
+            cmds.iter().any(|c| matches!(c, BackendCommand::SetTimer { timer_id: 0, .. })),
+            "expected reconnect timer after host departure"
+        );
+    }
+
+    #[test]
+    fn timer_triggers_terminate_room() {
+        let mut b = make_backend();
+        b.timer_triggered(0);
+        let cmds = b.drain_commands();
+        assert!(cmds.iter().any(|c| matches!(c, BackendCommand::TerminateRoom)));
     }
 }

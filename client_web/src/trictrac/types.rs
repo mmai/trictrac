@@ -125,14 +125,14 @@ pub struct PlayerScore {
 
 // ── Serialisable mirrors of store enums ──────────────────────────────────────
 
-#[derive(Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum SerStage {
     PreGame,
     InGame,
     Ended,
 }
 
-#[derive(Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum SerTurnStage {
     RollDice,
     RollWaiting,

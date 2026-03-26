@@ -1,5 +1,5 @@
 use backbone_lib::traits::{BackEndArchitecture, BackendCommand};
-use trictrac_store::{CheckerMove, DiceRoller, GameEvent, GameState, TurnStage};
+use trictrac_store::{DiceRoller, GameEvent, GameState, TurnStage};
 
 use crate::trictrac::types::{GameDelta, PlayerAction, ViewState};
 
@@ -14,19 +14,18 @@ pub struct TrictracBackend {
     view_state: ViewState,
     /// Arrival flags: have host (index 0) and guest (index 1) joined?
     arrived: [bool; 2],
-    /// First move of the current pair, waiting for the second.
-    pending_first_move: Option<CheckerMove>,
 }
 
 impl TrictracBackend {
     fn sync_view_state(&mut self) {
-        self.view_state =
-            ViewState::from_game_state(&self.game, HOST_PLAYER_ID, GUEST_PLAYER_ID);
+        self.view_state = ViewState::from_game_state(&self.game, HOST_PLAYER_ID, GUEST_PLAYER_ID);
     }
 
     fn broadcast_state(&mut self) {
         self.sync_view_state();
-        let delta = GameDelta { state: self.view_state.clone() };
+        let delta = GameDelta {
+            state: self.view_state.clone(),
+        };
         self.commands.push(BackendCommand::Delta(delta));
     }
 
@@ -35,7 +34,9 @@ impl TrictracBackend {
         let dice = self.dice_roller.roll();
         let player_id = self.game.active_player_id;
         let _ = self.game.consume(&GameEvent::Roll { player_id });
-        let _ = self.game.consume(&GameEvent::RollResult { player_id, dice });
+        let _ = self
+            .game
+            .consume(&GameEvent::RollResult { player_id, dice });
 
         // Drive automatic stages that require no player input.
         self.drive_automatic_stages();
@@ -65,8 +66,7 @@ impl BackEndArchitecture<PlayerAction, GameDelta, ViewState> for TrictracBackend
         game.init_player("Host");
         game.init_player("Guest");
 
-        let view_state =
-            ViewState::from_game_state(&game, HOST_PLAYER_ID, GUEST_PLAYER_ID);
+        let view_state = ViewState::from_game_state(&game, HOST_PLAYER_ID, GUEST_PLAYER_ID);
 
         TrictracBackend {
             game,
@@ -74,7 +74,6 @@ impl BackEndArchitecture<PlayerAction, GameDelta, ViewState> for TrictracBackend
             commands: Vec::new(),
             view_state,
             arrived: [false; 2],
-            pending_first_move: None,
         }
     }
 
@@ -88,18 +87,22 @@ impl BackEndArchitecture<PlayerAction, GameDelta, ViewState> for TrictracBackend
 
     fn player_arrival(&mut self, mp_player: u16) {
         if mp_player > 1 {
-            self.commands.push(BackendCommand::KickPlayer { player: mp_player });
+            self.commands
+                .push(BackendCommand::KickPlayer { player: mp_player });
             return;
         }
         self.arrived[mp_player as usize] = true;
 
         // Cancel any reconnect timer for this player.
-        self.commands.push(BackendCommand::CancelTimer { timer_id: mp_player });
+        self.commands.push(BackendCommand::CancelTimer {
+            timer_id: mp_player,
+        });
 
         // Start the game once both players have arrived.
-        if self.arrived[0] && self.arrived[1] && self.game.stage == trictrac_store::Stage::PreGame
-        {
-            let _ = self.game.consume(&GameEvent::BeginGame { goes_first: HOST_PLAYER_ID });
+        if self.arrived[0] && self.arrived[1] && self.game.stage == trictrac_store::Stage::PreGame {
+            let _ = self.game.consume(&GameEvent::BeginGame {
+                goes_first: HOST_PLAYER_ID,
+            });
             self.sync_view_state();
             self.commands.push(BackendCommand::ResetViewState);
         } else {
@@ -124,7 +127,11 @@ impl BackEndArchitecture<PlayerAction, GameDelta, ViewState> for TrictracBackend
             return;
         }
 
-        let store_id = if mp_player == 0 { HOST_PLAYER_ID } else { GUEST_PLAYER_ID };
+        let store_id = if mp_player == 0 {
+            HOST_PLAYER_ID
+        } else {
+            GUEST_PLAYER_ID
+        };
 
         // Only the active player may act (except during Chance-like waiting stages).
         if self.game.active_player_id != store_id {
@@ -137,32 +144,26 @@ impl BackEndArchitecture<PlayerAction, GameDelta, ViewState> for TrictracBackend
                     self.do_roll();
                 }
             }
-            PlayerAction::Move { from, to } => {
-                if self.game.turn_stage != TurnStage::Move {
+            PlayerAction::Move(m1, m2) => {
+                if self.game.turn_stage != TurnStage::Move
+                    && self.game.turn_stage != TurnStage::HoldOrGoChoice
+                {
                     return;
                 }
-                let Ok(cmove) = CheckerMove::new(from as usize, to as usize) else {
-                    return;
+                let event = GameEvent::Move {
+                    player_id: store_id,
+                    moves: (m1, m2),
                 };
-                if let Some(first) = self.pending_first_move.take() {
-                    let event = GameEvent::Move {
-                        player_id: store_id,
-                        moves: (first, cmove),
-                    };
-                    if self.game.validate(&event) {
-                        let _ = self.game.consume(&event);
-                        self.drive_automatic_stages();
-                    }
-                    // Whether valid or not, clear pending so the player can retry.
-                } else {
-                    self.pending_first_move = Some(cmove);
-                    // No state broadcast yet — wait for the second move.
-                    return;
+                if self.game.validate(&event) {
+                    let _ = self.game.consume(&event);
+                    self.drive_automatic_stages();
                 }
             }
             PlayerAction::Go => {
                 if self.game.turn_stage == TurnStage::HoldOrGoChoice {
-                    let _ = self.game.consume(&GameEvent::Go { player_id: store_id });
+                    let _ = self.game.consume(&GameEvent::Go {
+                        player_id: store_id,
+                    });
                 }
             }
             PlayerAction::Mark => {
@@ -227,8 +228,13 @@ mod tests {
         let cmds = b.drain_commands();
 
         // ResetViewState should have been issued after BeginGame.
-        let has_reset = cmds.iter().any(|c| matches!(c, BackendCommand::ResetViewState));
-        assert!(has_reset, "expected ResetViewState after both players arrive");
+        let has_reset = cmds
+            .iter()
+            .any(|c| matches!(c, BackendCommand::ResetViewState));
+        assert!(
+            has_reset,
+            "expected ResetViewState after both players arrive"
+        );
 
         // Game should now be InGame.
         use crate::trictrac::types::SerStage;
@@ -240,7 +246,9 @@ mod tests {
         let mut b = make_backend();
         b.player_arrival(99);
         let cmds = b.drain_commands();
-        assert!(cmds.iter().any(|c| matches!(c, BackendCommand::KickPlayer { player: 99 })));
+        assert!(cmds
+            .iter()
+            .any(|c| matches!(c, BackendCommand::KickPlayer { player: 99 })));
     }
 
     #[test]
@@ -258,8 +266,12 @@ mod tests {
         use crate::trictrac::types::SerTurnStage;
         let last = states.last().unwrap();
         assert!(
-            matches!(last.turn_stage, SerTurnStage::Move | SerTurnStage::HoldOrGoChoice),
-            "expected Move or HoldOrGoChoice after roll, got {:?}", last.turn_stage
+            matches!(
+                last.turn_stage,
+                SerTurnStage::Move | SerTurnStage::HoldOrGoChoice
+            ),
+            "expected Move or HoldOrGoChoice after roll, got {:?}",
+            last.turn_stage
         );
         assert_eq!(last.dice, b.get_view_state().dice);
         assert!(last.dice.0 >= 1 && last.dice.0 <= 6);
@@ -276,7 +288,10 @@ mod tests {
         // Guest tries to roll when it's the host's turn.
         b.inform_rpc(1, PlayerAction::Roll);
         let cmds = b.drain_commands();
-        assert!(cmds.is_empty(), "guest roll should be ignored when it's host's turn");
+        assert!(
+            cmds.is_empty(),
+            "guest roll should be ignored when it's host's turn"
+        );
     }
 
     #[test]
@@ -287,7 +302,8 @@ mod tests {
         b.player_departure(0);
         let cmds = b.drain_commands();
         assert!(
-            cmds.iter().any(|c| matches!(c, BackendCommand::SetTimer { timer_id: 0, .. })),
+            cmds.iter()
+                .any(|c| matches!(c, BackendCommand::SetTimer { timer_id: 0, .. })),
             "expected reconnect timer after host departure"
         );
     }
@@ -297,6 +313,8 @@ mod tests {
         let mut b = make_backend();
         b.timer_triggered(0);
         let cmds = b.drain_commands();
-        assert!(cmds.iter().any(|c| matches!(c, BackendCommand::TerminateRoom)));
+        assert!(cmds
+            .iter()
+            .any(|c| matches!(c, BackendCommand::TerminateRoom)));
     }
 }

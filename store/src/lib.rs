@@ -3,7 +3,7 @@ mod game_rules_moves;
 pub use game_rules_moves::MoveRules;
 mod game_rules_points;
 pub use game::{EndGameReason, GameEvent, GameState, Stage, TurnStage};
-pub use game_rules_points::PointsRules;
+pub use game_rules_points::{Jan, PointsRules};
 
 mod player;
 pub use player::{Color, Player, PlayerId};

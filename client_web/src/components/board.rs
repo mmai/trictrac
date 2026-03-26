@@ -1,8 +1,6 @@
-use futures::channel::mpsc::UnboundedSender;
 use leptos::prelude::*;
 
-use crate::app::NetCommand;
-use crate::trictrac::types::{PlayerAction, SerTurnStage, ViewState};
+use crate::trictrac::types::{SerTurnStage, ViewState};
 
 /// Field numbers in visual display order (left-to-right for each quarter).
 const TOP_LEFT:  [u8; 6] = [13, 14, 15, 16, 17, 18];
@@ -10,59 +8,89 @@ const TOP_RIGHT: [u8; 6] = [19, 20, 21, 22, 23, 24];
 const BOT_LEFT:  [u8; 6] = [12, 11, 10,  9,  8,  7];
 const BOT_RIGHT: [u8; 6] = [ 6,  5,  4,  3,  2,  1];
 
-#[component]
-pub fn Board(view_state: ViewState, player_id: u16) -> impl IntoView {
-    let selected: RwSignal<Option<u8>> = RwSignal::new(None);
-    let cmd_tx = use_context::<UnboundedSender<NetCommand>>()
-        .expect("UnboundedSender<NetCommand> not found in context");
+/// Returns the displayed board value for `field_num` after applying `staged_moves`.
+/// `is_white`: true when the local player's checkers are positive (host = white).
+fn displayed_value(
+    base_board: [i8; 24],
+    staged_moves: &[(u8, u8)],
+    is_white: bool,
+    field_num: u8,
+) -> i8 {
+    let mut val = base_board[(field_num - 1) as usize];
+    let delta: i8 = if is_white { 1 } else { -1 };
+    for &(from, to) in staged_moves {
+        if from == field_num { val -= delta; }
+        if to == field_num  { val += delta; }
+    }
+    val
+}
 
+#[component]
+pub fn Board(
+    view_state: ViewState,
+    player_id: u16,
+    /// Pending origin selection (first click of a move pair).
+    selected_origin: RwSignal<Option<u8>>,
+    /// Moves staged so far this turn (max 2). Each entry is (from, to), 0 = empty move.
+    staged_moves: RwSignal<Vec<(u8, u8)>>,
+) -> impl IntoView {
     let board = view_state.board;
     let is_move_stage = view_state.active_mp_player == Some(player_id)
-        && view_state.turn_stage == SerTurnStage::Move;
+        && matches!(view_state.turn_stage, SerTurnStage::Move | SerTurnStage::HoldOrGoChoice);
+    let is_white = player_id == 0;
 
-    // Build a Vec<AnyView> for a slice of field numbers.
-    // `fields_from` borrows `board`, `cmd_tx` and copies `selected`, `is_move_stage`, `player_id`.
     let fields_from = |nums: &[u8]| -> Vec<AnyView> {
         nums.iter().map(|&field_num| {
-            let value: i8 = board[(field_num - 1) as usize];
-            let count = value.unsigned_abs();
-            let checker_color = if value > 0 { "white" } else { "black" };
-            let is_my_checker = if player_id == 0 { value > 0 } else { value < 0 };
-            let cmd = cmd_tx.clone();
-
             view! {
                 <div
                     class=move || {
-                        let sel = selected.get();
+                        let moves = staged_moves.get();
+                        let val = displayed_value(board, &moves, is_white, field_num);
+                        let is_mine = if is_white { val > 0 } else { val < 0 };
+                        let can_stage = is_move_stage && moves.len() < 2;
+                        let sel = selected_origin.get();
+
                         let mut cls = "field".to_string();
-                        let clickable = is_move_stage
-                            && (sel.is_some() || is_my_checker);
-                        if clickable { cls.push_str(" clickable"); }
+                        if can_stage && (sel.is_some() || is_mine) {
+                            cls.push_str(" clickable");
+                        }
                         if sel == Some(field_num) { cls.push_str(" selected"); }
-                        if is_move_stage && sel.is_some() && sel != Some(field_num) {
+                        if can_stage && sel.is_some() && sel != Some(field_num) {
                             cls.push_str(" dest");
                         }
                         cls
                     }
                     on:click=move |_| {
                         if !is_move_stage { return; }
-                        match selected.get() {
-                            Some(origin) if origin == field_num => selected.set(None),
-                            Some(origin) => {
-                                cmd.unbounded_send(NetCommand::Action(
-                                    PlayerAction::Move { from: origin, to: field_num },
-                                )).ok();
-                                selected.set(None);
+                        if staged_moves.get_untracked().len() >= 2 { return; }
+
+                        let moves = staged_moves.get_untracked();
+                        let val = displayed_value(board, &moves, is_white, field_num);
+                        let is_mine = if is_white { val > 0 } else { val < 0 };
+
+                        match selected_origin.get_untracked() {
+                            Some(origin) if origin == field_num => {
+                                selected_origin.set(None);
                             }
-                            None if is_my_checker => selected.set(Some(field_num)),
+                            Some(origin) => {
+                                staged_moves.update(|v| v.push((origin, field_num)));
+                                selected_origin.set(None);
+                            }
+                            None if is_mine => selected_origin.set(Some(field_num)),
                             None => {}
                         }
                     }
                 >
                     <span class="field-num">{field_num}</span>
-                    {(count > 0).then(|| view! {
-                        <span class=format!("checkers {checker_color}")>{count}</span>
-                    })}
+                    {move || {
+                        let moves = staged_moves.get();
+                        let val = displayed_value(board, &moves, is_white, field_num);
+                        let count = val.unsigned_abs();
+                        (count > 0).then(|| {
+                            let color = if val > 0 { "white" } else { "black" };
+                            view! { <span class=format!("checkers {color}")>{count}</span> }
+                        })
+                    }}
                 </div>
             }
             .into_any()
@@ -70,23 +98,18 @@ pub fn Board(view_state: ViewState, player_id: u16) -> impl IntoView {
         .collect()
     };
 
-    let top_left  = fields_from(&TOP_LEFT);
-    let top_right = fields_from(&TOP_RIGHT);
-    let bot_left  = fields_from(&BOT_LEFT);
-    let bot_right = fields_from(&BOT_RIGHT);
-
     view! {
         <div class="board">
             <div class="board-row top-row">
-                <div class="board-quarter">{top_left}</div>
+                <div class="board-quarter">{fields_from(&TOP_LEFT)}</div>
                 <div class="board-bar"></div>
-                <div class="board-quarter">{top_right}</div>
+                <div class="board-quarter">{fields_from(&TOP_RIGHT)}</div>
             </div>
             <div class="board-center-bar"></div>
             <div class="board-row bot-row">
-                <div class="board-quarter">{bot_left}</div>
+                <div class="board-quarter">{fields_from(&BOT_LEFT)}</div>
                 <div class="board-bar"></div>
-                <div class="board-quarter">{bot_right}</div>
+                <div class="board-quarter">{fields_from(&BOT_RIGHT)}</div>
             </div>
         </div>
     }

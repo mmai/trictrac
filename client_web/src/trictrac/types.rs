@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use trictrac_store::{GameState, Stage, TurnStage};
+use trictrac_store::{CheckerMove, GameState, Jan, Stage, TurnStage};
 
 // ── Actions sent by a player to the host backend ─────────────────────────────
 
@@ -7,8 +7,9 @@ use trictrac_store::{GameState, Stage, TurnStage};
 pub enum PlayerAction {
     /// Active player requests a dice roll.
     Roll,
-    /// Move one checker from `from` to `to` (field numbers 1–24, 0 = exit).
-    Move { from: u8, to: u8 },
+    /// Both checker moves for this turn. Use `EMPTY_MOVE` (from=0, to=0) when a die
+    /// has no valid move.
+    Move(CheckerMove, CheckerMove),
     /// Choose to "go" (advance) during HoldOrGoChoice.
     Go,
     /// Acknowledge point marking (hold / advance points).
@@ -38,6 +39,9 @@ pub struct ViewState {
     pub scores: [PlayerScore; 2],
     /// Last rolled dice values.
     pub dice: (u8, u8),
+    /// Jans (scoring events) triggered by the last dice roll, with their point values.
+    /// Negative points indicate faux jans (scored against the active player).
+    pub dice_jans: Vec<(Jan, i8)>,
 }
 
 impl ViewState {
@@ -52,6 +56,7 @@ impl ViewState {
                 PlayerScore { name: guest_name.to_string(), points: 0, holes: 0 },
             ],
             dice: (0, 0),
+            dice_jans: Vec::new(),
         }
     }
 
@@ -103,6 +108,24 @@ impl ViewState {
                 .unwrap_or_else(|| PlayerScore { name: String::new(), points: 0, holes: 0 })
         };
 
+        // Opponent's can_bredouille determines whether the active player scores double.
+        let opponent_store_id = if gs.active_player_id == host_store_id {
+            guest_store_id
+        } else {
+            host_store_id
+        };
+        let is_double = gs.players
+            .get(&opponent_store_id)
+            .map(|p| p.can_bredouille)
+            .unwrap_or(false);
+
+        // Collect jans sorted by absolute point value descending for stable display order.
+        let mut dice_jans: Vec<(Jan, i8)> = gs.dice_jans
+            .keys()
+            .map(|jan| (jan.clone(), jan.get_points(is_double)))
+            .collect();
+        dice_jans.sort_by_key(|(_, pts)| std::cmp::Reverse(*pts));
+
         ViewState {
             board,
             stage,
@@ -110,6 +133,7 @@ impl ViewState {
             active_mp_player,
             scores: [score_for(host_store_id), score_for(guest_store_id)],
             dice: (gs.dice.values.0, gs.dice.values.1),
+            dice_jans,
         }
     }
 }

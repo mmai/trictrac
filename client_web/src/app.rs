@@ -22,6 +22,7 @@ pub struct GameUiState {
     pub view_state: ViewState,
     /// 0 = host, 1 = guest
     pub player_id: u16,
+    pub room_id: String,
 }
 
 /// Which screen is currently shown.
@@ -34,8 +35,12 @@ pub enum Screen {
 
 /// Commands sent from UI event handlers into the network task.
 pub enum NetCommand {
-    CreateRoom { room: String },
-    JoinRoom { room: String },
+    CreateRoom {
+        room: String,
+    },
+    JoinRoom {
+        room: String,
+    },
     Reconnect {
         relay_url: String,
         game_id: String,
@@ -221,6 +226,7 @@ pub fn App() -> impl IntoView {
                             screen.set(Screen::Playing(GameUiState {
                                 view_state: vs.clone(),
                                 player_id,
+                                room_id: room_id_for_storage.clone(),
                             }));
                         }
                         Some(SessionEvent::Disconnected(reason)) => {

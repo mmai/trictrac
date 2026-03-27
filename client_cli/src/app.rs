@@ -1,3 +1,4 @@
+use spiel_bot::strategy::{AzBotStrategy, DqnSpielBotStrategy};
 use trictrac_bot::{
     BotStrategy, DefaultStrategy, DqnBurnStrategy, ErroneousStrategy, RandomStrategy,
     StableBaselines3Strategy,
@@ -55,6 +56,27 @@ impl App {
                                 let path = s.trim_start_matches("dqnburn:");
                                 Some(Box::new(DqnBurnStrategy::new_with_model(&path.to_string()))
                                     as Box<dyn BotStrategy>)
+                            }
+                            "az" => {
+                                Some(Box::new(AzBotStrategy::new_mlp(None)) as Box<dyn BotStrategy>)
+                            }
+                            s if s.starts_with("az:") && !s.starts_with("az-") => {
+                                let path = s.trim_start_matches("az:");
+                                Some(Box::new(AzBotStrategy::new_mlp(Some(path))) as Box<dyn BotStrategy>)
+                            }
+                            "az-resnet" => {
+                                Some(Box::new(AzBotStrategy::new_resnet(None)) as Box<dyn BotStrategy>)
+                            }
+                            s if s.starts_with("az-resnet:") => {
+                                let path = s.trim_start_matches("az-resnet:");
+                                Some(Box::new(AzBotStrategy::new_resnet(Some(path))) as Box<dyn BotStrategy>)
+                            }
+                            "az-dqn" => {
+                                Some(Box::new(DqnSpielBotStrategy::new(None)) as Box<dyn BotStrategy>)
+                            }
+                            s if s.starts_with("az-dqn:") => {
+                                let path = s.trim_start_matches("az-dqn:");
+                                Some(Box::new(DqnSpielBotStrategy::new(Some(path))) as Box<dyn BotStrategy>)
                             }
                             _ => None,
                         })

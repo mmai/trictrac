@@ -225,22 +225,26 @@ impl GameState {
         let mut t = Vec::with_capacity(217);
         let pos: Vec<i8> = self.board.to_vec(); // 24 elements, positive=White, negative=Black
 
-        // [0..95] own (White) checkers, TD-Gammon encoding
+        // [0..95] own (White) checkers, TD-Gammon encoding.
+        // Each field contributes 4 values:
+        //   (count==1), (count==2), (count==3), (count-3)/12  ← all in [0,1]
+        // The overflow term is divided by 12 because the maximum excess is
+        // 15 (all checkers) − 3 = 12.
         for &c in &pos {
             let own = c.max(0) as u8;
             t.push((own == 1) as u8 as f32);
             t.push((own == 2) as u8 as f32);
             t.push((own == 3) as u8 as f32);
-            t.push(own.saturating_sub(3) as f32);
+            t.push(own.saturating_sub(3) as f32 / 12.0);
         }
 
-        // [96..191] opp (Black) checkers, TD-Gammon encoding
+        // [96..191] opp (Black) checkers, same encoding.
         for &c in &pos {
             let opp = (-c).max(0) as u8;
             t.push((opp == 1) as u8 as f32);
             t.push((opp == 2) as u8 as f32);
             t.push((opp == 3) as u8 as f32);
-            t.push(opp.saturating_sub(3) as f32);
+            t.push(opp.saturating_sub(3) as f32 / 12.0);
         }
 
         // [192..193] dice
@@ -1005,6 +1009,16 @@ impl GameState {
 
     pub fn mark_points_for_bot_training(&mut self, player_id: PlayerId, points: u8) -> bool {
         self.mark_points(player_id, points)
+    }
+
+    /// Total accumulated score for a player: `holes × 12 + points`.
+    ///
+    /// Returns `0` if `player_id` is not found (e.g. before `init_player`).
+    pub fn total_score(&self, player_id: PlayerId) -> i32 {
+        self.players
+            .get(&player_id)
+            .map(|p| p.holes as i32 * 12 + p.points as i32)
+            .unwrap_or(0)
     }
 
     fn mark_points(&mut self, player_id: PlayerId, points: u8) -> bool {

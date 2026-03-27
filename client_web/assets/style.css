@@ -83,7 +83,7 @@ input[type="text"] {
 .score-row { display: flex; gap: 1rem; align-items: center; }
 .score-name { font-weight: bold; min-width: 80px; }
 
-/* ── Status / action bars ───────────────────────────────────────────── */
+/* ── Status bar ─────────────────────────────────────────────────────── */
 .status-bar {
     display: flex;
     gap: 1rem;
@@ -91,10 +91,30 @@ input[type="text"] {
     font-size: 1.05rem;
     font-weight: 500;
 }
-.dice { font-weight: bold; color: #2a4a8a; }
-.dice-used { opacity: 0.35; text-decoration: line-through; }
 
-.action-bar { display: flex; gap: 0.75rem; min-height: 2.5rem; }
+/* ── Dice bars ──────────────────────────────────────────────────────── */
+.dice-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+/* ── Die face (SVG) ─────────────────────────────────────────────────── */
+.die-face rect {
+    fill: #fffff0;
+    stroke: #2a1a00;
+    stroke-width: 2;
+}
+.die-face circle {
+    fill: #1a0a00;
+}
+.die-face.die-used rect {
+    fill: #d8d4c8;
+    stroke: #8a7a60;
+}
+.die-face.die-used circle {
+    fill: #8a7a60;
+}
 
 /* ── Jan panel ──────────────────────────────────────────────────────── */
 .jan-panel {

@@ -1,8 +1,11 @@
 mod board;
 mod connecting_screen;
+mod die;
 mod game_screen;
 mod login_screen;
 mod score_panel;
+
+pub use die::Die;
 
 pub use connecting_screen::ConnectingScreen;
 pub use game_screen::GameScreen;

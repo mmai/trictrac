@@ -6,6 +6,7 @@ use crate::app::{GameUiState, NetCommand};
 use crate::trictrac::types::{PlayerAction, SerStage, SerTurnStage};
 
 use super::board::Board;
+use super::die::Die;
 use super::score_panel::ScorePanel;
 
 #[allow(dead_code)]
@@ -15,7 +16,11 @@ fn matched_dice_used(staged: &[(u8, u8)], dice: (u8, u8)) -> (bool, bool) {
     let mut d0 = false;
     let mut d1 = false;
     for &(from, to) in staged {
-        let dist = to.saturating_sub(from); // 0 for empty/same-field moves
+        let dist = if from < to {
+            to.saturating_sub(from)
+        } else {
+            from.saturating_sub(to)
+        };
         if !d0 && dist == dice.0 {
             d0 = true;
         } else if !d1 && dist == dice.1 {
@@ -31,19 +36,19 @@ fn matched_dice_used(staged: &[(u8, u8)], dice: (u8, u8)) -> (bool, bool) {
 
 fn jan_label(jan: &Jan) -> &'static str {
     match jan {
-        Jan::FilledQuarter => "Rempli",
-        Jan::TrueHitSmallJan => "Atteinte vraie (petit jan)",
-        Jan::TrueHitBigJan => "Atteinte vraie (grand jan)",
-        Jan::TrueHitOpponentCorner => "Atteinte coin adverse",
-        Jan::FirstPlayerToExit => "Premier sorti",
-        Jan::SixTables => "Six tables",
-        Jan::TwoTables => "Deux tables",
-        Jan::Mezeas => "Mezeas",
-        Jan::FalseHitSmallJan => "Faux (petit jan)",
-        Jan::FalseHitBigJan => "Faux (grand jan)",
-        Jan::ContreTwoTables => "Contre deux tables",
-        Jan::ContreMezeas => "Contre mezeas",
-        Jan::HelplessMan => "Homme en route",
+        Jan::FilledQuarter          => "Remplissage",
+        Jan::TrueHitSmallJan        => "Battage à vrai (petit jan)",
+        Jan::TrueHitBigJan          => "Battage à vrai (grand jan)",
+        Jan::TrueHitOpponentCorner  => "Battage coin adverse",
+        Jan::FirstPlayerToExit      => "Premier sorti",
+        Jan::SixTables              => "Six tables",
+        Jan::TwoTables              => "Deux tables",
+        Jan::Mezeas                 => "Mezeas",
+        Jan::FalseHitSmallJan       => "Battage à faux (petit jan)",
+        Jan::FalseHitBigJan         => "Battage à faux (grand jan)",
+        Jan::ContreTwoTables        => "Contre deux tables",
+        Jan::ContreMezeas           => "Contre mezeas",
+        Jan::HelplessMan            => "Dame impuissante",
     }
 }
 
@@ -53,16 +58,12 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
     let player_id = state.player_id;
     let is_my_turn = vs.active_mp_player == Some(player_id);
     let is_move_stage = is_my_turn
-        && matches!(
-            vs.turn_stage,
-            SerTurnStage::Move | SerTurnStage::HoldOrGoChoice
-        );
+        && matches!(vs.turn_stage, SerTurnStage::Move | SerTurnStage::HoldOrGoChoice);
 
     // ── Staged move state ──────────────────────────────────────────────────────
     let selected_origin: RwSignal<Option<u8>> = RwSignal::new(None);
     let staged_moves: RwSignal<Vec<(u8, u8)>> = RwSignal::new(Vec::new());
 
-    // When both move slots are filled, send the action to the backend.
     let cmd_tx = use_context::<UnboundedSender<NetCommand>>()
         .expect("UnboundedSender<NetCommand> not found in context");
     let cmd_tx_effect = cmd_tx.clone();
@@ -85,35 +86,41 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
 
     // ── Status text ────────────────────────────────────────────────────────────
     let status = match &vs.stage {
-        SerStage::Ended => "Game over".to_string(),
+        SerStage::Ended   => "Game over".to_string(),
         SerStage::PreGame => "Waiting for opponent…".to_string(),
-        SerStage::InGame => match (is_my_turn, &vs.turn_stage) {
-            (true, SerTurnStage::RollDice) => "Your turn — roll the dice".to_string(),
+        SerStage::InGame  => match (is_my_turn, &vs.turn_stage) {
+            (true, SerTurnStage::RollDice)      => "Your turn — roll the dice".to_string(),
             (true, SerTurnStage::HoldOrGoChoice) => "Hold or Go?".to_string(),
-            (true, SerTurnStage::Move) => "Select move 1 of 2".to_string(),
-            (true, _) => "Your turn".to_string(),
-            (false, _) => "Opponent's turn".to_string(),
+            (true, SerTurnStage::Move)           => "Select move 1 of 2".to_string(),
+            (true, _)                            => "Your turn".to_string(),
+            (false, _)                           => "Opponent's turn".to_string(),
         },
     };
 
     let dice = vs.dice;
+    let show_dice = dice != (0, 0);
 
-    // ── Action bar buttons ─────────────────────────────────────────────────────
-    let cmd_tx2 = cmd_tx.clone();
+    // ── Button senders ─────────────────────────────────────────────────────────
+    let cmd_tx_roll = cmd_tx.clone();
+    let cmd_tx_go   = cmd_tx.clone();
     let cmd_tx_quit = cmd_tx.clone();
-    let show_roll = is_my_turn && vs.turn_stage == SerTurnStage::RollDice;
-    let show_hold_go = is_my_turn && vs.turn_stage == SerTurnStage::HoldOrGoChoice;
+    let show_roll     = is_my_turn && vs.turn_stage == SerTurnStage::RollDice;
+    let show_hold_go  = is_my_turn && vs.turn_stage == SerTurnStage::HoldOrGoChoice;
 
     view! {
         <div class="game-container">
+            // ── Top bar ──────────────────────────────────────────────────────
             <div class="top-bar">
-                <span>{state.room_id}</span>
+                <span>Room: {state.room_id}</span>
                 <a class="quit-link" href="#" on:click=move |e| {
                     e.prevent_default();
                     cmd_tx_quit.unbounded_send(NetCommand::Disconnect).ok();
                 }>"Quit"</a>
             </div>
+
             <ScorePanel scores=vs.scores.clone() player_id=player_id />
+
+            // ── Status ───────────────────────────────────────────────────────
             <div class="status-bar">
                 <span>{move || {
                     if is_move_stage {
@@ -123,57 +130,21 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
                         status.clone()
                     }
                 }}</span>
-                {(dice != (0, 0)).then(|| view! {
-                    <span class="dice-label">"Dice: "</span>
-                    <span class={move || {
-                        let (d0, _) = if is_move_stage {
-                            matched_dice_used(&staged_moves.get(), dice)
-                        } else {
-                            (!is_my_turn || !is_move_stage, !is_my_turn || !is_move_stage)
-                        };
-                        if d0 { "dice dice-used" } else { "dice" }
-                    }}>{dice.0}</span>
-                    <span class="dice-sep">" & "</span>
-                    <span class={move || {
-                        let (_, d1) = if is_move_stage {
-                            matched_dice_used(&staged_moves.get(), dice)
-                        } else {
-                            (!is_my_turn || !is_move_stage, !is_my_turn || !is_move_stage)
-                        };
-                        if d1 { "dice dice-used" } else { "dice" }
-                    }}>{dice.1}</span>
-                })}
             </div>
-            <div class="action-bar">
-                {show_roll.then(|| view! {
-                    <button class="btn btn-primary" on:click=move |_| {
-                        cmd_tx.unbounded_send(NetCommand::Action(PlayerAction::Roll)).ok();
-                    }>"Roll dice"</button>
-                })}
-                {show_hold_go.then(|| view! {
-                    <button class="btn btn-primary" on:click=move |_| {
-                        cmd_tx2.unbounded_send(NetCommand::Action(PlayerAction::Go)).ok();
-                    }>"Go"</button>
-                })}
-                {is_move_stage.then(|| view! {
-                    <button
-                        class="btn btn-secondary"
-                        disabled=move || 2 <= staged_moves.get().len()
-                        on:click=move |_| {
-                            selected_origin.set(None);
-                            staged_moves.update(|v| v.push((0, 0)));
-                        }
-                    >"Empty move"</button>
-                })}
-            </div>
+
+            // ── Opponent dice (top) ──────────────────────────────────────────
+            {(!is_my_turn && show_dice).then(|| view! {
+                <div class="dice-bar dice-bar-opponent">
+                    <Die value=dice.0 used=true />
+                    <Die value=dice.1 used=true />
+                </div>
+            })}
+
+            // ── Jan panel ────────────────────────────────────────────────────
             {(!vs.dice_jans.is_empty()).then(|| {
                 let rows: Vec<_> = vs.dice_jans.iter().map(|(jan, pts)| {
                     let label = jan_label(jan);
-                    let pts_str = if *pts >= 0 {
-                        format!("+{}", pts)
-                    } else {
-                        format!("{}", pts)
-                    };
+                    let pts_str = if *pts >= 0 { format!("+{}", pts) } else { format!("{}", pts) };
                     let row_class = if *pts >= 0 { "jan-row jan-positive" } else { "jan-row jan-negative" };
                     view! {
                         <div class=row_class>
@@ -184,12 +155,55 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
                 }).collect();
                 view! { <div class="jan-panel">{rows}</div> }
             })}
+
+            // ── Board ────────────────────────────────────────────────────────
             <Board
                 view_state=vs
                 player_id=player_id
                 selected_origin=selected_origin
                 staged_moves=staged_moves
             />
+
+            // ── Player action bar (bottom) ───────────────────────────────────
+            {is_my_turn.then(|| view! {
+                <div class="dice-bar dice-bar-player">
+                    // Dice (reactive greying as moves are staged)
+                    {move || {
+                        let (d0, d1) = if is_move_stage {
+                            matched_dice_used(&staged_moves.get(), dice)
+                        } else {
+                            (false, false)
+                        };
+                        view! {
+                            <Die value=dice.0 used=d0 />
+                            <Die value=dice.1 used=d1 />
+                        }
+                    }}
+                    // Roll button (shown next to the dice during RollDice stage)
+                    {show_roll.then(|| view! {
+                        <button class="btn btn-primary" on:click=move |_| {
+                            cmd_tx_roll.unbounded_send(NetCommand::Action(PlayerAction::Roll)).ok();
+                        }>"Roll dice"</button>
+                    })}
+                    // Go button (HoldOrGoChoice)
+                    {show_hold_go.then(|| view! {
+                        <button class="btn btn-primary" on:click=move |_| {
+                            cmd_tx_go.unbounded_send(NetCommand::Action(PlayerAction::Go)).ok();
+                        }>"Go"</button>
+                    })}
+                    // Empty move button
+                    {is_move_stage.then(|| view! {
+                        <button
+                            class="btn btn-secondary"
+                            disabled=move || 2 <= staged_moves.get().len()
+                            on:click=move |_| {
+                                selected_origin.set(None);
+                                staged_moves.update(|v| v.push((0, 0)));
+                            }
+                        >"Empty move"</button>
+                    })}
+                </div>
+            })}
         </div>
     }
 }

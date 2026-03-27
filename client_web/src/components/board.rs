@@ -2,14 +2,20 @@ use leptos::prelude::*;
 
 use crate::trictrac::types::{SerTurnStage, ViewState};
 
-/// Field numbers in visual display order (left-to-right for each quarter).
-const TOP_LEFT:  [u8; 6] = [13, 14, 15, 16, 17, 18];
-const TOP_RIGHT: [u8; 6] = [19, 20, 21, 22, 23, 24];
-const BOT_LEFT:  [u8; 6] = [12, 11, 10,  9,  8,  7];
-const BOT_RIGHT: [u8; 6] = [ 6,  5,  4,  3,  2,  1];
+/// Field numbers in visual display order (left-to-right for each quarter), white's perspective.
+const TOP_LEFT_W:  [u8; 6] = [13, 14, 15, 16, 17, 18];
+const TOP_RIGHT_W: [u8; 6] = [19, 20, 21, 22, 23, 24];
+const BOT_LEFT_W:  [u8; 6] = [12, 11, 10,  9,  8,  7];
+const BOT_RIGHT_W: [u8; 6] = [ 6,  5,  4,  3,  2,  1];
+
+/// 180° rotation of white's layout: black's pieces (field 24) appear at the bottom.
+const TOP_LEFT_B:  [u8; 6] = [ 1,  2,  3,  4,  5,  6];
+const TOP_RIGHT_B: [u8; 6] = [ 7,  8,  9, 10, 11, 12];
+const BOT_LEFT_B:  [u8; 6] = [24, 23, 22, 21, 20, 19];
+const BOT_RIGHT_B: [u8; 6] = [18, 17, 16, 15, 14, 13];
 
 /// Returns the displayed board value for `field_num` after applying `staged_moves`.
-/// `is_white`: true when the local player's checkers are positive (host = white).
+/// Field numbers are always in white's coordinate system (1–24).
 fn displayed_value(
     base_board: [i8; 24],
     staged_moves: &[(u8, u8)],
@@ -98,18 +104,24 @@ pub fn Board(
         .collect()
     };
 
+    let (tl, tr, bl, br) = if is_white {
+        (&TOP_LEFT_W, &TOP_RIGHT_W, &BOT_LEFT_W, &BOT_RIGHT_W)
+    } else {
+        (&TOP_LEFT_B, &TOP_RIGHT_B, &BOT_LEFT_B, &BOT_RIGHT_B)
+    };
+
     view! {
         <div class="board">
             <div class="board-row top-row">
-                <div class="board-quarter">{fields_from(&TOP_LEFT)}</div>
+                <div class="board-quarter">{fields_from(tl)}</div>
                 <div class="board-bar"></div>
-                <div class="board-quarter">{fields_from(&TOP_RIGHT)}</div>
+                <div class="board-quarter">{fields_from(tr)}</div>
             </div>
             <div class="board-center-bar"></div>
             <div class="board-row bot-row">
-                <div class="board-quarter">{fields_from(&BOT_LEFT)}</div>
+                <div class="board-quarter">{fields_from(bl)}</div>
                 <div class="board-bar"></div>
-                <div class="board-quarter">{fields_from(&BOT_RIGHT)}</div>
+                <div class="board-quarter">{fields_from(br)}</div>
             </div>
         </div>
     }

@@ -131,16 +131,31 @@ input[type="text"] {
 
 .jan-row {
     display: flex;
-    justify-content: space-between;
-    gap: 1.5rem;
-    padding: 1px 0;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 2px 4px;
+    border-radius: 3px;
 }
+.jan-expandable { cursor: pointer; }
+.jan-expandable:hover { background: rgba(0,0,0,0.06); }
 
 .jan-positive { color: #1a5c1a; }
 .jan-negative { color: #8b1a1a; }
 
 .jan-label { flex: 1; }
-.jan-pts    { font-weight: bold; text-align: right; min-width: 36px; }
+.jan-tag {
+    font-size: 0.75rem;
+    padding: 0.1em 0.4em;
+    border-radius: 3px;
+    background: rgba(0,0,0,0.08);
+    color: #555;
+    white-space: nowrap;
+}
+.jan-pts { font-weight: bold; text-align: right; min-width: 3rem; }
+
+.jan-moves { padding: 1px 4px 4px 1rem; display: flex; flex-direction: column; gap: 2px; }
+.jan-moves.hidden { display: none; }
+.jan-move-line { font-family: monospace; font-size: 0.8rem; color: #444; }
 
 /* ── Board ──────────────────────────────────────────────────────────── */
 .board {

@@ -39,9 +39,25 @@ pub struct ViewState {
     pub scores: [PlayerScore; 2],
     /// Last rolled dice values.
     pub dice: (u8, u8),
-    /// Jans (scoring events) triggered by the last dice roll, with their point values.
-    /// Negative points indicate faux jans (scored against the active player).
-    pub dice_jans: Vec<(Jan, i8)>,
+    /// Jans (scoring events) triggered by the last dice roll.
+    pub dice_jans: Vec<JanEntry>,
+}
+
+/// One scoring event from a dice roll.
+#[derive(Clone, PartialEq, Serialize, Deserialize, Debug)]
+pub struct JanEntry {
+    pub jan: Jan,
+    /// True when the dice are doubles (both same value) — changes the point value.
+    /// Special case for HelplessMan: true when *both* dice are unplayable.
+    pub is_double: bool,
+    /// Number of distinct move pairs that produce this jan.
+    pub ways: usize,
+    /// Points per way (negative = scored against the active player).
+    pub points_per: i8,
+    /// Total = points_per × ways.
+    pub total: i8,
+    /// The move pairs that produce this jan (for move display).
+    pub moves: Vec<(CheckerMove, CheckerMove)>,
 }
 
 impl ViewState {
@@ -108,23 +124,38 @@ impl ViewState {
                 .unwrap_or_else(|| PlayerScore { name: String::new(), points: 0, holes: 0 })
         };
 
-        // Opponent's can_bredouille determines whether the active player scores double.
-        let opponent_store_id = if gs.active_player_id == host_store_id {
-            guest_store_id
-        } else {
-            host_store_id
-        };
-        let is_double = gs.players
-            .get(&opponent_store_id)
-            .map(|p| p.can_bredouille)
-            .unwrap_or(false);
+        // is_double for scoring: dice show the same value (both dice identical).
+        // Exception: HelplessMan uses a special rule (see below).
+        let dice_are_double = gs.dice.values.0 == gs.dice.values.1;
 
-        // Collect jans sorted by absolute point value descending for stable display order.
-        let mut dice_jans: Vec<(Jan, i8)> = gs.dice_jans
-            .keys()
-            .map(|jan| (jan.clone(), jan.get_points(is_double)))
+        // Build JanEntry list from the PossibleJans map.
+        let empty_move = CheckerMove::new(0, 0).unwrap_or_default();
+        let mut dice_jans: Vec<JanEntry> = gs.dice_jans
+            .iter()
+            .map(|(jan, moves)| {
+                // HelplessMan: is_double = true only when *both* dice are unplayable
+                // (the moves list contains a single (empty, empty) sentinel).
+                let is_double = if *jan == Jan::HelplessMan {
+                    moves.first().map(|&(m1, m2)| m1 == empty_move && m2 == empty_move)
+                        .unwrap_or(false)
+                } else {
+                    dice_are_double
+                };
+                let points_per = jan.get_points(is_double);
+                let ways = moves.len();
+                let total = points_per.saturating_mul(ways as i8);
+                JanEntry {
+                    jan: jan.clone(),
+                    is_double,
+                    ways,
+                    points_per,
+                    total,
+                    moves: moves.clone(),
+                }
+            })
             .collect();
-        dice_jans.sort_by_key(|(_, pts)| std::cmp::Reverse(*pts));
+        // Sort: highest total first, most-negative last.
+        dice_jans.sort_by_key(|e| std::cmp::Reverse(e.total));
 
         ViewState {
             board,

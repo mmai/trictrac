@@ -3,7 +3,7 @@ use leptos::prelude::*;
 use trictrac_store::{CheckerMove, Jan};
 
 use crate::app::{GameUiState, NetCommand};
-use crate::trictrac::types::{PlayerAction, SerStage, SerTurnStage};
+use crate::trictrac::types::{JanEntry, PlayerAction, SerStage, SerTurnStage};
 
 use super::board::Board;
 use super::die::Die;
@@ -49,6 +49,61 @@ fn jan_label(jan: &Jan) -> &'static str {
         Jan::ContreTwoTables        => "Contre deux tables",
         Jan::ContreMezeas           => "Contre mezeas",
         Jan::HelplessMan            => "Dame impuissante",
+    }
+}
+
+fn format_move_pair(m1: CheckerMove, m2: CheckerMove) -> String {
+    let fmt = |m: CheckerMove| -> String {
+        let (f, t) = (m.get_from(), m.get_to());
+        if f == 0 && t == 0 { "—".to_string() }
+        else if t == 0      { format!("{f}↑") }  // exit
+        else                { format!("{f}→{t}") }
+    };
+    format!("{} + {}", fmt(m1), fmt(m2))
+}
+
+fn jan_row(idx: usize, entry: JanEntry, expanded: RwSignal<Option<usize>>) -> impl IntoView {
+    let row_class = if entry.total >= 0 { "jan-row jan-positive" } else { "jan-row jan-negative" };
+    let label = jan_label(&entry.jan);
+    let double_tag = if entry.is_double { "double" } else { "simple" };
+    let ways_tag = format!("×{}", entry.ways);
+    let pts_str = if entry.total >= 0 { format!("+{}", entry.total) } else { format!("{}", entry.total) };
+
+    let can_expand = entry.ways > 1;
+    let moves = entry.moves.clone();
+
+    view! {
+        <div>
+            <div
+                class=row_class
+                class:jan-expandable=can_expand
+                on:click=move |_| {
+                    if can_expand {
+                        expanded.update(|s| {
+                            *s = if *s == Some(idx) { None } else { Some(idx) };
+                        });
+                    }
+                }
+            >
+                <span class="jan-label">{label}</span>
+                <span class="jan-tag">{double_tag}</span>
+                <span class="jan-tag">{ways_tag}</span>
+                <span class="jan-pts">{pts_str}</span>
+            </div>
+            {can_expand.then(|| {
+                let move_lines: Vec<_> = moves.iter()
+                    .map(|&(m1, m2)| {
+                        let text = format_move_pair(m1, m2);
+                        view! { <div class="jan-move-line">{text}</div> }
+                    })
+                    .collect();
+                view! {
+                    <div class="jan-moves" class:hidden=move || expanded.get() != Some(idx)>
+                        {move_lines}
+                    </div>
+                }
+            })}
+        </div>
     }
 }
 
@@ -142,16 +197,9 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
 
             // ── Jan panel ────────────────────────────────────────────────────
             {(!vs.dice_jans.is_empty()).then(|| {
-                let rows: Vec<_> = vs.dice_jans.iter().map(|(jan, pts)| {
-                    let label = jan_label(jan);
-                    let pts_str = if *pts >= 0 { format!("+{}", pts) } else { format!("{}", pts) };
-                    let row_class = if *pts >= 0 { "jan-row jan-positive" } else { "jan-row jan-negative" };
-                    view! {
-                        <div class=row_class>
-                            <span class="jan-label">{label}</span>
-                            <span class="jan-pts">{pts_str}</span>
-                        </div>
-                    }
+                let expanded: RwSignal<Option<usize>> = RwSignal::new(None);
+                let rows: Vec<_> = vs.dice_jans.iter().enumerate().map(|(i, entry)| {
+                    jan_row(i, entry.clone(), expanded)
                 }).collect();
                 view! { <div class="jan-panel">{rows}</div> }
             })}

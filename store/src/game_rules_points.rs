@@ -199,7 +199,8 @@ impl PointsRules {
         let corner_field = board_ini.get_color_corner(&Color::White);
         let adv_corner_field = board_ini.get_color_corner(&Color::Black);
         let (adv_corner_count, _color) = board_ini.get_field_checkers(adv_corner_field).unwrap();
-        if adv_corner_count == 0 {
+        let (corner_count, _color) = board_ini.get_field_checkers(corner_field).unwrap();
+        if corner_count != 0 && adv_corner_count == 0 {
             let from0 = adv_corner_field - self.dice.values.0 as usize;
             let from1 = adv_corner_field - self.dice.values.1 as usize;
 
@@ -686,6 +687,17 @@ mod tests {
             ],
         );
         rules.set_dice(Dice { values: (1, 1) });
+        assert_eq!(0, rules.get_points(5).0);
+
+        //  Cas de battage du coin de repos adverse impossible
+        //  car son propre coin de repos n'est pas rempli
+        rules.update_positions(
+            &Color::White,
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+        );
+        rules.set_dice(Dice { values: (2, 2) });
         assert_eq!(0, rules.get_points(5).0);
 
         // ---- Jan de remplissage

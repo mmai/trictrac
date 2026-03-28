@@ -68,8 +68,8 @@ impl ViewState {
             turn_stage: SerTurnStage::RollDice,
             active_mp_player: None,
             scores: [
-                PlayerScore { name: host_name.to_string(), points: 0, holes: 0 },
-                PlayerScore { name: guest_name.to_string(), points: 0, holes: 0 },
+                PlayerScore { name: host_name.to_string(), points: 0, holes: 0, can_bredouille: false },
+                PlayerScore { name: guest_name.to_string(), points: 0, holes: 0, can_bredouille: false },
             ],
             dice: (0, 0),
             dice_jans: Vec::new(),
@@ -120,8 +120,9 @@ impl ViewState {
                     name: p.name.clone(),
                     points: p.points,
                     holes: p.holes,
+                    can_bredouille: p.can_bredouille,
                 })
-                .unwrap_or_else(|| PlayerScore { name: String::new(), points: 0, holes: 0 })
+                .unwrap_or_else(|| PlayerScore { name: String::new(), points: 0, holes: 0, can_bredouille: false })
         };
 
         // is_double for scoring: dice show the same value (both dice identical).
@@ -176,6 +177,7 @@ pub struct PlayerScore {
     pub name: String,
     pub points: u8,
     pub holes: u8,
+    pub can_bredouille: bool,
 }
 
 // ── Serialisable mirrors of store enums ──────────────────────────────────────

@@ -1,13 +1,13 @@
 use futures::channel::mpsc::UnboundedSender;
 use leptos::prelude::*;
-use trictrac_store::{CheckerMove, Jan};
+use trictrac_store::CheckerMove;
 
 use crate::app::{GameUiState, NetCommand};
 use crate::trictrac::types::{JanEntry, PlayerAction, SerStage, SerTurnStage};
 
 use super::board::Board;
 use super::die::Die;
-use super::score_panel::ScorePanel;
+use super::score_panel::PlayerScorePanel;
 
 #[allow(dead_code)]
 /// Returns (d0_used, d1_used) by matching each staged move's distance to a die.
@@ -34,86 +34,31 @@ fn matched_dice_used(staged: &[(u8, u8)], dice: (u8, u8)) -> (bool, bool) {
     (d0, d1)
 }
 
-fn jan_label(jan: &Jan) -> &'static str {
-    match jan {
-        Jan::FilledQuarter => "Remplissage",
-        Jan::TrueHitSmallJan => "Battage à vrai (petit jan)",
-        Jan::TrueHitBigJan => "Battage à vrai (grand jan)",
-        Jan::TrueHitOpponentCorner => "Battage coin adverse",
-        Jan::FirstPlayerToExit => "Premier sorti",
-        Jan::SixTables => "Six tables",
-        Jan::TwoTables => "Deux tables",
-        Jan::Mezeas => "Mezeas",
-        Jan::FalseHitSmallJan => "Battage à faux (petit jan)",
-        Jan::FalseHitBigJan => "Battage à faux (grand jan)",
-        Jan::ContreTwoTables => "Contre deux tables",
-        Jan::ContreMezeas => "Contre mezeas",
-        Jan::HelplessMan => "Dame impuissante",
-    }
-}
-
-fn format_move_pair(m1: CheckerMove, m2: CheckerMove) -> String {
-    let fmt = |m: CheckerMove| -> String {
-        let (f, t) = (m.get_from(), m.get_to());
-        if f == 0 && t == 0 {
-            "—".to_string()
-        } else if t == 0 {
-            // exit
-            format!("{f}↑")
-        } else {
-            format!("{f}→{t}")
-        }
-    };
-    format!("{} & {}", fmt(m1), fmt(m2))
-}
-
-fn jan_row(idx: usize, entry: JanEntry, expanded: RwSignal<Option<usize>>) -> impl IntoView {
-    let row_class = if entry.total >= 0 {
-        "jan-row jan-expandable jan-positive"
-    } else {
-        "jan-row jan-expandable jan-negative"
-    };
-    let label = jan_label(&entry.jan);
-    let double_tag = if entry.is_double { "double" } else { "simple" };
-    let ways_tag = format!("×{}", entry.ways);
-    let pts_str = if entry.total >= 0 {
-        format!("+{}", entry.total)
-    } else {
-        format!("{}", entry.total)
-    };
-
-    let moves = entry.moves.clone();
-
-    view! {
-        <div>
-            <div
-                class=row_class
-                on:click=move |_| {
-                    expanded.update(|s| {
-                        *s = if *s == Some(idx) { None } else { Some(idx) };
-                    });
-                }
-            >
-                <span class="jan-label">{label}</span>
-                <span class="jan-tag">{double_tag}</span>
-                <span class="jan-tag">{ways_tag}</span>
-                <span class="jan-pts">{pts_str}</span>
-            </div>
-            {
-                let move_lines: Vec<_> = moves.iter()
-                    .map(|&(m1, m2)| {
-                        let text = format_move_pair(m1, m2);
-                        view! { <div class="jan-move-line">{text}</div> }
-                    })
-                    .collect();
-                view! {
-                    <div class="jan-moves" class:hidden=move || expanded.get() != Some(idx)>
-                        {move_lines}
-                    </div>
-                }
+/// Split `dice_jans` into (viewer_jans, opponent_jans).
+/// Entries where the active player scores (total >= 0) go to the active player.
+/// Entries where the active player loses (total < 0) go to the opponent, with signs flipped.
+fn split_jans(
+    dice_jans: &[JanEntry],
+    viewer_is_active: bool,
+) -> (Vec<JanEntry>, Vec<JanEntry>) {
+    let mut mine = Vec::new();
+    let mut theirs = Vec::new();
+    for e in dice_jans {
+        if viewer_is_active {
+            if e.total >= 0 {
+                mine.push(e.clone());
+            } else {
+                theirs.push(JanEntry { total: -e.total, points_per: -e.points_per, ..e.clone() });
             }
-        </div>
+        } else {
+            if e.total >= 0 {
+                theirs.push(e.clone());
+            } else {
+                mine.push(JanEntry { total: -e.total, points_per: -e.points_per, ..e.clone() });
+            }
+        }
     }
+    (mine, theirs)
 }
 
 #[component]
@@ -174,6 +119,13 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
     let show_roll = is_my_turn && vs.turn_stage == SerTurnStage::RollDice;
     let show_hold_go = is_my_turn && vs.turn_stage == SerTurnStage::HoldOrGoChoice;
 
+    // ── Jan split: viewer_jans / opponent_jans ─────────────────────────────────
+    let (my_jans, opp_jans) = split_jans(&vs.dice_jans, is_my_turn);
+
+    // ── Scores: index = mp_player_id ──────────────────────────────────────────
+    let my_score = vs.scores[player_id as usize].clone();
+    let opp_score = vs.scores[1 - player_id as usize].clone();
+
     view! {
         <div class="game-container">
             // ── Top bar ──────────────────────────────────────────────────────
@@ -182,10 +134,11 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
                 <a class="quit-link" href="#" on:click=move |e| {
                     e.prevent_default();
                     cmd_tx_quit.unbounded_send(NetCommand::Disconnect).ok();
-                }>"Quit"</a>
+                }>Quit</a>
             </div>
 
-            <ScorePanel scores=vs.scores.clone() player_id=player_id />
+            // ── Opponent score (above board) ─────────────────────────────────
+            <PlayerScorePanel score=opp_score jans=opp_jans is_you=false />
 
             // ── Status ───────────────────────────────────────────────────────
             <div class="status-bar">
@@ -205,15 +158,6 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
                     <Die value=dice.0 used=true />
                     <Die value=dice.1 used=true />
                 </div>
-            })}
-
-            // ── Jan panel ────────────────────────────────────────────────────
-            {(!vs.dice_jans.is_empty()).then(|| {
-                let expanded: RwSignal<Option<usize>> = RwSignal::new(None);
-                let rows: Vec<_> = vs.dice_jans.iter().enumerate().map(|(i, entry)| {
-                    jan_row(i, entry.clone(), expanded)
-                }).collect();
-                view! { <div class="jan-panel">{rows}</div> }
             })}
 
             // ── Board ────────────────────────────────────────────────────────
@@ -264,6 +208,9 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
                     })}
                 </div>
             })}
+
+            // ── Player score (below board) ────────────────────────────────────
+            <PlayerScorePanel score=my_score jans=my_jans is_you=true />
         </div>
     }
 }

@@ -987,7 +987,12 @@ impl GameState {
             player.color, self.board, dice, player.dice_roll_count
         );
         let points_rules = PointsRules::new(&player.color, &self.board, *dice);
-        Ok(points_rules.get_result_jans(player.dice_roll_count))
+        let (jans, points) = points_rules.get_result_jans(player.dice_roll_count);
+        Ok(if player.color == Color::White {
+            (jans, points)
+        } else {
+            (jans.mirror(), points)
+        })
     }
 
     /// Determines if someone has won the game

@@ -36,53 +36,62 @@ fn matched_dice_used(staged: &[(u8, u8)], dice: (u8, u8)) -> (bool, bool) {
 
 fn jan_label(jan: &Jan) -> &'static str {
     match jan {
-        Jan::FilledQuarter          => "Remplissage",
-        Jan::TrueHitSmallJan        => "Battage à vrai (petit jan)",
-        Jan::TrueHitBigJan          => "Battage à vrai (grand jan)",
-        Jan::TrueHitOpponentCorner  => "Battage coin adverse",
-        Jan::FirstPlayerToExit      => "Premier sorti",
-        Jan::SixTables              => "Six tables",
-        Jan::TwoTables              => "Deux tables",
-        Jan::Mezeas                 => "Mezeas",
-        Jan::FalseHitSmallJan       => "Battage à faux (petit jan)",
-        Jan::FalseHitBigJan         => "Battage à faux (grand jan)",
-        Jan::ContreTwoTables        => "Contre deux tables",
-        Jan::ContreMezeas           => "Contre mezeas",
-        Jan::HelplessMan            => "Dame impuissante",
+        Jan::FilledQuarter => "Remplissage",
+        Jan::TrueHitSmallJan => "Battage à vrai (petit jan)",
+        Jan::TrueHitBigJan => "Battage à vrai (grand jan)",
+        Jan::TrueHitOpponentCorner => "Battage coin adverse",
+        Jan::FirstPlayerToExit => "Premier sorti",
+        Jan::SixTables => "Six tables",
+        Jan::TwoTables => "Deux tables",
+        Jan::Mezeas => "Mezeas",
+        Jan::FalseHitSmallJan => "Battage à faux (petit jan)",
+        Jan::FalseHitBigJan => "Battage à faux (grand jan)",
+        Jan::ContreTwoTables => "Contre deux tables",
+        Jan::ContreMezeas => "Contre mezeas",
+        Jan::HelplessMan => "Dame impuissante",
     }
 }
 
 fn format_move_pair(m1: CheckerMove, m2: CheckerMove) -> String {
     let fmt = |m: CheckerMove| -> String {
         let (f, t) = (m.get_from(), m.get_to());
-        if f == 0 && t == 0 { "—".to_string() }
-        else if t == 0      { format!("{f}↑") }  // exit
-        else                { format!("{f}→{t}") }
+        if f == 0 && t == 0 {
+            "—".to_string()
+        } else if t == 0 {
+            // exit
+            format!("{f}↑")
+        } else {
+            format!("{f}→{t}")
+        }
     };
-    format!("{} + {}", fmt(m1), fmt(m2))
+    format!("{} & {}", fmt(m1), fmt(m2))
 }
 
 fn jan_row(idx: usize, entry: JanEntry, expanded: RwSignal<Option<usize>>) -> impl IntoView {
-    let row_class = if entry.total >= 0 { "jan-row jan-positive" } else { "jan-row jan-negative" };
+    let row_class = if entry.total >= 0 {
+        "jan-row jan-expandable jan-positive"
+    } else {
+        "jan-row jan-expandable jan-negative"
+    };
     let label = jan_label(&entry.jan);
     let double_tag = if entry.is_double { "double" } else { "simple" };
     let ways_tag = format!("×{}", entry.ways);
-    let pts_str = if entry.total >= 0 { format!("+{}", entry.total) } else { format!("{}", entry.total) };
+    let pts_str = if entry.total >= 0 {
+        format!("+{}", entry.total)
+    } else {
+        format!("{}", entry.total)
+    };
 
-    let can_expand = entry.ways > 1;
     let moves = entry.moves.clone();
 
     view! {
         <div>
             <div
                 class=row_class
-                class:jan-expandable=can_expand
                 on:click=move |_| {
-                    if can_expand {
-                        expanded.update(|s| {
-                            *s = if *s == Some(idx) { None } else { Some(idx) };
-                        });
-                    }
+                    expanded.update(|s| {
+                        *s = if *s == Some(idx) { None } else { Some(idx) };
+                    });
                 }
             >
                 <span class="jan-label">{label}</span>
@@ -90,7 +99,7 @@ fn jan_row(idx: usize, entry: JanEntry, expanded: RwSignal<Option<usize>>) -> im
                 <span class="jan-tag">{ways_tag}</span>
                 <span class="jan-pts">{pts_str}</span>
             </div>
-            {can_expand.then(|| {
+            {
                 let move_lines: Vec<_> = moves.iter()
                     .map(|&(m1, m2)| {
                         let text = format_move_pair(m1, m2);
@@ -102,7 +111,7 @@ fn jan_row(idx: usize, entry: JanEntry, expanded: RwSignal<Option<usize>>) -> im
                         {move_lines}
                     </div>
                 }
-            })}
+            }
         </div>
     }
 }
@@ -113,7 +122,10 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
     let player_id = state.player_id;
     let is_my_turn = vs.active_mp_player == Some(player_id);
     let is_move_stage = is_my_turn
-        && matches!(vs.turn_stage, SerTurnStage::Move | SerTurnStage::HoldOrGoChoice);
+        && matches!(
+            vs.turn_stage,
+            SerTurnStage::Move | SerTurnStage::HoldOrGoChoice
+        );
 
     // ── Staged move state ──────────────────────────────────────────────────────
     let selected_origin: RwSignal<Option<u8>> = RwSignal::new(None);
@@ -141,14 +153,14 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
 
     // ── Status text ────────────────────────────────────────────────────────────
     let status = match &vs.stage {
-        SerStage::Ended   => "Game over".to_string(),
+        SerStage::Ended => "Game over".to_string(),
         SerStage::PreGame => "Waiting for opponent…".to_string(),
-        SerStage::InGame  => match (is_my_turn, &vs.turn_stage) {
-            (true, SerTurnStage::RollDice)      => "Your turn — roll the dice".to_string(),
+        SerStage::InGame => match (is_my_turn, &vs.turn_stage) {
+            (true, SerTurnStage::RollDice) => "Your turn — roll the dice".to_string(),
             (true, SerTurnStage::HoldOrGoChoice) => "Hold or Go?".to_string(),
-            (true, SerTurnStage::Move)           => "Select move 1 of 2".to_string(),
-            (true, _)                            => "Your turn".to_string(),
-            (false, _)                           => "Opponent's turn".to_string(),
+            (true, SerTurnStage::Move) => "Select move 1 of 2".to_string(),
+            (true, _) => "Your turn".to_string(),
+            (false, _) => "Opponent's turn".to_string(),
         },
     };
 
@@ -157,10 +169,10 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
 
     // ── Button senders ─────────────────────────────────────────────────────────
     let cmd_tx_roll = cmd_tx.clone();
-    let cmd_tx_go   = cmd_tx.clone();
+    let cmd_tx_go = cmd_tx.clone();
     let cmd_tx_quit = cmd_tx.clone();
-    let show_roll     = is_my_turn && vs.turn_stage == SerTurnStage::RollDice;
-    let show_hold_go  = is_my_turn && vs.turn_stage == SerTurnStage::HoldOrGoChoice;
+    let show_roll = is_my_turn && vs.turn_stage == SerTurnStage::RollDice;
+    let show_hold_go = is_my_turn && vs.turn_stage == SerTurnStage::HoldOrGoChoice;
 
     view! {
         <div class="game-container">

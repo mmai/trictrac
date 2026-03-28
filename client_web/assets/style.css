@@ -262,7 +262,7 @@ input[type="text"] {
 /* ── Fields ─────────────────────────────────────────────────────────── */
 .field {
     width: 60px;
-    height: 110px;
+    height: 180px;
     background: #d4a843;
     border-radius: 4px;
     display: flex;
@@ -295,25 +295,34 @@ input[type="text"] {
 .top-row .field-num { bottom: auto; top: 2px; }
 
 /* ── Checkers ───────────────────────────────────────────────────────── */
-.checkers {
-    width: 46px;
-    height: 46px;
+.checker-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.checker {
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1rem;
+    font-size: 0.8rem;
     font-weight: bold;
     border: 2px solid rgba(0,0,0,0.3);
-    box-shadow: inset 0 2px 4px rgba(255,255,255,0.3), 0 2px 4px rgba(0,0,0,0.3);
+    box-shadow: inset 0 2px 4px rgba(255,255,255,0.3), 0 1px 3px rgba(0,0,0,0.3);
+    flex-shrink: 0;
 }
 
-.checkers.white {
+.checker + .checker { margin-top: 2px; }
+
+.checker.white {
     background: radial-gradient(circle at 35% 35%, #ffffff, #cccccc);
     color: #333;
 }
 
-.checkers.black {
+.checker.black {
     background: radial-gradient(circle at 35% 35%, #555555, #111111);
     color: #eee;
 }

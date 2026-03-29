@@ -13,7 +13,8 @@ pub fn LoginScreen(error: Option<String>) -> impl IntoView {
         .expect("UnboundedSender<NetCommand> not found in context");
 
     let cmd_tx_create = cmd_tx.clone();
-    let cmd_tx_join = cmd_tx;
+    let cmd_tx_join = cmd_tx.clone();
+    let cmd_tx_bot = cmd_tx;
 
     view! {
         <div class="login-container">
@@ -61,6 +62,15 @@ pub fn LoginScreen(error: Option<String>) -> impl IntoView {
                 }
             >
                 {t!(i18n, join_room)}
+            </button>
+
+            <button
+                class="btn btn-bot"
+                on:click=move |_| {
+                    cmd_tx_bot.unbounded_send(NetCommand::PlayVsBot).ok();
+                }
+            >
+                {t!(i18n, play_vs_bot)}
             </button>
         </div>
     }

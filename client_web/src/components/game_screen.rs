@@ -115,12 +115,17 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
     let stage = vs.stage.clone();
     let turn_stage = vs.turn_stage.clone();
     let room_id = state.room_id.clone();
+    let is_bot_game = state.is_bot_game;
 
     view! {
         <div class="game-container">
             // ── Top bar ──────────────────────────────────────────────────────
             <div class="top-bar">
-                <span>{move || t_string!(i18n, room_label, id = room_id.as_str())}</span>
+                <span>{move || if is_bot_game {
+                    t_string!(i18n, vs_bot_label).to_owned()
+                } else {
+                    t_string!(i18n, room_label, id = room_id.as_str())
+                }}</span>
                 <div class="lang-switcher">
                     <button
                         class:lang-active=move || i18n.get_locale() == Locale::en

@@ -6,11 +6,12 @@ use leptos::task::spawn_local;
 use serde::{Deserialize, Serialize};
 
 use backbone_lib::session::{ConnectError, GameSession, RoomConfig, RoomRole, SessionEvent};
-use backbone_lib::traits::ViewStateUpdate;
+use backbone_lib::traits::{BackEndArchitecture, BackendCommand, ViewStateUpdate};
 
 use crate::components::{ConnectingScreen, GameScreen, LoginScreen};
 use crate::i18n::I18nContextProvider;
 use crate::trictrac::backend::TrictracBackend;
+use crate::trictrac::bot_local::bot_decide;
 use crate::trictrac::types::{GameDelta, PlayerAction, ViewState};
 
 const RELAY_URL: &str = "ws://127.0.0.1:8080/ws";
@@ -24,6 +25,7 @@ pub struct GameUiState {
     /// 0 = host, 1 = guest
     pub player_id: u16,
     pub room_id: String,
+    pub is_bot_game: bool,
 }
 
 /// Which screen is currently shown.
@@ -49,6 +51,7 @@ pub enum NetCommand {
         token: u64,
         host_state: Option<Vec<u8>>,
     },
+    PlayVsBot,
     Action(PlayerAction),
     Disconnect,
 }
@@ -109,11 +112,13 @@ pub fn App() -> impl IntoView {
 
     spawn_local(async move {
         loop {
-            // Wait for a connect/reconnect command.
-            let (config, is_reconnect) = loop {
+            // Wait for a connect/reconnect command (or PlayVsBot).
+            // None means "play vs bot"; Some((config, is_reconnect)) means "connect to relay".
+            let remote_config: Option<(RoomConfig, bool)> = loop {
                 match cmd_rx.next().await {
+                    Some(NetCommand::PlayVsBot) => break None,
                     Some(NetCommand::CreateRoom { room }) => {
-                        break (
+                        break Some((
                             RoomConfig {
                                 relay_url: RELAY_URL.to_string(),
                                 game_id: GAME_ID.to_string(),
@@ -124,10 +129,10 @@ pub fn App() -> impl IntoView {
                                 host_state: None,
                             },
                             false,
-                        );
+                        ));
                     }
                     Some(NetCommand::JoinRoom { room }) => {
-                        break (
+                        break Some((
                             RoomConfig {
                                 relay_url: RELAY_URL.to_string(),
                                 game_id: GAME_ID.to_string(),
@@ -138,7 +143,7 @@ pub fn App() -> impl IntoView {
                                 host_state: None,
                             },
                             false,
-                        );
+                        ));
                     }
                     Some(NetCommand::Reconnect {
                         relay_url,
@@ -147,7 +152,7 @@ pub fn App() -> impl IntoView {
                         token,
                         host_state,
                     }) => {
-                        break (
+                        break Some((
                             RoomConfig {
                                 relay_url,
                                 game_id,
@@ -158,11 +163,18 @@ pub fn App() -> impl IntoView {
                                 host_state,
                             },
                             true,
-                        );
+                        ));
                     }
                     _ => {} // Ignore game commands while disconnected.
                 }
             };
+
+            if remote_config.is_none() {
+                run_local_bot_game(screen, &mut cmd_rx).await;
+                screen.set(Screen::Login { error: None });
+                continue;
+            }
+            let (config, is_reconnect) = remote_config.unwrap();
 
             screen.set(Screen::Connecting);
 
@@ -228,6 +240,7 @@ pub fn App() -> impl IntoView {
                                 view_state: vs.clone(),
                                 player_id,
                                 room_id: room_id_for_storage.clone(),
+                                is_bot_game: false,
                             }));
                         }
                         Some(SessionEvent::Disconnected(reason)) => {
@@ -253,4 +266,61 @@ pub fn App() -> impl IntoView {
             }}
         </I18nContextProvider>
     }
+}
+
+async fn run_local_bot_game(
+    screen: RwSignal<Screen>,
+    cmd_rx: &mut futures::channel::mpsc::UnboundedReceiver<NetCommand>,
+) {
+    let mut backend = TrictracBackend::new(0);
+    backend.player_arrival(0);
+    backend.player_arrival(1);
+
+    let mut vs = ViewState::default_with_names("You", "Bot");
+    drain_and_update(&mut backend, &mut vs, screen);
+
+    loop {
+        match cmd_rx.next().await {
+            Some(NetCommand::Action(action)) => {
+                backend.inform_rpc(0, action);
+            }
+            _ => break,
+        }
+
+        drain_and_update(&mut backend, &mut vs, screen);
+
+        loop {
+            match bot_decide(backend.get_game()) {
+                None => break,
+                Some(action) => {
+                    backend.inform_rpc(1, action);
+                    drain_and_update(&mut backend, &mut vs, screen);
+                }
+            }
+        }
+    }
+}
+
+fn drain_and_update(
+    backend: &mut TrictracBackend,
+    vs: &mut ViewState,
+    screen: RwSignal<Screen>,
+) {
+    for cmd in backend.drain_commands() {
+        match cmd {
+            BackendCommand::ResetViewState => {
+                *vs = backend.get_view_state().clone();
+            }
+            BackendCommand::Delta(delta) => {
+                vs.apply_delta(&delta);
+            }
+            _ => {}
+        }
+    }
+    screen.set(Screen::Playing(GameUiState {
+        view_state: vs.clone(),
+        player_id: 0,
+        room_id: String::new(),
+        is_bot_game: true,
+    }));
 }

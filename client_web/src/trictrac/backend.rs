@@ -60,6 +60,12 @@ impl TrictracBackend {
     }
 }
 
+impl TrictracBackend {
+    pub fn get_game(&self) -> &GameState {
+        &self.game
+    }
+}
+
 impl BackEndArchitecture<PlayerAction, GameDelta, ViewState> for TrictracBackend {
     fn new(_rule_variation: u16) -> Self {
         let mut game = GameState::new(false);

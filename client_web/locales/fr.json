@@ -33,5 +33,7 @@
   "jan_false_hit_big": "Battage à faux (grand jan)",
   "jan_contre_two": "Contre deux tables",
   "jan_contre_mezeas": "Contre mezeas",
-  "jan_helpless_man": "Dame impuissante"
+  "jan_helpless_man": "Dame impuissante",
+  "play_vs_bot": "Jouer contre le bot",
+  "vs_bot_label": "contre le bot"
 }

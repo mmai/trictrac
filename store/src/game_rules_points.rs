@@ -140,6 +140,7 @@ impl PossibleJansMethods for PossibleJans {
                 }
             }
         }
+        self.retain(|_, v| !v.is_empty());
     }
 }
 
@@ -909,5 +910,19 @@ mod tests {
         );
         rules.set_dice(Dice { values: (2, 4) });
         assert_eq!((0, 4), rules.get_points(5));
+
+        // Suppression battage a faux petit jan si battage à vrai indirect possible
+        let mut rules = PointsRules::default();
+        rules.update_positions(
+            &Color::White,
+            [
+                2, 2, 2, 2, 0, 0, 0, 2, 2, 0, 1, 2, -2, 0, -1, -2, -2, -1, -1, -1, 0, -1, -2, -2,
+            ],
+        );
+        rules.set_dice(Dice { values: (3, 6) });
+        let jans = rules.get_jans(&rules.board, 5);
+        // println!("{:?}", jans);
+        assert_eq!(2, jans.len());
+        assert_eq!((12, 0), rules.get_points(5));
     }
 }

@@ -297,7 +297,11 @@ impl MoveRules {
         }
 
         // the last 2 checkers of a corner must leave at the same time
-        if (from0 == corner_field || from1 == corner_field) && (from0 != from1) && corner_count == 2
+        if (from0 == corner_field || from1 == corner_field)
+            && (from0 != from1)
+            && corner_count == 2
+            && to0 != corner_field
+            && to1 != corner_field
         {
             return Err(MoveError::CornerNeedsTwoCheckers);
         }
@@ -339,8 +343,7 @@ impl MoveRules {
         let seqs = match exit_seqs {
             Some(s) => s,
             None => {
-                owned = self
-                    .get_possible_moves_sequences(false, vec![TricTracRule::Exit]);
+                owned = self.get_possible_moves_sequences(false, vec![TricTracRule::Exit]);
                 &owned
             }
         };
@@ -620,8 +623,9 @@ impl MoveRules {
                         || self
                             .check_exit_rules(&(first_move, second_move), exit_seqs.as_deref())
                             .is_ok())
-                    && filling_seqs
-                        .map_or(true, |seqs| seqs.is_empty() || seqs.contains(&(first_move, second_move)))
+                    && filling_seqs.map_or(true, |seqs| {
+                        seqs.is_empty() || seqs.contains(&(first_move, second_move))
+                    })
                 {
                     if second_move.get_to() == 0
                         && first_move.get_to() == 0
@@ -644,9 +648,12 @@ impl MoveRules {
                 && !(self.is_move_by_puissance(&(first_move, EMPTY_MOVE))
                     && self.can_take_corner_by_effect())
                 && (ignored_rules.contains(&TricTracRule::Exit)
-                    || self.check_exit_rules(&(first_move, EMPTY_MOVE), exit_seqs.as_deref()).is_ok())
-                && filling_seqs
-                    .map_or(true, |seqs| seqs.is_empty() || seqs.contains(&(first_move, EMPTY_MOVE)))
+                    || self
+                        .check_exit_rules(&(first_move, EMPTY_MOVE), exit_seqs.as_deref())
+                        .is_ok())
+                && filling_seqs.map_or(true, |seqs| {
+                    seqs.is_empty() || seqs.contains(&(first_move, EMPTY_MOVE))
+                })
             {
                 // empty move
                 moves_seqs.push((first_move, EMPTY_MOVE));
@@ -1639,5 +1646,22 @@ mod tests {
             CheckerMove::new(22, 0).unwrap(),
         );
         assert!(state.check_must_fill_quarter_rule(&moves).is_ok());
+    }
+
+    #[test]
+    fn check_rest_on_rest_corner() {
+        let mut state = MoveRules::default();
+        state.dice.values = (4, 1);
+        state.board.set_positions(
+            &crate::Color::White,
+            [
+                0, 0, -1, -4, -2, -1, 0, -2, -2, 4, 3, 2, 0, -1, -2, 0, 0, 1, 0, 1, 1, 1, 0, 2,
+            ],
+        );
+        let moves = (
+            CheckerMove::new(11, 12).unwrap(),
+            CheckerMove::new(12, 16).unwrap(),
+        );
+        state.moves_allowed(&moves).expect("moves_allowed failed");
     }
 }

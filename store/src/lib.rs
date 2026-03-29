@@ -3,7 +3,7 @@ mod game_rules_moves;
 pub use game_rules_moves::MoveRules;
 mod game_rules_points;
 pub use game::{EndGameReason, GameEvent, GameState, Stage, TurnStage};
-pub use game_rules_points::PointsRules;
+pub use game_rules_points::{Jan, PointsRules};
 
 mod player;
 pub use player::{Color, Player, PlayerId};
@@ -20,7 +20,9 @@ pub use dice::{Dice, DiceRoller};
 pub mod training_common;
 
 // python interface "trictrac_engine" (for AI training..)
+#[cfg(feature = "python")]
 mod pyengine;
 
 // C++ interface via cxx.rs (for OpenSpiel C++ integration)
+#[cfg(feature = "cpp")]
 pub mod cxxengine;

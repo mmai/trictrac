@@ -24,7 +24,7 @@ Training of AI bots is the work in progress.
 
 - game rules and game state are implemented in the _store/_ folder.
 - the command-line application is implemented in _client_cli/_; it allows you to play against a bot, or to have two bots play against each other
-- the bots algorithms and the training of their models are implemented in the _bot/_ folder
+- the bots algorithms and the training of their models are implemented in the _bot/_ and _spiel_bot_ folders.
 
 ### _store_ package
 

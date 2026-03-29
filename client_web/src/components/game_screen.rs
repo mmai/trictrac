@@ -3,6 +3,7 @@ use leptos::prelude::*;
 use trictrac_store::CheckerMove;
 
 use crate::app::{GameUiState, NetCommand};
+use crate::i18n::*;
 use crate::trictrac::types::{JanEntry, PlayerAction, SerStage, SerTurnStage};
 
 use super::board::Board;
@@ -11,7 +12,6 @@ use super::score_panel::PlayerScorePanel;
 
 #[allow(dead_code)]
 /// Returns (d0_used, d1_used) by matching each staged move's distance to a die.
-/// Falls back to position order for exit moves (distance doesn't match any die).
 fn matched_dice_used(staged: &[(u8, u8)], dice: (u8, u8)) -> (bool, bool) {
     let mut d0 = false;
     let mut d1 = false;
@@ -35,8 +35,6 @@ fn matched_dice_used(staged: &[(u8, u8)], dice: (u8, u8)) -> (bool, bool) {
 }
 
 /// Split `dice_jans` into (viewer_jans, opponent_jans).
-/// Entries where the active player scores (total >= 0) go to the active player.
-/// Entries where the active player loses (total < 0) go to the opponent, with signs flipped.
 fn split_jans(
     dice_jans: &[JanEntry],
     viewer_is_active: bool,
@@ -50,12 +48,10 @@ fn split_jans(
             } else {
                 theirs.push(JanEntry { total: -e.total, points_per: -e.points_per, ..e.clone() });
             }
+        } else if e.total >= 0 {
+            theirs.push(e.clone());
         } else {
-            if e.total >= 0 {
-                theirs.push(e.clone());
-            } else {
-                mine.push(JanEntry { total: -e.total, points_per: -e.points_per, ..e.clone() });
-            }
+            mine.push(JanEntry { total: -e.total, points_per: -e.points_per, ..e.clone() });
         }
     }
     (mine, theirs)
@@ -63,6 +59,8 @@ fn split_jans(
 
 #[component]
 pub fn GameScreen(state: GameUiState) -> impl IntoView {
+    let i18n = use_i18n();
+
     let vs = state.view_state.clone();
     let player_id = state.player_id;
     let is_my_turn = vs.active_mp_player == Some(player_id);
@@ -96,19 +94,6 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
         }
     });
 
-    // ── Status text ────────────────────────────────────────────────────────────
-    let status = match &vs.stage {
-        SerStage::Ended => "Game over".to_string(),
-        SerStage::PreGame => "Waiting for opponent…".to_string(),
-        SerStage::InGame => match (is_my_turn, &vs.turn_stage) {
-            (true, SerTurnStage::RollDice) => "Your turn — roll the dice".to_string(),
-            (true, SerTurnStage::HoldOrGoChoice) => "Hold or Go?".to_string(),
-            (true, SerTurnStage::Move) => "Select move 1 of 2".to_string(),
-            (true, _) => "Your turn".to_string(),
-            (false, _) => "Opponent's turn".to_string(),
-        },
-    };
-
     let dice = vs.dice;
     let show_dice = dice != (0, 0);
 
@@ -122,19 +107,34 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
     // ── Jan split: viewer_jans / opponent_jans ─────────────────────────────────
     let (my_jans, opp_jans) = split_jans(&vs.dice_jans, is_my_turn);
 
-    // ── Scores: index = mp_player_id ──────────────────────────────────────────
+    // ── Scores ─────────────────────────────────────────────────────────────────
     let my_score = vs.scores[player_id as usize].clone();
     let opp_score = vs.scores[1 - player_id as usize].clone();
+
+    // ── Capture for closures ───────────────────────────────────────────────────
+    let stage = vs.stage.clone();
+    let turn_stage = vs.turn_stage.clone();
+    let room_id = state.room_id.clone();
 
     view! {
         <div class="game-container">
             // ── Top bar ──────────────────────────────────────────────────────
             <div class="top-bar">
-                <span>Room: {state.room_id}</span>
+                <span>{move || t_string!(i18n, room_label, id = room_id.as_str())}</span>
+                <div class="lang-switcher">
+                    <button
+                        class:lang-active=move || i18n.get_locale() == Locale::en
+                        on:click=move |_| i18n.set_locale(Locale::en)
+                    >"EN"</button>
+                    <button
+                        class:lang-active=move || i18n.get_locale() == Locale::fr
+                        on:click=move |_| i18n.set_locale(Locale::fr)
+                    >"FR"</button>
+                </div>
                 <a class="quit-link" href="#" on:click=move |e| {
                     e.prevent_default();
                     cmd_tx_quit.unbounded_send(NetCommand::Disconnect).ok();
-                }>Quit</a>
+                }>{t!(i18n, quit)}</a>
             </div>
 
             // ── Opponent score (above board) ─────────────────────────────────
@@ -143,11 +143,18 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
             // ── Status ───────────────────────────────────────────────────────
             <div class="status-bar">
                 <span>{move || {
+                    let n = staged_moves.get().len();
                     if is_move_stage {
-                        let n = staged_moves.get().len();
-                        format!("Select move {} of 2", n + 1)
+                        t_string!(i18n, select_move, n = n + 1)
                     } else {
-                        status.clone()
+                        String::from(match (&stage, is_my_turn, &turn_stage) {
+                            (SerStage::Ended, _, _) => t_string!(i18n, game_over),
+                            (SerStage::PreGame, _, _) => t_string!(i18n, waiting_for_opponent),
+                            (SerStage::InGame, true, SerTurnStage::RollDice) => t_string!(i18n, your_turn_roll),
+                            (SerStage::InGame, true, SerTurnStage::HoldOrGoChoice) => t_string!(i18n, hold_or_go),
+                            (SerStage::InGame, true, _) => t_string!(i18n, your_turn),
+                            (SerStage::InGame, false, _) => t_string!(i18n, opponent_turn),
+                        })
                     }
                 }}</span>
             </div>
@@ -171,7 +178,6 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
             // ── Player action bar (bottom) ───────────────────────────────────
             {is_my_turn.then(|| view! {
                 <div class="dice-bar dice-bar-player">
-                    // Dice (reactive greying as moves are staged)
                     {move || {
                         let (d0, d1) = if is_move_stage {
                             matched_dice_used(&staged_moves.get(), dice)
@@ -183,19 +189,16 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
                             <Die value=dice.1 used=d1 />
                         }
                     }}
-                    // Roll button (shown next to the dice during RollDice stage)
                     {show_roll.then(|| view! {
                         <button class="btn btn-primary" on:click=move |_| {
                             cmd_tx_roll.unbounded_send(NetCommand::Action(PlayerAction::Roll)).ok();
-                        }>"Roll dice"</button>
+                        }>{t!(i18n, roll_dice)}</button>
                     })}
-                    // Go button (HoldOrGoChoice)
                     {show_hold_go.then(|| view! {
                         <button class="btn btn-primary" on:click=move |_| {
                             cmd_tx_go.unbounded_send(NetCommand::Action(PlayerAction::Go)).ok();
-                        }>"Go"</button>
+                        }>{t!(i18n, go)}</button>
                     })}
-                    // Empty move button
                     {is_move_stage.then(|| view! {
                         <button
                             class="btn btn-secondary"
@@ -204,7 +207,7 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
                                 selected_origin.set(None);
                                 staged_moves.update(|v| v.push((0, 0)));
                             }
-                        >"Empty move"</button>
+                        >{t!(i18n, empty_move)}</button>
                     })}
                 </div>
             })}

@@ -1,3 +1,5 @@
+leptos_i18n::load_locales!();
+
 mod app;
 mod components;
 mod trictrac;

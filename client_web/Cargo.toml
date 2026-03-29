@@ -3,7 +3,12 @@ name = "client_web"
 version = "0.1.0"
 edition = "2021"
 
+[package.metadata.leptos-i18n]
+default = "en"
+locales = ["en", "fr"]
+
 [dependencies]
+leptos_i18n = { version = "0.5", features = ["csr", "interpolate_display"] }
 trictrac-store  = { path = "../store" }
 backbone-lib    = { path = "../../forks/multiplayer/backbone-lib" }
 leptos          = { version = "0.7", features = ["csr"] }

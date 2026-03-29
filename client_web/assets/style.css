@@ -56,6 +56,35 @@ input[type="text"] {
     max-width: 900px;
 }
 
+/* ── Language switcher ──────────────────────────────────────────────── */
+.lang-switcher {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.lang-switcher button {
+    font-size: 0.75rem;
+    padding: 0.15rem 0.4rem;
+    border: 1px solid rgba(0,0,0,0.3);
+    border-radius: 3px;
+    background: transparent;
+    cursor: pointer;
+    color: inherit;
+    opacity: 0.6;
+}
+
+.lang-switcher button.lang-active {
+    opacity: 1;
+    font-weight: bold;
+    background: rgba(0,0,0,0.12);
+}
+
+.login-container .lang-switcher {
+    justify-content: flex-end;
+    margin-bottom: 1rem;
+}
+
+/* ── Top bar ─────────────────────────────────────────────────────────── */
 .top-bar {
     display: flex;
     justify-content: space-between;

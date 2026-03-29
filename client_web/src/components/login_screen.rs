@@ -2,9 +2,11 @@ use futures::channel::mpsc::UnboundedSender;
 use leptos::prelude::*;
 
 use crate::app::NetCommand;
+use crate::i18n::*;
 
 #[component]
 pub fn LoginScreen(error: Option<String>) -> impl IntoView {
+    let i18n = use_i18n();
     let (room_name, set_room_name) = signal(String::new());
 
     let cmd_tx = use_context::<UnboundedSender<NetCommand>>()
@@ -15,13 +17,24 @@ pub fn LoginScreen(error: Option<String>) -> impl IntoView {
 
     view! {
         <div class="login-container">
+            <div class="lang-switcher">
+                <button
+                    class:lang-active=move || i18n.get_locale() == Locale::en
+                    on:click=move |_| i18n.set_locale(Locale::en)
+                >"EN"</button>
+                <button
+                    class:lang-active=move || i18n.get_locale() == Locale::fr
+                    on:click=move |_| i18n.set_locale(Locale::fr)
+                >"FR"</button>
+            </div>
+
             <h1>"Trictrac"</h1>
 
             {error.map(|err| view! { <p class="error-msg">{err}</p> })}
 
             <input
                 type="text"
-                placeholder="Room name"
+                placeholder=move || t_string!(i18n, room_name_placeholder)
                 prop:value=move || room_name.get()
                 on:input=move |ev| set_room_name.set(event_target_value(&ev))
             />
@@ -35,7 +48,7 @@ pub fn LoginScreen(error: Option<String>) -> impl IntoView {
                         .ok();
                 }
             >
-                "Create Room"
+                {t!(i18n, create_room)}
             </button>
 
             <button
@@ -47,7 +60,7 @@ pub fn LoginScreen(error: Option<String>) -> impl IntoView {
                         .ok();
                 }
             >
-                "Join Room"
+                {t!(i18n, join_room)}
             </button>
         </div>
     }

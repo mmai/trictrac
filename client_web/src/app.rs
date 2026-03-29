@@ -9,6 +9,7 @@ use backbone_lib::session::{ConnectError, GameSession, RoomConfig, RoomRole, Ses
 use backbone_lib::traits::ViewStateUpdate;
 
 use crate::components::{ConnectingScreen, GameScreen, LoginScreen};
+use crate::i18n::I18nContextProvider;
 use crate::trictrac::backend::TrictracBackend;
 use crate::trictrac::types::{GameDelta, PlayerAction, ViewState};
 
@@ -244,10 +245,12 @@ pub fn App() -> impl IntoView {
     });
 
     view! {
-        {move || match screen.get() {
-            Screen::Login { error } => view! { <LoginScreen error=error /> }.into_any(),
-            Screen::Connecting => view! { <ConnectingScreen /> }.into_any(),
-            Screen::Playing(state) => view! { <GameScreen state=state /> }.into_any(),
-        }}
+        <I18nContextProvider>
+            {move || match screen.get() {
+                Screen::Login { error } => view! { <LoginScreen error=error /> }.into_any(),
+                Screen::Connecting => view! { <ConnectingScreen /> }.into_any(),
+                Screen::Playing(state) => view! { <GameScreen state=state /> }.into_any(),
+            }}
+        </I18nContextProvider>
     }
 }

@@ -170,7 +170,10 @@ pub fn App() -> impl IntoView {
             };
 
             if remote_config.is_none() {
-                run_local_bot_game(screen, &mut cmd_rx).await;
+                loop {
+                    let restart = run_local_bot_game(screen, &mut cmd_rx).await;
+                    if !restart { break; }
+                }
                 screen.set(Screen::Login { error: None });
                 continue;
             }
@@ -268,10 +271,11 @@ pub fn App() -> impl IntoView {
     }
 }
 
+/// Runs one local bot game. Returns `true` if the player wants to play again.
 async fn run_local_bot_game(
     screen: RwSignal<Screen>,
     cmd_rx: &mut futures::channel::mpsc::UnboundedReceiver<NetCommand>,
-) {
+) -> bool {
     let mut backend = TrictracBackend::new(0);
     backend.player_arrival(0);
     backend.player_arrival(1);
@@ -284,7 +288,8 @@ async fn run_local_bot_game(
             Some(NetCommand::Action(action)) => {
                 backend.inform_rpc(0, action);
             }
-            _ => break,
+            Some(NetCommand::PlayVsBot) => return true,
+            _ => return false,
         }
 
         drain_and_update(&mut backend, &mut vs, screen);

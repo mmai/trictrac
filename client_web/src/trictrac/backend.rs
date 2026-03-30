@@ -46,6 +46,12 @@ impl TrictracBackend {
     /// (MarkPoints, MarkAdvPoints).
     fn drive_automatic_stages(&mut self) {
         loop {
+            // Stop if the game has already ended (stage transitions to Ended but
+            // turn_stage may still be MarkPoints when schools_enabled=false, which
+            // makes consume(Mark) a no-op and would cause an infinite loop).
+            if self.game.stage == trictrac_store::Stage::Ended {
+                break;
+            }
             let player_id = self.game.active_player_id;
             match self.game.turn_stage {
                 TurnStage::MarkPoints | TurnStage::MarkAdvPoints => {

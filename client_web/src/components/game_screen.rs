@@ -101,6 +101,8 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
     let cmd_tx_roll = cmd_tx.clone();
     let cmd_tx_go = cmd_tx.clone();
     let cmd_tx_quit = cmd_tx.clone();
+    let cmd_tx_end_quit = cmd_tx.clone();
+    let cmd_tx_end_replay = cmd_tx.clone();
     let show_roll = is_my_turn && vs.turn_stage == SerTurnStage::RollDice;
     let show_hold_go = is_my_turn && vs.turn_stage == SerTurnStage::HoldOrGoChoice;
 
@@ -116,6 +118,11 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
     let turn_stage = vs.turn_stage.clone();
     let room_id = state.room_id.clone();
     let is_bot_game = state.is_bot_game;
+
+    // ── Game-over info ─────────────────────────────────────────────────────────
+    let stage_is_ended = stage == SerStage::Ended;
+    let winner_is_me = my_score.holes >= 12;
+    let opp_name_end = opp_score.name.clone();
 
     view! {
         <div class="game-container">
@@ -219,6 +226,33 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
 
             // ── Player score (below board) ────────────────────────────────────
             <PlayerScorePanel score=my_score jans=my_jans is_you=true />
+
+            // ── Game-over overlay ─────────────────────────────────────────────
+            {stage_is_ended.then(|| {
+                let winner_text = if winner_is_me {
+                    t_string!(i18n, you_win).to_owned()
+                } else {
+                    t_string!(i18n, opp_wins, name = opp_name_end.as_str())
+                };
+                view! {
+                    <div class="game-over-overlay">
+                        <div class="game-over-box">
+                            <h2>{t!(i18n, game_over)}</h2>
+                            <p class="game-over-winner">{winner_text}</p>
+                            <div class="game-over-actions">
+                                <button class="btn btn-secondary" on:click=move |_| {
+                                    cmd_tx_end_quit.unbounded_send(NetCommand::Disconnect).ok();
+                                }>{t!(i18n, quit)}</button>
+                                {is_bot_game.then(|| view! {
+                                    <button class="btn btn-primary" on:click=move |_| {
+                                        cmd_tx_end_replay.unbounded_send(NetCommand::PlayVsBot).ok();
+                                    }>{t!(i18n, play_again)}</button>
+                                })}
+                            </div>
+                        </div>
+                    </div>
+                }
+            })}
         </div>
     }
 }

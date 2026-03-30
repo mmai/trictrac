@@ -890,7 +890,7 @@ impl GameState {
                             return Err("No active player".into());
                         };
                         debug!("new hole  -> {holes_count:?}");
-                        if holes_count > 12 {
+                        if holes_count >= 12 {
                             self.stage = Stage::Ended;
                         } else {
                             self.turn_stage = TurnStage::HoldOrGoChoice;
@@ -907,7 +907,7 @@ impl GameState {
                         let Some(holes) = self.get_active_player().map(|p| p.holes) else {
                             return Err("No active player".into());
                         };
-                        if holes > 12 {
+                        if holes >= 12 {
                             self.stage = Stage::Ended;
                         } else {
                             self.turn_stage = if self.turn_stage == TurnStage::MarkAdvPoints {
@@ -946,7 +946,7 @@ impl GameState {
                 } else {
                     // The player has moved, we can mark its opponent's points (which is now the current player)
                     let new_hole = self.mark_points(self.active_player_id, self.dice_points.1);
-                    if new_hole && self.get_active_player().map(|p| p.holes).unwrap_or(0) > 12 {
+                    if new_hole && self.get_active_player().map(|p| p.holes).unwrap_or(0) >= 12 {
                         self.stage = Stage::Ended;
                     }
                     TurnStage::RollDice

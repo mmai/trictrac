@@ -35,5 +35,8 @@
   "jan_contre_mezeas": "Contre mezeas",
   "jan_helpless_man": "Dame impuissante",
   "play_vs_bot": "Jouer contre le bot",
-  "vs_bot_label": "contre le bot"
+  "vs_bot_label": "contre le bot",
+  "you_win": "Vous gagnez !",
+  "opp_wins": "{{ name }} gagne !",
+  "play_again": "Rejouer"
 }

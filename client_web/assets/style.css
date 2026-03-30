@@ -44,6 +44,7 @@ input[type="text"] {
 .btn:disabled { opacity: 0.4; cursor: default; }
 .btn-primary   { background: #3a6b3a; color: #fff; }
 .btn-secondary { background: #5a4a2a; color: #fff; }
+.btn-bot       { background: #2a5a7a; color: #fff; }
 .btn:not(:disabled):hover { opacity: 0.85; }
 
 /* ── Game container ─────────────────────────────────────────────────── */
@@ -252,6 +253,45 @@ input[type="text"] {
 .jan-moves { padding: 1px 4px 4px 1rem; display: flex; flex-direction: column; gap: 2px; }
 .jan-moves.hidden { display: none; }
 .jan-move-line { font-family: monospace; font-size: 0.8rem; color: #444; }
+
+/* ── Game-over overlay ──────────────────────────────────────────────── */
+.game-over-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+}
+
+.game-over-box {
+    background: #f5edd8;
+    border-radius: 8px;
+    padding: 2rem 2.5rem;
+    text-align: center;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    min-width: 260px;
+}
+
+.game-over-box h2 {
+    font-size: 1.75rem;
+}
+
+.game-over-winner {
+    font-size: 1.25rem;
+    font-weight: bold;
+    color: #3a6b3a;
+}
+
+.game-over-actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+}
 
 /* ── Board ──────────────────────────────────────────────────────────── */
 .board {

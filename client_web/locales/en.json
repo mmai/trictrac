@@ -35,5 +35,8 @@
   "jan_contre_mezeas": "Contre mezeas",
   "jan_helpless_man": "Helpless man",
   "play_vs_bot": "Play vs Bot",
-  "vs_bot_label": "vs Bot"
+  "vs_bot_label": "vs Bot",
+  "you_win": "You win!",
+  "opp_wins": "{{ name }} wins!",
+  "play_again": "Play again"
 }

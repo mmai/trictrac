@@ -1,5 +1,5 @@
 use rand::prelude::IndexedRandom;
-use trictrac_store::{CheckerMove, Color, GameState, MoveRules, TurnStage};
+use trictrac_store::{CheckerMove, Color, GameState, MoveRules, Stage, TurnStage};
 
 use crate::trictrac::types::PlayerAction;
 
@@ -7,6 +7,9 @@ const GUEST_PLAYER_ID: u64 = 2;
 
 /// Returns the next action for the bot (mp_player 1 / guest), or None if it is not the bot's turn.
 pub fn bot_decide(game: &GameState) -> Option<PlayerAction> {
+    if game.stage == Stage::Ended {
+        return None;
+    }
     if game.active_player_id != GUEST_PLAYER_ID {
         return None;
     }

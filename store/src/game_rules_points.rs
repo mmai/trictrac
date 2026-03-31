@@ -417,86 +417,96 @@ fn get_jans_by_ordered_dice(
 ) -> PossibleJans {
     let mut jans = PossibleJans::default();
     let mut dices: Vec<u8> = dices.to_vec();
-    if let Some(dice) = dices.pop() {
-        let color = Color::White;
-        let mut board = board_ini.clone();
-        let corner_field = board.get_color_corner(&color);
-        let adv_corner_field = board.get_color_corner(&Color::Black);
-        let froms = if let Some(from) = only_from {
-            vec![from]
+    let dice = match dices.pop() {
+        Some(dice) => dice,
+        None => return jans,
+    };
+    let color = Color::White;
+    let mut board = board_ini.clone();
+    let corner_field = board.get_color_corner(&color);
+    let adv_corner_field = board.get_color_corner(&Color::Black);
+    let froms = if let Some(from) = only_from {
+        vec![from]
+    } else {
+        board
+            .get_color_fields(color)
+            .iter()
+            .map(|cf| cf.0)
+            .collect()
+    };
+    for from in froms {
+        // for (from, _) in board.get_color_fields(color) {
+        let to = if from + dice as usize > 24 {
+            0
         } else {
-            board
-                .get_color_fields(color)
-                .iter()
-                .map(|cf| cf.0)
-                .collect()
+            from + dice as usize
         };
-        for from in froms {
-            // for (from, _) in board.get_color_fields(color) {
-            let to = if from + dice as usize > 24 {
-                0
-            } else {
-                from + dice as usize
-            };
-            if let Ok(cmove) = CheckerMove::new(from, to) {
-                // print!(
-                //     " <dice_move dice='{:?}' moves='{:?} -> {:?}'> ",
-                //     dice, from, to
-                // );
-                // On vérifie que le mouvement n'est pas interdit par les règles des coins de
-                // repos :
-                // - on ne va pas sur le coin de l'adversaire
-                // - ni sur son propre coin de repos avec une seule dame
-                // - règle non prise en compte pour le battage des dames : on ne sort pas de son coin de repos s'il n'y reste que deux dames
-                let (corner_count, _color) = board.get_field_checkers(corner_field).unwrap();
-                if to != adv_corner_field && (to != corner_field || corner_count > 1) {
-                    // si only_false_hit est vrai, on est déja dans une tentative tout d'une
-                    let mut can_try_toutdune = !only_false_hit;
-                    let mut only_falsehit = false;
-                    match board.move_checker(&color, cmove) {
-                        Err(Error::FieldBlockedByOne) => {
-                            let jan = match (Board::is_field_in_small_jan(to), only_false_hit) {
-                                (true, false) => Jan::TrueHitSmallJan,
-                                (true, true) => Jan::FalseHitSmallJan,
-                                (false, false) => Jan::TrueHitBigJan,
-                                (false, true) => Jan::FalseHitBigJan,
-                            };
-                            jans.push(jan, (cmove, EMPTY_MOVE));
-                        }
-                        Err(Error::FieldBlocked) => {
-                            only_falsehit = true;
-                        }
-                        Err(_) => {
-                            can_try_toutdune = false;
-                            // let next_dice_jan = self.get_jans(&board, &dices);
-                            // jans possibles en tout d'une après un battage à vrai :
-                            // truehit
-                        }
-                        Ok(()) => {}
-                    }
-                    if can_try_toutdune {
-                        // Try tout d'une :
-                        // - use original board before first die move
-                        // - use a virtual dice by adding current dice to remaining dice
-                        // - limit the checker to the current one
-                        let next_dice_jan = get_jans_by_ordered_dice(
-                            board_ini,
-                            &dices.iter().map(|d| d + dice).collect::<Vec<u8>>(),
-                            Some(from),
-                            only_falsehit,
-                        );
-                        jans.merge(next_dice_jan);
-                    }
+        if let Ok(cmove) = CheckerMove::new(from, to) {
+            // On vérifie que le mouvement n'est pas interdit par les règles des coins de
+            // repos :
+            // - on ne va pas sur le coin de l'adversaire (sauf pour repos d'un tout d'une si vide)
+            // - ni sur son propre coin de repos avec une seule dame (sauf pour repos d'un tout
+            // d'une)
+            // - règle non prise en compte pour le battage des dames : on ne sort pas de son coin de repos s'il n'y reste que deux dames
+            let (corner_count, _color) = board.get_field_checkers(corner_field).unwrap();
+            let (adv_corner_count, _color) = board.get_field_checkers(adv_corner_field).unwrap();
+            // si only_false_hit est vrai, on est déja dans une tentative tout d'une
+            let mut can_try_toutdune = !only_false_hit;
+            if (to == adv_corner_field && adv_corner_count < 2)
+                || to == corner_field && corner_count < 2
+            {
+                // Cas d'un tout d'une en passant par un coin de repos non rempli
+                // on s'assure qu'on est sur le premier dé
+                if 0 < dices.len() {
+                    can_try_toutdune = true;
+                } else {
+                    continue;
                 }
-                // Second die
-                let next_dice_jan = get_jans_by_ordered_dice(board_ini, &dices, None, false);
+            }
+            let mut only_falsehit = false;
+            match board.move_checker(&color, cmove) {
+                Err(Error::FieldBlockedByOne) => {
+                    let jan = match (Board::is_field_in_small_jan(to), only_false_hit) {
+                        (true, false) => Jan::TrueHitSmallJan,
+                        (true, true) => Jan::FalseHitSmallJan,
+                        (false, false) => Jan::TrueHitBigJan,
+                        (false, true) => Jan::FalseHitBigJan,
+                    };
+                    jans.push(jan, (cmove, EMPTY_MOVE));
+                }
+                Err(Error::FieldBlocked) => {
+                    only_falsehit = true;
+                }
+                Err(_) => {
+                    can_try_toutdune = false;
+                    // let next_dice_jan = self.get_jans(&board, &dices);
+                    // jans possibles en tout d'une après un battage à vrai :
+                    // truehit
+                }
+                Ok(()) => {}
+            }
+            if can_try_toutdune {
+                // Try tout d'une :
+                // - use original board before first die move
+                // - use a virtual dice by adding current dice to remaining dice
+                // - limit the checker to the current one
+                let next_dice_jan = get_jans_by_ordered_dice(
+                    board_ini,
+                    &dices.iter().map(|d| d + dice).collect::<Vec<u8>>(),
+                    Some(from),
+                    only_falsehit,
+                );
                 jans.merge(next_dice_jan);
             }
+            // Second die
+            let next_dice_jan = get_jans_by_ordered_dice(board_ini, &dices, None, false);
+            jans.merge(next_dice_jan);
         }
     }
 
     jans
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -569,18 +579,6 @@ mod tests {
 
         // corners handling
 
-        // deux dés bloqués (coin de repos et coin de l'adversaire)
-        rules.board.set_positions(
-            &Color::White,
-            [
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            ],
-        );
-        // le premier dé traité est le dernier du vecteur : 1
-        let jans = get_jans_by_ordered_dice(&rules.board, &[2, 1], None, false);
-        // println!("jans (dés bloqués) : {:?}", jans.get(&Jan::TrueHit));
-        assert_eq!(0, jans.len());
-
         // dé dans son coin de repos : peut tout de même battre à vrai
         rules.board.set_positions(
             &Color::White,
@@ -590,6 +588,17 @@ mod tests {
         );
         let jans = get_jans_by_ordered_dice(&rules.board, &[3, 3], None, false);
         assert_eq!(1, jans.len());
+
+        // case intermédiaire dans coin de repos vide : peut tout de même battre à vrai
+        rules.board.set_positions(
+            &Color::White,
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, -2, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+        );
+        let jans = get_jans_by_ordered_dice(&rules.board, &[4, 1], None, false);
+        assert_eq!(1, jans.len());
+        assert_eq!(1, jans.get(&Jan::TrueHitBigJan).unwrap().len());
 
         // premier dé bloqué, mais tout d'une possible en commençant par le second
         rules.board.set_positions(

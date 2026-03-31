@@ -35,10 +35,7 @@ fn matched_dice_used(staged: &[(u8, u8)], dice: (u8, u8)) -> (bool, bool) {
 }
 
 /// Split `dice_jans` into (viewer_jans, opponent_jans).
-fn split_jans(
-    dice_jans: &[JanEntry],
-    viewer_is_active: bool,
-) -> (Vec<JanEntry>, Vec<JanEntry>) {
+fn split_jans(dice_jans: &[JanEntry], viewer_is_active: bool) -> (Vec<JanEntry>, Vec<JanEntry>) {
     let mut mine = Vec::new();
     let mut theirs = Vec::new();
     for e in dice_jans {
@@ -46,12 +43,20 @@ fn split_jans(
             if e.total >= 0 {
                 mine.push(e.clone());
             } else {
-                theirs.push(JanEntry { total: -e.total, points_per: -e.points_per, ..e.clone() });
+                theirs.push(JanEntry {
+                    total: -e.total,
+                    points_per: -e.points_per,
+                    ..e.clone()
+                });
             }
         } else if e.total >= 0 {
             theirs.push(e.clone());
         } else {
-            mine.push(JanEntry { total: -e.total, points_per: -e.points_per, ..e.clone() });
+            mine.push(JanEntry {
+                total: -e.total,
+                points_per: -e.points_per,
+                ..e.clone()
+            });
         }
     }
     (mine, theirs)
@@ -107,7 +112,7 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
     let show_hold_go = is_my_turn && vs.turn_stage == SerTurnStage::HoldOrGoChoice;
 
     // ── Jan split: viewer_jans / opponent_jans ─────────────────────────────────
-    let (my_jans, opp_jans) = split_jans(&vs.dice_jans, is_my_turn);
+    let (my_jans, opp_jans) = split_jans(&vs.dice_jans, is_my_turn && !show_roll);
 
     // ── Scores ─────────────────────────────────────────────────────────────────
     let my_score = vs.scores[player_id as usize].clone();

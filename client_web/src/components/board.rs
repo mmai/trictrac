@@ -1,4 +1,5 @@
 use leptos::prelude::*;
+use trictrac_store::CheckerMove;
 
 use crate::trictrac::types::{SerTurnStage, ViewState};
 
@@ -35,6 +36,54 @@ fn displayed_value(
     val
 }
 
+/// Fields whose checkers may be selected as the next origin given already-staged moves.
+fn valid_origins_for(seqs: &[(CheckerMove, CheckerMove)], staged: &[(u8, u8)]) -> Vec<u8> {
+    let mut v: Vec<u8> = match staged.len() {
+        0 => seqs.iter()
+            .map(|(m1, _)| m1.get_from() as u8)
+            .filter(|&f| f != 0)
+            .collect(),
+        1 => {
+            let (f0, t0) = staged[0];
+            seqs.iter()
+                .filter(|(m1, _)| m1.get_from() as u8 == f0 && m1.get_to() as u8 == t0)
+                .map(|(_, m2)| m2.get_from() as u8)
+                .filter(|&f| f != 0)
+                .collect()
+        }
+        _ => vec![],
+    };
+    v.sort_unstable();
+    v.dedup();
+    v
+}
+
+/// Valid destinations for a selected origin given already-staged moves.
+/// May include 0 (exit); callers handle that case.
+fn valid_dests_for(seqs: &[(CheckerMove, CheckerMove)], staged: &[(u8, u8)], origin: u8) -> Vec<u8> {
+    let mut v: Vec<u8> = match staged.len() {
+        0 => seqs.iter()
+            .filter(|(m1, _)| m1.get_from() as u8 == origin)
+            .map(|(m1, _)| m1.get_to() as u8)
+            .collect(),
+        1 => {
+            let (f0, t0) = staged[0];
+            seqs.iter()
+                .filter(|(m1, m2)| {
+                    m1.get_from() as u8 == f0
+                        && m1.get_to() as u8 == t0
+                        && m2.get_from() as u8 == origin
+                })
+                .map(|(_, m2)| m2.get_to() as u8)
+                .collect()
+        }
+        _ => vec![],
+    };
+    v.sort_unstable();
+    v.dedup();
+    v
+}
+
 #[component]
 pub fn Board(
     view_state: ViewState,
@@ -43,6 +92,8 @@ pub fn Board(
     selected_origin: RwSignal<Option<u8>>,
     /// Moves staged so far this turn (max 2). Each entry is (from, to), 0 = empty move.
     staged_moves: RwSignal<Vec<(u8, u8)>>,
+    /// All valid two-move sequences for this turn (empty when not in move stage).
+    valid_sequences: Vec<(CheckerMove, CheckerMove)>,
 ) -> impl IntoView {
     let board = view_state.board;
     let is_move_stage = view_state.active_mp_player == Some(player_id)
@@ -52,46 +103,96 @@ pub fn Board(
         );
     let is_white = player_id == 0;
 
+    // `valid_sequences` is cloned per field (the Vec is small; Send-safe unlike Rc).
     let fields_from = |nums: &[u8], is_top_row: bool| -> Vec<AnyView> {
         nums.iter()
             .map(|&field_num| {
+                // Each reactive closure gets its own owned clone — Vec<(CheckerMove,CheckerMove)>
+                // is Send, which Leptos requires for reactive attribute functions.
+                let seqs_c = valid_sequences.clone();
+                let seqs_k = valid_sequences.clone();
                 view! {
                     <div
                         class=move || {
-                            let moves = staged_moves.get();
-                            let val = displayed_value(board, &moves, is_white, field_num);
+                            let staged = staged_moves.get();
+                            let val = displayed_value(board, &staged, is_white, field_num);
                             let is_mine = if is_white { val > 0 } else { val < 0 };
-                            let can_stage = is_move_stage && moves.len() < 2;
+                            let can_stage = is_move_stage && staged.len() < 2;
                             let sel = selected_origin.get();
 
                             let mut cls = "field".to_string();
-                            if can_stage && (sel.is_some() || is_mine) {
-                                cls.push_str(" clickable");
+
+                            if seqs_c.is_empty() {
+                                // No restriction (dice not rolled or not move stage)
+                                if can_stage && (sel.is_some() || is_mine) {
+                                    cls.push_str(" clickable");
+                                }
+                                if sel == Some(field_num) { cls.push_str(" selected"); }
+                                if can_stage && sel.is_some() && sel != Some(field_num) {
+                                    cls.push_str(" dest");
+                                }
+                            } else if can_stage {
+                                if let Some(origin) = sel {
+                                    if origin == field_num {
+                                        cls.push_str(" selected clickable");
+                                    } else {
+                                        let dests = valid_dests_for(&seqs_c, &staged, origin);
+                                        // Only highlight non-exit destinations (field 0 = exit has no tile)
+                                        if dests.iter().any(|&d| d == field_num && d != 0) {
+                                            cls.push_str(" clickable dest");
+                                        }
+                                    }
+                                } else {
+                                    let origins = valid_origins_for(&seqs_c, &staged);
+                                    if origins.iter().any(|&o| o == field_num) {
+                                        cls.push_str(" clickable");
+                                    }
+                                }
                             }
-                            if sel == Some(field_num) { cls.push_str(" selected"); }
-                            if can_stage && sel.is_some() && sel != Some(field_num) {
-                                cls.push_str(" dest");
-                            }
+
                             cls
                         }
                         on:click=move |_| {
                             if !is_move_stage { return; }
-                            if staged_moves.get_untracked().len() >= 2 { return; }
-
-                            let moves = staged_moves.get_untracked();
-                            let val = displayed_value(board, &moves, is_white, field_num);
-                            let is_mine = if is_white { val > 0 } else { val < 0 };
+                            let staged = staged_moves.get_untracked();
+                            if staged.len() >= 2 { return; }
 
                             match selected_origin.get_untracked() {
                                 Some(origin) if origin == field_num => {
                                     selected_origin.set(None);
                                 }
                                 Some(origin) => {
-                                    staged_moves.update(|v| v.push((origin, field_num)));
-                                    selected_origin.set(None);
+                                    let valid = if seqs_k.is_empty() {
+                                        true
+                                    } else {
+                                        valid_dests_for(&seqs_k, &staged, origin)
+                                            .iter()
+                                            .any(|&d| d == field_num)
+                                    };
+                                    if valid {
+                                        staged_moves.update(|v| v.push((origin, field_num)));
+                                        selected_origin.set(None);
+                                    }
                                 }
-                                None if is_mine => selected_origin.set(Some(field_num)),
-                                None => {}
+                                None => {
+                                    if seqs_k.is_empty() {
+                                        let val = displayed_value(board, &staged, is_white, field_num);
+                                        if is_white && val > 0 || !is_white && val < 0 {
+                                            selected_origin.set(Some(field_num));
+                                        }
+                                    } else {
+                                        let origins = valid_origins_for(&seqs_k, &staged);
+                                        if origins.iter().any(|&o| o == field_num) {
+                                            let dests = valid_dests_for(&seqs_k, &staged, field_num);
+                                            if !dests.is_empty() && dests.iter().all(|&d| d == 0) {
+                                                // All destinations are exits: auto-stage
+                                                staged_moves.update(|v| v.push((field_num, 0)));
+                                            } else {
+                                                selected_origin.set(Some(field_num));
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     >

@@ -12,7 +12,7 @@ mod error;
 pub use error::Error;
 
 mod board;
-pub use board::CheckerMove;
+pub use board::{Board, CheckerMove};
 
 mod dice;
 pub use dice::{Dice, DiceRoller};

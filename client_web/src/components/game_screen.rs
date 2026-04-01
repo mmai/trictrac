@@ -1,6 +1,6 @@
 use futures::channel::mpsc::UnboundedSender;
 use leptos::prelude::*;
-use trictrac_store::CheckerMove;
+use trictrac_store::{Board as StoreBoard, CheckerMove, Color, Dice as StoreDice, MoveRules};
 
 use crate::app::{GameUiState, NetCommand};
 use crate::i18n::*;
@@ -111,6 +111,27 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
     let show_roll = is_my_turn && vs.turn_stage == SerTurnStage::RollDice;
     let show_hold_go = is_my_turn && vs.turn_stage == SerTurnStage::HoldOrGoChoice;
 
+    // ── Valid move sequences for this turn ─────────────────────────────────────
+    // Computed once per ViewState snapshot; used by Board (highlighting) and the
+    // empty-move button (visibility).
+    let valid_sequences: Vec<(CheckerMove, CheckerMove)> = if is_move_stage && dice != (0, 0) {
+        let mut store_board = StoreBoard::new();
+        store_board.set_positions(&Color::White, vs.board);
+        let store_dice = StoreDice { values: dice };
+        let color = if player_id == 0 { Color::White } else { Color::Black };
+        let rules = MoveRules::new(&color, &store_board, store_dice);
+        let raw = rules.get_possible_moves_sequences(true, vec![]);
+        if player_id == 0 {
+            raw
+        } else {
+            raw.into_iter().map(|(m1, m2)| (m1.mirror(), m2.mirror())).collect()
+        }
+    } else {
+        vec![]
+    };
+    // Clone for the empty-move button reactive closure (Board consumes the original).
+    let valid_seqs_empty = valid_sequences.clone();
+
     // ── Jan split: viewer_jans / opponent_jans ─────────────────────────────────
     let (my_jans, opp_jans) = split_jans(&vs.dice_jans, is_my_turn && !show_roll);
 
@@ -164,6 +185,7 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
                     player_id=player_id
                     selected_origin=selected_origin
                     staged_moves=staged_moves
+                    valid_sequences=valid_sequences
                 />
 
                 // ── Side panel ───────────────────────────────────────────────
@@ -216,16 +238,35 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
                                 cmd_tx_go.unbounded_send(NetCommand::Action(PlayerAction::Go)).ok();
                             }>{t!(i18n, go)}</button>
                         })}
-                        {is_move_stage.then(|| view! {
-                            <button
-                                class="btn btn-secondary"
-                                disabled=move || 2 <= staged_moves.get().len()
-                                on:click=move |_| {
-                                    selected_origin.set(None);
-                                    staged_moves.update(|v| v.push((0, 0)));
+                        {move || {
+                            // Show the empty-move button only when (0,0) is a valid
+                            // first or second move given what has already been staged.
+                            let staged = staged_moves.get();
+                            let show = is_move_stage && staged.len() < 2 && (
+                                valid_seqs_empty.is_empty() || match staged.len() {
+                                    0 => valid_seqs_empty.iter().any(|(m1, _)| m1.get_from() == 0),
+                                    1 => {
+                                        let (f0, t0) = staged[0];
+                                        valid_seqs_empty.iter()
+                                            .filter(|(m1, _)| {
+                                                m1.get_from() as u8 == f0
+                                                    && m1.get_to() as u8 == t0
+                                            })
+                                            .any(|(_, m2)| m2.get_from() == 0)
+                                    }
+                                    _ => false,
                                 }
-                            >{t!(i18n, empty_move)}</button>
-                        })}
+                            );
+                            show.then(|| view! {
+                                <button
+                                    class="btn btn-secondary"
+                                    on:click=move |_| {
+                                        selected_origin.set(None);
+                                        staged_moves.update(|v| v.push((0, 0)));
+                                    }
+                                >{t!(i18n, empty_move)}</button>
+                            })
+                        }}
                     </div>
                 </div>
             </div>

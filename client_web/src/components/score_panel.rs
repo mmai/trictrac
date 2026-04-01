@@ -58,6 +58,9 @@ fn jan_row(idx: usize, entry: JanEntry, expanded: RwSignal<Option<usize>>) -> im
     };
 
     let moves = entry.moves.clone();
+    let moves_hover = entry.moves.clone();
+    // RwSignal is Copy so it can be captured by both closures independently.
+    let hovered = use_context::<RwSignal<Vec<(CheckerMove, CheckerMove)>>>();
 
     view! {
         <div>
@@ -67,6 +70,16 @@ fn jan_row(idx: usize, entry: JanEntry, expanded: RwSignal<Option<usize>>) -> im
                     expanded.update(|s| {
                         *s = if *s == Some(idx) { None } else { Some(idx) };
                     });
+                }
+                on:mouseenter=move |_| {
+                    if let Some(h) = hovered {
+                        h.set(moves_hover.clone());
+                    }
+                }
+                on:mouseleave=move |_| {
+                    if let Some(h) = hovered {
+                        h.set(vec![]);
+                    }
                 }
             >
                 <span class="jan-label">{label}</span>

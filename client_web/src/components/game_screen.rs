@@ -75,6 +75,10 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
             SerTurnStage::Move | SerTurnStage::HoldOrGoChoice
         );
 
+    // ── Hovered jan moves (shown as arrows on the board) ──────────────────────
+    let hovered_jan_moves: RwSignal<Vec<(CheckerMove, CheckerMove)>> = RwSignal::new(vec![]);
+    provide_context(hovered_jan_moves);
+
     // ── Staged move state ──────────────────────────────────────────────────────
     let selected_origin: RwSignal<Option<u8>> = RwSignal::new(None);
     let staged_moves: RwSignal<Vec<(u8, u8)>> = RwSignal::new(Vec::new());

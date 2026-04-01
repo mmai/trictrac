@@ -58,6 +58,98 @@ fn valid_origins_for(seqs: &[(CheckerMove, CheckerMove)], staged: &[(u8, u8)]) -
     v
 }
 
+/// Pixel center of a board field in the SVG overlay coordinate space.
+/// Geometry is derived from CSS: field 60px wide, 180px tall, board padding 4px,
+/// board-row gap 4px, board-bar 20px, board-center-bar 12px.
+fn field_center(f: usize, is_white: bool) -> Option<(f32, f32)> {
+    if f == 0 || f > 24 {
+        return None;
+    }
+    let (qi, right, top): (usize, bool, bool) = if is_white {
+        match f {
+            13..=18 => (f - 13, false, true),
+            19..=24 => (f - 19, true, true),
+            7..=12 => (12 - f, false, false),
+            1..=6 => (6 - f, true, false),
+            _ => return None,
+        }
+    } else {
+        match f {
+            1..=6 => (f - 1, false, true),
+            7..=12 => (f - 7, true, true),
+            19..=24 => (24 - f, false, false),
+            13..=18 => (18 - f, true, false),
+            _ => return None,
+        }
+    };
+    // Left-quarter field i center x: 4 + i*62 + 30 = 34 + 62i
+    // Right-quarter field i center x: 4 + 370 + 4 + 20 + 4 + i*62 + 30 = 432 + 62i
+    let x = if right { 432.0 + qi as f32 * 62.0 } else { 34.0 + qi as f32 * 62.0 };
+    // Top row center y: 4 + 90 = 94; bot row: 4 + 180 + 4 + 12 + 4 + 90 = 294
+    let y = if top { 94.0 } else { 294.0 };
+    Some((x, y))
+}
+
+/// SVG `<g>` element drawing one arrow (shadow + gold) from `fp` to `tp`.
+fn arrow_svg(fp: (f32, f32), tp: (f32, f32)) -> AnyView {
+    let (x1, y1) = fp;
+    let (x2, y2) = tp;
+    let dx = x2 - x1;
+    let dy = y2 - y1;
+    let len = (dx * dx + dy * dy).sqrt();
+    if len < 10.0 {
+        return view! { <g /> }.into_any();
+    }
+    let nx = dx / len;
+    let ny = dy / len;
+    let px = -ny;
+    let py = nx;
+
+    // Shrink line ends so arrows don't overlap the checker stack
+    let lx1 = x1 + nx * 20.0;
+    let ly1 = y1 + ny * 20.0;
+    let lx2 = x2 - nx * 15.0;
+    let ly2 = y2 - ny * 15.0;
+
+    // Arrowhead triangle at (x2, y2)
+    let ah = 15.0_f32;
+    let aw = 7.0_f32;
+    let bx = x2 - nx * ah;
+    let bary = y2 - ny * ah;
+    let pts = format!(
+        "{:.1},{:.1} {:.1},{:.1} {:.1},{:.1}",
+        x2, y2,
+        bx + px * aw, bary + py * aw,
+        bx - px * aw, bary - py * aw,
+    );
+    let shadow_pts = format!(
+        "{:.1},{:.1} {:.1},{:.1} {:.1},{:.1}",
+        x2, y2,
+        bx + px * (aw + 1.5), bary + py * (aw + 1.5),
+        bx - px * (aw + 1.5), bary - py * (aw + 1.5),
+    );
+
+    view! {
+        <g>
+            // Drop-shadow for readability on coloured fields
+            <line
+                x1=format!("{lx1:.1}") y1=format!("{ly1:.1}")
+                x2=format!("{lx2:.1}") y2=format!("{ly2:.1}")
+                style="stroke:rgba(0,0,0,0.45);stroke-width:5;stroke-linecap:round"
+            />
+            <polygon points=shadow_pts style="fill:rgba(0,0,0,0.45)" />
+            // Gold arrow
+            <line
+                x1=format!("{lx1:.1}") y1=format!("{ly1:.1}")
+                x2=format!("{lx2:.1}") y2=format!("{ly2:.1}")
+                style="stroke:rgba(255,215,0,0.9);stroke-width:3;stroke-linecap:round"
+            />
+            <polygon points=pts style="fill:rgba(255,215,0,0.9)" />
+        </g>
+    }
+    .into_any()
+}
+
 /// Valid destinations for a selected origin given already-staged moves.
 /// May include 0 (exit); callers handle that case.
 fn valid_dests_for(seqs: &[(CheckerMove, CheckerMove)], staged: &[(u8, u8)], origin: u8) -> Vec<u8> {
@@ -102,6 +194,7 @@ pub fn Board(
             SerTurnStage::Move | SerTurnStage::HoldOrGoChoice
         );
     let is_white = player_id == 0;
+    let hovered_moves = use_context::<RwSignal<Vec<(CheckerMove, CheckerMove)>>>();
 
     // `valid_sequences` is cloned per field (the Vec is small; Send-safe unlike Rc).
     let fields_from = |nums: &[u8], is_top_row: bool| -> Vec<AnyView> {
@@ -245,6 +338,34 @@ pub fn Board(
                 <div class="board-bar"></div>
                 <div class="board-quarter">{fields_from(br, false)}</div>
             </div>
+            // SVG overlay: arrows for hovered jan moves
+            <svg
+                width="776" height="388"
+                style="position:absolute;top:0;left:0;pointer-events:none;overflow:visible"
+            >
+                {move || {
+                    let Some(hm) = hovered_moves else { return vec![]; };
+                    let pairs = hm.get();
+                    if pairs.is_empty() { return vec![]; }
+                    // Collect unique individual (from, to) moves; skip empty/exit.
+                    let mut moves: Vec<(usize, usize)> = pairs.iter()
+                        .flat_map(|(m1, m2)| [
+                            (m1.get_from(), m1.get_to()),
+                            (m2.get_from(), m2.get_to()),
+                        ])
+                        .filter(|&(f, t)| f != 0 && t != 0)
+                        .collect();
+                    moves.sort_unstable();
+                    moves.dedup();
+                    moves.into_iter()
+                        .filter_map(|(from, to)| {
+                            let p1 = field_center(from, is_white)?;
+                            let p2 = field_center(to, is_white)?;
+                            Some(arrow_svg(p1, p2))
+                        })
+                        .collect()
+                }}
+            </svg>
         </div>
     }
 }

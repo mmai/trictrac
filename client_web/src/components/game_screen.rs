@@ -157,77 +157,78 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
             // ── Opponent score (above board) ─────────────────────────────────
             <PlayerScorePanel score=opp_score jans=opp_jans is_you=false />
 
-            // ── Status ───────────────────────────────────────────────────────
-            <div class="status-bar">
-                <span>{move || {
-                    let n = staged_moves.get().len();
-                    if is_move_stage {
-                        t_string!(i18n, select_move, n = n + 1)
-                    } else {
-                        String::from(match (&stage, is_my_turn, &turn_stage) {
-                            (SerStage::Ended, _, _) => t_string!(i18n, game_over),
-                            (SerStage::PreGame, _, _) => t_string!(i18n, waiting_for_opponent),
-                            (SerStage::InGame, true, SerTurnStage::RollDice) => t_string!(i18n, your_turn_roll),
-                            (SerStage::InGame, true, SerTurnStage::HoldOrGoChoice) => t_string!(i18n, hold_or_go),
-                            (SerStage::InGame, true, _) => t_string!(i18n, your_turn),
-                            (SerStage::InGame, false, _) => t_string!(i18n, opponent_turn),
-                        })
-                    }
-                }}</span>
-            </div>
+            // ── Board + side panel ───────────────────────────────────────────
+            <div class="board-and-panel">
+                <Board
+                    view_state=vs
+                    player_id=player_id
+                    selected_origin=selected_origin
+                    staged_moves=staged_moves
+                />
 
-            // ── Opponent dice (top) ──────────────────────────────────────────
-            {(!is_my_turn && show_dice).then(|| view! {
-                <div class="dice-bar dice-bar-opponent">
-                    <Die value=dice.0 used=true />
-                    <Die value=dice.1 used=true />
-                </div>
-            })}
-
-            // ── Board ────────────────────────────────────────────────────────
-            <Board
-                view_state=vs
-                player_id=player_id
-                selected_origin=selected_origin
-                staged_moves=staged_moves
-            />
-
-            // ── Player action bar (bottom) ───────────────────────────────────
-            {is_my_turn.then(|| view! {
-                <div class="dice-bar dice-bar-player">
-                    {move || {
-                        let (d0, d1) = if is_move_stage {
-                            matched_dice_used(&staged_moves.get(), dice)
-                        } else {
-                            (false, false)
-                        };
-                        view! {
-                            <Die value=dice.0 used=d0 />
-                            <Die value=dice.1 used=d1 />
-                        }
-                    }}
-                    {show_roll.then(|| view! {
-                        <button class="btn btn-primary" on:click=move |_| {
-                            cmd_tx_roll.unbounded_send(NetCommand::Action(PlayerAction::Roll)).ok();
-                        }>{t!(i18n, roll_dice)}</button>
-                    })}
-                    {show_hold_go.then(|| view! {
-                        <button class="btn btn-primary" on:click=move |_| {
-                            cmd_tx_go.unbounded_send(NetCommand::Action(PlayerAction::Go)).ok();
-                        }>{t!(i18n, go)}</button>
-                    })}
-                    {is_move_stage.then(|| view! {
-                        <button
-                            class="btn btn-secondary"
-                            disabled=move || 2 <= staged_moves.get().len()
-                            on:click=move |_| {
-                                selected_origin.set(None);
-                                staged_moves.update(|v| v.push((0, 0)));
+                // ── Side panel ───────────────────────────────────────────────
+                <div class="side-panel">
+                    // Status message
+                    <div class="status-bar">
+                        <span>{move || {
+                            let n = staged_moves.get().len();
+                            if is_move_stage {
+                                t_string!(i18n, select_move, n = n + 1)
+                            } else {
+                                String::from(match (&stage, is_my_turn, &turn_stage) {
+                                    (SerStage::Ended, _, _) => t_string!(i18n, game_over),
+                                    (SerStage::PreGame, _, _) => t_string!(i18n, waiting_for_opponent),
+                                    (SerStage::InGame, true, SerTurnStage::RollDice) => t_string!(i18n, your_turn_roll),
+                                    (SerStage::InGame, true, SerTurnStage::HoldOrGoChoice) => t_string!(i18n, hold_or_go),
+                                    (SerStage::InGame, true, _) => t_string!(i18n, your_turn),
+                                    (SerStage::InGame, false, _) => t_string!(i18n, opponent_turn),
+                                })
                             }
-                        >{t!(i18n, empty_move)}</button>
+                        }}</span>
+                    </div>
+
+                    // Dice (always shown when rolled, used state depends on whose turn)
+                    {show_dice.then(|| view! {
+                        <div class="dice-bar">
+                            {move || {
+                                let (d0, d1) = if is_move_stage {
+                                    matched_dice_used(&staged_moves.get(), dice)
+                                } else {
+                                    (true, true)
+                                };
+                                view! {
+                                    <Die value=dice.0 used=d0 />
+                                    <Die value=dice.1 used=d1 />
+                                }
+                            }}
+                        </div>
                     })}
+
+                    // Action buttons
+                    <div class="action-buttons">
+                        {show_roll.then(|| view! {
+                            <button class="btn btn-primary" on:click=move |_| {
+                                cmd_tx_roll.unbounded_send(NetCommand::Action(PlayerAction::Roll)).ok();
+                            }>{t!(i18n, roll_dice)}</button>
+                        })}
+                        {show_hold_go.then(|| view! {
+                            <button class="btn btn-primary" on:click=move |_| {
+                                cmd_tx_go.unbounded_send(NetCommand::Action(PlayerAction::Go)).ok();
+                            }>{t!(i18n, go)}</button>
+                        })}
+                        {is_move_stage.then(|| view! {
+                            <button
+                                class="btn btn-secondary"
+                                disabled=move || 2 <= staged_moves.get().len()
+                                on:click=move |_| {
+                                    selected_origin.set(None);
+                                    staged_moves.update(|v| v.push((0, 0)));
+                                }
+                            >{t!(i18n, empty_move)}</button>
+                        })}
+                    </div>
                 </div>
-            })}
+            </div>
 
             // ── Player score (below board) ────────────────────────────────────
             <PlayerScorePanel score=my_score jans=my_jans is_you=true />

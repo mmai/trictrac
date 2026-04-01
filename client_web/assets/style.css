@@ -54,7 +54,6 @@ input[type="text"] {
     align-items: center;
     gap: 0.75rem;
     width: 100%;
-    max-width: 900px;
 }
 
 /* ── Language switcher ──────────────────────────────────────────────── */
@@ -108,7 +107,6 @@ input[type="text"] {
     font-size: 0.9rem;
     box-shadow: 0 1px 4px rgba(0,0,0,0.2);
     width: 100%;
-    max-width: 900px;
 }
 
 .player-score-header {
@@ -180,6 +178,28 @@ input[type="text"] {
     padding-top: 0.25rem;
 }
 
+/* ── Board + side panel ─────────────────────────────────────────────── */
+.board-and-panel {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 1rem;
+}
+
+.side-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    min-width: 160px;
+    padding-top: 0.25rem;
+}
+
+.action-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
 /* ── Status bar ─────────────────────────────────────────────────────── */
 .status-bar {
     display: flex;
@@ -189,7 +209,7 @@ input[type="text"] {
     font-weight: 500;
 }
 
-/* ── Dice bars ──────────────────────────────────────────────────────── */
+/* ── Dice bar ───────────────────────────────────────────────────────── */
 .dice-bar {
     display: flex;
     align-items: center;

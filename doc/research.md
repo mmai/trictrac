@@ -11,7 +11,6 @@
 | `game_rules_moves.rs`  | `MoveRules`: move validation and generation                               |
 | `game_rules_points.rs` | `PointsRules`: jan detection and scoring                                  |
 | `training_common.rs`   | `TrictracAction` enum, action-space encoding (size 514)                   |
-| `pyengine.rs`          | PyO3 Python module exposing `TricTrac` class                              |
 | `lib.rs`               | Crate root, re-exports                                                    |
 
 ---
@@ -143,7 +142,7 @@ fn new() -> Self {
 }
 ```
 
-Player 1 (White) always goes first. `active_player_id` uses 1-based indexing; pyengine converts to 0-based for the Python side with `active_player_id - 1`.
+Player 1 (White) always goes first. `active_player_id` uses 1-based indexing
 
 ---
 
@@ -197,8 +196,7 @@ fn mark_points(&mut self, player_id: PlayerId, points: u8) -> bool {
 - 12 points = 1 "jeu", which yields 1 or 2 holes depending on bredouille status.
 - Scoring any points clears the opponent's `can_bredouille`.
 - Completing a hole resets `can_bredouille` for the scorer.
-- Game ends when `holes > 12`.
-- Score reported to OpenSpiel: `holes * 12 + points`.
+- Game ends when `holes >= 12`.
 
 ### Points from both rolls
 
@@ -229,12 +227,12 @@ The board state after each die application is simulated to check two-step sequen
 
 Total size: **514 actions**.
 
-| Index   | Action                                           | Description                                    |
-| ------- | ------------------------------------------------ | ---------------------------------------------- |
-| 0       | `Roll`                                           | Request dice roll (not used in OpenSpiel mode) |
-| 1       | `Go`                                             | After winning hole: reset board and continue   |
-| 2–257   | `Move { dice_order: true, checker1, checker2 }`  | Move with die[0] first                         |
-| 258–513 | `Move { dice_order: false, checker1, checker2 }` | Move with die[1] first                         |
+| Index   | Action                                           | Description                                  |
+| ------- | ------------------------------------------------ | -------------------------------------------- |
+| 0       | `Roll`                                           | Request dice roll                            |
+| 1       | `Go`                                             | After winning hole: reset board and continue |
+| 2–257   | `Move { dice_order: true, checker1, checker2 }`  | Move with die[0] first                       |
+| 258–513 | `Move { dice_order: false, checker1, checker2 }` | Move with die[1] first                       |
 
 Move encoding: `index = 2 + (0 if dice_order else 256) + checker1 * 16 + checker2`
 

@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-trictrac-store = { path = "../store", features = ["python"] }
+trictrac-store = { path = "../store" }
 trictrac-bot   = { path = "../bot" }
 anyhow         = "1"
 rand           = "0.9"

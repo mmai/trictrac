@@ -103,16 +103,26 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
         }
     });
 
+    // ── Auto-roll effect ─────────────────────────────────────────────────────
+    // GameScreen is fully re-mounted on every ViewState update (state is a
+    // plain prop, not a signal), so this effect fires exactly once per
+    // RollDice phase entry and will not double-send.
+    let show_roll = is_my_turn && vs.turn_stage == SerTurnStage::RollDice;
+    if show_roll {
+        let cmd_tx_auto = cmd_tx.clone();
+        Effect::new(move |_| {
+            cmd_tx_auto.unbounded_send(NetCommand::Action(PlayerAction::Roll)).ok();
+        });
+    }
+
     let dice = vs.dice;
     let show_dice = dice != (0, 0);
 
     // ── Button senders ─────────────────────────────────────────────────────────
-    let cmd_tx_roll = cmd_tx.clone();
     let cmd_tx_go = cmd_tx.clone();
     let cmd_tx_quit = cmd_tx.clone();
     let cmd_tx_end_quit = cmd_tx.clone();
     let cmd_tx_end_replay = cmd_tx.clone();
-    let show_roll = is_my_turn && vs.turn_stage == SerTurnStage::RollDice;
     let show_hold_go = is_my_turn && vs.turn_stage == SerTurnStage::HoldOrGoChoice;
 
     // ── Valid move sequences for this turn ─────────────────────────────────────
@@ -232,11 +242,6 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
 
                     // Action buttons
                     <div class="action-buttons">
-                        {show_roll.then(|| view! {
-                            <button class="btn btn-primary" on:click=move |_| {
-                                cmd_tx_roll.unbounded_send(NetCommand::Action(PlayerAction::Roll)).ok();
-                            }>{t!(i18n, roll_dice)}</button>
-                        })}
                         {show_hold_go.then(|| view! {
                             <button class="btn btn-primary" on:click=move |_| {
                                 cmd_tx_go.unbounded_send(NetCommand::Action(PlayerAction::Go)).ok();

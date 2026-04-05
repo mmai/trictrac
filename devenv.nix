@@ -7,6 +7,7 @@ in
   packages = [
     # for Leptos
     pkgs.trunk
+    pkgs.lld
     # pkgs.wasm-bindgen-cli_0_2_114
 
     # pour burn-rs

@@ -38,5 +38,9 @@
   "vs_bot_label": "vs Bot",
   "you_win": "You win!",
   "opp_wins": "{{ name }} wins!",
-  "play_again": "Play again"
+  "play_again": "Play again",
+  "after_opponent_roll": "Opponent rolled",
+  "after_opponent_go": "Opponent chose to continue",
+  "after_opponent_move": "Opponent moved — your turn",
+  "continue_btn": "Continue"
 }

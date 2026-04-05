@@ -1,8 +1,10 @@
+use std::collections::VecDeque;
+
 use futures::channel::mpsc::UnboundedSender;
 use leptos::prelude::*;
 use trictrac_store::{Board as StoreBoard, CheckerMove, Color, Dice as StoreDice, MoveRules};
 
-use crate::app::{GameUiState, NetCommand};
+use crate::app::{GameUiState, NetCommand, PauseReason};
 use crate::i18n::*;
 use crate::trictrac::types::{JanEntry, PlayerAction, SerStage, SerTurnStage};
 
@@ -74,6 +76,8 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
             vs.turn_stage,
             SerTurnStage::Move | SerTurnStage::HoldOrGoChoice
         );
+    let waiting_for_confirm = state.waiting_for_confirm;
+    let pause_reason = state.pause_reason.clone();
 
     // ── Hovered jan moves (shown as arrows on the board) ──────────────────────
     let hovered_jan_moves: RwSignal<Vec<(CheckerMove, CheckerMove)>> = RwSignal::new(vec![]);
@@ -85,6 +89,8 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
 
     let cmd_tx = use_context::<UnboundedSender<NetCommand>>()
         .expect("UnboundedSender<NetCommand> not found in context");
+    let pending = use_context::<RwSignal<VecDeque<GameUiState>>>()
+        .expect("pending not found in context");
     let cmd_tx_effect = cmd_tx.clone();
     Effect::new(move |_| {
         let moves = staged_moves.get();
@@ -107,8 +113,11 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
     // GameScreen is fully re-mounted on every ViewState update (state is a
     // plain prop, not a signal), so this effect fires exactly once per
     // RollDice phase entry and will not double-send.
+    // Guard: suppressed while waiting_for_confirm — the AfterOpponentMove
+    // buffered state shows the human's RollDice turn but the auto-roll must
+    // wait until the buffer is drained and the live screen state is shown.
     let show_roll = is_my_turn && vs.turn_stage == SerTurnStage::RollDice;
-    if show_roll {
+    if show_roll && !waiting_for_confirm {
         let cmd_tx_auto = cmd_tx.clone();
         Effect::new(move |_| {
             cmd_tx_auto.unbounded_send(NetCommand::Action(PlayerAction::Roll)).ok();
@@ -207,6 +216,13 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
                     // Status message
                     <div class="status-bar">
                         <span>{move || {
+                            if let Some(ref reason) = pause_reason {
+                                return String::from(match reason {
+                                    PauseReason::AfterOpponentRoll => t_string!(i18n, after_opponent_roll),
+                                    PauseReason::AfterOpponentGo   => t_string!(i18n, after_opponent_go),
+                                    PauseReason::AfterOpponentMove => t_string!(i18n, after_opponent_move),
+                                });
+                            }
                             let n = staged_moves.get().len();
                             if is_move_stage {
                                 t_string!(i18n, select_move, n = n + 1)
@@ -242,6 +258,11 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
 
                     // Action buttons
                     <div class="action-buttons">
+                        {waiting_for_confirm.then(|| view! {
+                            <button class="btn btn-primary" on:click=move |_| {
+                                pending.update(|q| { q.pop_front(); });
+                            }>{t!(i18n, continue_btn)}</button>
+                        })}
                         {show_hold_go.then(|| view! {
                             <button class="btn btn-primary" on:click=move |_| {
                                 cmd_tx_go.unbounded_send(NetCommand::Action(PlayerAction::Go)).ok();

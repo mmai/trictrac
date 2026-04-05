@@ -38,5 +38,9 @@
   "vs_bot_label": "contre le bot",
   "you_win": "Vous avez gagné !",
   "opp_wins": "{{ name }} gagne !",
-  "play_again": "Rejouer"
+  "play_again": "Rejouer",
+  "after_opponent_roll": "L'adversaire a lancé les dés",
+  "after_opponent_go": "L'adversaire s'en va",
+  "after_opponent_move": "L'adversaire a joué — à vous",
+  "continue_btn": "Continuer"
 }

@@ -12,7 +12,9 @@ use crate::components::{ConnectingScreen, GameScreen, LoginScreen};
 use crate::i18n::I18nContextProvider;
 use crate::trictrac::backend::TrictracBackend;
 use crate::trictrac::bot_local::bot_decide;
-use crate::trictrac::types::{GameDelta, PlayerAction, ViewState};
+use crate::trictrac::types::{GameDelta, PlayerAction, SerTurnStage, ViewState};
+
+use std::collections::VecDeque;
 
 const RELAY_URL: &str = "ws://127.0.0.1:8080/ws";
 const GAME_ID: &str = "trictrac";
@@ -26,6 +28,18 @@ pub struct GameUiState {
     pub player_id: u16,
     pub room_id: String,
     pub is_bot_game: bool,
+    /// True when this state is a buffered snapshot awaiting player confirmation.
+    pub waiting_for_confirm: bool,
+    /// Why we are paused — drives the status-bar message in GameScreen.
+    pub pause_reason: Option<PauseReason>,
+}
+
+/// Reason the UI is paused waiting for the player to click Continue.
+#[derive(Clone, Debug, PartialEq)]
+pub enum PauseReason {
+    AfterOpponentRoll,
+    AfterOpponentGo,
+    AfterOpponentMove,
 }
 
 /// Which screen is currently shown.
@@ -92,6 +106,8 @@ pub fn App() -> impl IntoView {
     let screen = RwSignal::new(initial_screen);
 
     let (cmd_tx, mut cmd_rx) = mpsc::unbounded::<NetCommand>();
+    let pending: RwSignal<VecDeque<GameUiState>> = RwSignal::new(VecDeque::new());
+    provide_context(pending);
     provide_context(cmd_tx.clone());
 
     if let Some(s) = stored {
@@ -171,9 +187,10 @@ pub fn App() -> impl IntoView {
 
             if remote_config.is_none() {
                 loop {
-                    let restart = run_local_bot_game(screen, &mut cmd_rx).await;
+                    let restart = run_local_bot_game(screen, &mut cmd_rx, pending).await;
                     if !restart { break; }
                 }
+                pending.update(|q| q.clear());
                 screen.set(Screen::Login { error: None });
                 continue;
             }
@@ -219,12 +236,14 @@ pub fn App() -> impl IntoView {
                         _ => {
                             clear_session();
                             session.disconnect();
+                            pending.update(|q| q.clear());
                             screen.set(Screen::Login { error: None });
                             break;
                         }
                     },
                     event = session.next_event().fuse() => match event {
                         Some(SessionEvent::Update(u)) => {
+                            let prev_vs = vs.clone();
                             match u {
                                 ViewStateUpdate::Full(state) => vs = state,
                                 ViewStateUpdate::Incremental(delta) => vs.apply_delta(&delta),
@@ -239,18 +258,27 @@ pub fn App() -> impl IntoView {
                                     view_state: Some(vs.clone()),
                                 });
                             }
-                            screen.set(Screen::Playing(GameUiState {
-                                view_state: vs.clone(),
-                                player_id,
-                                room_id: room_id_for_storage.clone(),
-                                is_bot_game: false,
-                            }));
+                            push_or_show(
+                                &prev_vs,
+                                GameUiState {
+                                    view_state: vs.clone(),
+                                    player_id,
+                                    room_id: room_id_for_storage.clone(),
+                                    is_bot_game: false,
+                                    waiting_for_confirm: false,
+                                    pause_reason: None,
+                                },
+                                pending,
+                                screen,
+                            );
                         }
                         Some(SessionEvent::Disconnected(reason)) => {
+                            pending.update(|q| q.clear());
                             screen.set(Screen::Login { error: reason });
                             break;
                         }
                         None => {
+                            pending.update(|q| q.clear());
                             screen.set(Screen::Login { error: None });
                             break;
                         }
@@ -262,10 +290,17 @@ pub fn App() -> impl IntoView {
 
     view! {
         <I18nContextProvider>
-            {move || match screen.get() {
-                Screen::Login { error } => view! { <LoginScreen error=error /> }.into_any(),
-                Screen::Connecting => view! { <ConnectingScreen /> }.into_any(),
-                Screen::Playing(state) => view! { <GameScreen state=state /> }.into_any(),
+            {move || {
+                let q = pending.get();
+                if let Some(front) = q.front() {
+                    view! { <GameScreen state=front.clone() /> }.into_any()
+                } else {
+                    match screen.get() {
+                        Screen::Login { error } => view! { <LoginScreen error=error /> }.into_any(),
+                        Screen::Connecting => view! { <ConnectingScreen /> }.into_any(),
+                        Screen::Playing(state) => view! { <GameScreen state=state /> }.into_any(),
+                    }
+                }
             }}
         </I18nContextProvider>
     }
@@ -275,6 +310,7 @@ pub fn App() -> impl IntoView {
 async fn run_local_bot_game(
     screen: RwSignal<Screen>,
     cmd_rx: &mut futures::channel::mpsc::UnboundedReceiver<NetCommand>,
+    pending: RwSignal<VecDeque<GameUiState>>,
 ) -> bool {
     let mut backend = TrictracBackend::new(0);
     backend.player_arrival(0);
@@ -298,12 +334,78 @@ async fn run_local_bot_game(
             match bot_decide(backend.get_game()) {
                 None => break,
                 Some(action) => {
+                    let prev_vs = vs.clone();
                     backend.inform_rpc(1, action);
-                    drain_and_update(&mut backend, &mut vs, screen);
+                    for cmd in backend.drain_commands() {
+                        if let BackendCommand::Delta(delta) = cmd {
+                            vs.apply_delta(&delta);
+                        }
+                    }
+                    push_or_show(
+                        &prev_vs,
+                        GameUiState {
+                            view_state: vs.clone(),
+                            player_id: 0,
+                            room_id: String::new(),
+                            is_bot_game: true,
+                            waiting_for_confirm: false,
+                            pause_reason: None,
+                        },
+                        pending,
+                        screen,
+                    );
                 }
             }
         }
     }
+}
+
+/// Either queues the state as a buffered confirmation step (when the transition
+/// warrants a pause) or shows it immediately. Always updates `screen` to the
+/// live state so the UI falls through to the right content once pending drains.
+fn push_or_show(
+    prev_vs: &ViewState,
+    new_state: GameUiState,
+    pending: RwSignal<VecDeque<GameUiState>>,
+    screen: RwSignal<Screen>,
+) {
+    if let Some(reason) = infer_pause_reason(prev_vs, &new_state.view_state, new_state.player_id) {
+        pending.update(|q| {
+            q.push_back(GameUiState {
+                waiting_for_confirm: true,
+                pause_reason: Some(reason),
+                ..new_state.clone()
+            });
+        });
+    }
+    screen.set(Screen::Playing(new_state));
+}
+
+/// Compares the previous and next ViewState to decide whether the transition
+/// warrants a confirmation pause. Returns None when it is the local player's
+/// own action (no pause needed).
+fn infer_pause_reason(prev: &ViewState, next: &ViewState, player_id: u16) -> Option<PauseReason> {
+    let opponent_id = 1 - player_id;
+
+    if next.active_mp_player == Some(opponent_id) {
+        // Dice changed → opponent just rolled.
+        if next.dice != prev.dice {
+            return Some(PauseReason::AfterOpponentRoll);
+        }
+        // Was at HoldOrGoChoice, now Move, opponent still active → opponent went.
+        if prev.turn_stage == SerTurnStage::HoldOrGoChoice
+            && next.turn_stage == SerTurnStage::Move
+        {
+            return Some(PauseReason::AfterOpponentGo);
+        }
+    }
+
+    // Turn switched to us → opponent moved.
+    if next.active_mp_player == Some(player_id) && prev.active_mp_player == Some(opponent_id) {
+        return Some(PauseReason::AfterOpponentMove);
+    }
+
+    None
 }
 
 fn drain_and_update(
@@ -327,5 +429,66 @@ fn drain_and_update(
         player_id: 0,
         room_id: String::new(),
         is_bot_game: true,
+        waiting_for_confirm: false,
+        pause_reason: None,
     }));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::trictrac::types::{PlayerScore, SerStage, SerTurnStage};
+
+    fn score() -> PlayerScore {
+        PlayerScore { name: String::new(), points: 0, holes: 0, can_bredouille: false }
+    }
+
+    fn vs(dice: (u8, u8), turn_stage: SerTurnStage, active: Option<u16>) -> ViewState {
+        ViewState {
+            board: [0i8; 24],
+            stage: SerStage::InGame,
+            turn_stage,
+            active_mp_player: active,
+            scores: [score(), score()],
+            dice,
+            dice_jans: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn dice_change_is_after_roll() {
+        let prev = vs((0, 0), SerTurnStage::RollDice, Some(1));
+        let next = vs((3, 5), SerTurnStage::Move, Some(1));
+        assert_eq!(infer_pause_reason(&prev, &next, 0), Some(PauseReason::AfterOpponentRoll));
+    }
+
+    #[test]
+    fn hold_to_move_is_after_go() {
+        let prev = vs((3, 5), SerTurnStage::HoldOrGoChoice, Some(1));
+        let next = vs((3, 5), SerTurnStage::Move, Some(1));
+        assert_eq!(infer_pause_reason(&prev, &next, 0), Some(PauseReason::AfterOpponentGo));
+    }
+
+    #[test]
+    fn turn_switch_is_after_move() {
+        let prev = vs((3, 5), SerTurnStage::Move, Some(1));
+        let next = vs((3, 5), SerTurnStage::RollDice, Some(0));
+        assert_eq!(infer_pause_reason(&prev, &next, 0), Some(PauseReason::AfterOpponentMove));
+    }
+
+    #[test]
+    fn own_action_returns_none() {
+        let prev = vs((0, 0), SerTurnStage::RollDice, Some(0));
+        let next = vs((2, 4), SerTurnStage::Move, Some(0));
+        assert_eq!(infer_pause_reason(&prev, &next, 0), None);
+    }
+
+    #[test]
+    fn no_active_player_returns_none() {
+        let mut prev = vs((0, 0), SerTurnStage::RollDice, None);
+        prev.stage = SerStage::PreGame;
+        let mut next = prev.clone();
+        next.active_mp_player = Some(0);
+        assert_eq!(infer_pause_reason(&prev, &next, 0), None);
+    }
 }

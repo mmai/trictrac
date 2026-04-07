@@ -42,5 +42,11 @@
   "after_opponent_roll": "L'adversaire a lancé les dés",
   "after_opponent_go": "L'adversaire s'en va",
   "after_opponent_move": "L'adversaire a joué — à vous",
-  "continue_btn": "Continuer"
+  "continue_btn": "Continuer",
+  "scored_pts": "+{{ n }} pts",
+  "hole_made": "Trou ! {{ holes }}/12",
+  "bredouille_applied": "Bredouille !",
+  "hold": "Tenir",
+  "opp_scored_pts": "Adversaire +{{ n }} pts",
+  "opp_hole_made": "Trou adverse ! {{ holes }}/12"
 }

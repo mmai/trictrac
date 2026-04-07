@@ -42,5 +42,11 @@
   "after_opponent_roll": "Opponent rolled",
   "after_opponent_go": "Opponent chose to continue",
   "after_opponent_move": "Opponent moved — your turn",
-  "continue_btn": "Continue"
+  "continue_btn": "Continue",
+  "scored_pts": "+{{ n }} pts",
+  "hole_made": "Hole! {{ holes }}/12",
+  "bredouille_applied": "Bredouille!",
+  "hold": "Hold",
+  "opp_scored_pts": "Opponent +{{ n }} pts",
+  "opp_hole_made": "Opponent hole! {{ holes }}/12"
 }

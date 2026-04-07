@@ -170,6 +170,23 @@ impl ViewState {
     }
 }
 
+// ── Scored event (notification) ──────────────────────────────────────────
+
+/// Points scored in a single scoring event, used for the notification panel.
+#[derive(Clone, PartialEq)]
+pub struct ScoredEvent {
+    /// Raw points earned (sum of jan values; before hole wrapping).
+    pub points_earned: u8,
+    /// Number of holes gained (0 = no hole).
+    pub holes_gained: u8,
+    /// Total holes after this event.
+    pub holes_total: u8,
+    /// Was bredouille active when the hole was made (doubles hole count)?
+    pub bredouille: bool,
+    /// Contributing jans from this player's perspective (totals always positive).
+    pub jans: Vec<JanEntry>,
+}
+
 // ── Score snapshot ────────────────────────────────────────────────────────────
 
 #[derive(Clone, PartialEq, Serialize, Deserialize)]

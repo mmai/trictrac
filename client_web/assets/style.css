@@ -313,6 +313,59 @@ input[type="text"] {
     justify-content: center;
 }
 
+/* ── Scoring notification panel ────────────────────────────────────── */
+.scoring-panel {
+    background: #f0ead0;
+    border-radius: 6px;
+    padding: 0.4rem 0.75rem;
+    font-size: 0.85rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+    border-left: 3px solid #4a7a3a;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.scoring-total {
+    font-weight: bold;
+    font-size: 0.95rem;
+    color: #1a5c1a;
+}
+
+.scoring-jan-row {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 1px 2px;
+    border-radius: 3px;
+    cursor: default;
+}
+
+.scoring-jan-row:hover { background: rgba(0,0,0,0.06); }
+
+.scoring-panel-opp {
+    border-left-color: #7a5a3a;
+}
+
+.scoring-panel-opp .scoring-total { color: #7a4a2a; }
+
+.scoring-hole {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-weight: bold;
+    color: #7a4a2a;
+    margin-top: 2px;
+    padding-top: 3px;
+    border-top: 1px solid rgba(0,0,0,0.1);
+}
+
+.hold-go-buttons {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 4px;
+}
+
 /* ── Board ──────────────────────────────────────────────────────────── */
 .board {
     background: #2e6b2e;

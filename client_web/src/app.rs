@@ -12,7 +12,7 @@ use crate::components::{ConnectingScreen, GameScreen, LoginScreen};
 use crate::i18n::I18nContextProvider;
 use crate::trictrac::backend::TrictracBackend;
 use crate::trictrac::bot_local::bot_decide;
-use crate::trictrac::types::{GameDelta, PlayerAction, SerTurnStage, ViewState};
+use crate::trictrac::types::{GameDelta, JanEntry, PlayerAction, ScoredEvent, SerTurnStage, ViewState};
 
 use std::collections::VecDeque;
 
@@ -32,6 +32,9 @@ pub struct GameUiState {
     pub waiting_for_confirm: bool,
     /// Why we are paused — drives the status-bar message in GameScreen.
     pub pause_reason: Option<PauseReason>,
+    /// Points scored by this player in the transition to this state (if any).
+    pub my_scored_event: Option<ScoredEvent>,
+    pub opp_scored_event: Option<ScoredEvent>,
 }
 
 /// Reason the UI is paused waiting for the player to click Continue.
@@ -267,6 +270,8 @@ pub fn App() -> impl IntoView {
                                     is_bot_game: false,
                                     waiting_for_confirm: false,
                                     pause_reason: None,
+                                    my_scored_event: None,
+                                    opp_scored_event: None,
                                 },
                                 pending,
                                 screen,
@@ -317,18 +322,50 @@ async fn run_local_bot_game(
     backend.player_arrival(1);
 
     let mut vs = ViewState::default_with_names("You", "Bot");
-    drain_and_update(&mut backend, &mut vs, screen);
+    for cmd in backend.drain_commands() {
+        match cmd {
+            BackendCommand::ResetViewState => { vs = backend.get_view_state().clone(); }
+            BackendCommand::Delta(delta) => { vs.apply_delta(&delta); }
+            _ => {}
+        }
+    }
+    screen.set(Screen::Playing(GameUiState {
+        view_state: vs.clone(),
+        player_id: 0,
+        room_id: String::new(),
+        is_bot_game: true,
+        waiting_for_confirm: false,
+        pause_reason: None,
+        my_scored_event: None,
+        opp_scored_event: None,
+    }));
 
     loop {
         match cmd_rx.next().await {
             Some(NetCommand::Action(action)) => {
+                let prev_vs = vs.clone();
                 backend.inform_rpc(0, action);
+                for cmd in backend.drain_commands() {
+                    if let BackendCommand::Delta(delta) = cmd {
+                        vs.apply_delta(&delta);
+                    }
+                }
+                let scored = compute_scored_event(&prev_vs, &vs, 0);
+                let opp_scored = compute_scored_event(&prev_vs, &vs, 1);
+                screen.set(Screen::Playing(GameUiState {
+                    view_state: vs.clone(),
+                    player_id: 0,
+                    room_id: String::new(),
+                    is_bot_game: true,
+                    waiting_for_confirm: false,
+                    pause_reason: None,
+                    my_scored_event: scored,
+                    opp_scored_event: opp_scored,
+                }));
             }
             Some(NetCommand::PlayVsBot) => return true,
             _ => return false,
         }
-
-        drain_and_update(&mut backend, &mut vs, screen);
 
         loop {
             match bot_decide(backend.get_game()) {
@@ -350,6 +387,8 @@ async fn run_local_bot_game(
                             is_bot_game: true,
                             waiting_for_confirm: false,
                             pause_reason: None,
+                            my_scored_event: None,
+                            opp_scored_event: None,
                         },
                         pending,
                         screen,
@@ -358,6 +397,55 @@ async fn run_local_bot_game(
             }
         }
     }
+}
+
+/// Computes a scoring event for `player_id` by comparing the previous and next
+/// ViewState. Returns `None` when no points changed for that player.
+fn compute_scored_event(prev: &ViewState, next: &ViewState, player_id: u16) -> Option<ScoredEvent> {
+    let prev_score = &prev.scores[player_id as usize];
+    let next_score = &next.scores[player_id as usize];
+
+    let holes_gained = next_score.holes.saturating_sub(prev_score.holes);
+    if holes_gained == 0 && prev_score.points == next_score.points {
+        return None;
+    }
+
+    let bredouille = holes_gained > 0 && prev_score.can_bredouille;
+
+    // Determine which dice_jans are "mine" depending on who was the active roller.
+    let my_jans: Vec<JanEntry> = if next.active_mp_player == Some(player_id)
+        && prev.active_mp_player == Some(player_id)
+    {
+        // My own roll: positive totals are mine.
+        next.dice_jans.iter().filter(|e| e.total > 0).cloned().collect()
+    } else if next.active_mp_player == Some(player_id)
+        && prev.active_mp_player != Some(player_id)
+    {
+        // Opponent just moved: negative totals (their penalty) are scored for me.
+        next.dice_jans
+            .iter()
+            .filter(|e| e.total < 0)
+            .map(|e| JanEntry { total: -e.total, points_per: -e.points_per, ..e.clone() })
+            .collect()
+    } else {
+        return None;
+    };
+
+    let points_earned: u8 = my_jans
+        .iter()
+        .fold(0u8, |acc, e| acc.saturating_add(e.total.unsigned_abs()));
+
+    if points_earned == 0 && holes_gained == 0 {
+        return None;
+    }
+
+    Some(ScoredEvent {
+        points_earned,
+        holes_gained,
+        holes_total: next_score.holes,
+        bredouille,
+        jans: my_jans,
+    })
 }
 
 /// Either queues the state as a buffered confirmation step (when the transition
@@ -369,16 +457,29 @@ fn push_or_show(
     pending: RwSignal<VecDeque<GameUiState>>,
     screen: RwSignal<Screen>,
 ) {
+    let scored = compute_scored_event(prev_vs, &new_state.view_state, new_state.player_id);
+    let opp_scored = compute_scored_event(prev_vs, &new_state.view_state, 1 - new_state.player_id);
+
     if let Some(reason) = infer_pause_reason(prev_vs, &new_state.view_state, new_state.player_id) {
+        // Scoring notifications go on the buffered (paused) state only.
         pending.update(|q| {
             q.push_back(GameUiState {
                 waiting_for_confirm: true,
                 pause_reason: Some(reason),
+                my_scored_event: scored,
+                opp_scored_event: opp_scored,
                 ..new_state.clone()
             });
         });
+        screen.set(Screen::Playing(new_state));
+    } else {
+        // No pause: show scoring directly on the live state.
+        screen.set(Screen::Playing(GameUiState {
+            my_scored_event: scored,
+            opp_scored_event: opp_scored,
+            ..new_state
+        }));
     }
-    screen.set(Screen::Playing(new_state));
 }
 
 /// Compares the previous and next ViewState to decide whether the transition
@@ -408,31 +509,6 @@ fn infer_pause_reason(prev: &ViewState, next: &ViewState, player_id: u16) -> Opt
     None
 }
 
-fn drain_and_update(
-    backend: &mut TrictracBackend,
-    vs: &mut ViewState,
-    screen: RwSignal<Screen>,
-) {
-    for cmd in backend.drain_commands() {
-        match cmd {
-            BackendCommand::ResetViewState => {
-                *vs = backend.get_view_state().clone();
-            }
-            BackendCommand::Delta(delta) => {
-                vs.apply_delta(&delta);
-            }
-            _ => {}
-        }
-    }
-    screen.set(Screen::Playing(GameUiState {
-        view_state: vs.clone(),
-        player_id: 0,
-        room_id: String::new(),
-        is_bot_game: true,
-        waiting_for_confirm: false,
-        pause_reason: None,
-    }));
-}
 
 #[cfg(test)]
 mod tests {

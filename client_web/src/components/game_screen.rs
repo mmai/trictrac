@@ -6,11 +6,12 @@ use trictrac_store::{Board as StoreBoard, CheckerMove, Color, Dice as StoreDice,
 
 use crate::app::{GameUiState, NetCommand, PauseReason};
 use crate::i18n::*;
-use crate::trictrac::types::{JanEntry, PlayerAction, SerStage, SerTurnStage};
+use crate::trictrac::types::{PlayerAction, SerStage, SerTurnStage};
 
 use super::board::Board;
 use super::die::Die;
 use super::score_panel::PlayerScorePanel;
+use super::scoring::ScoringPanel;
 
 #[allow(dead_code)]
 /// Returns (d0_used, d1_used) by matching each staged move's distance to a die.
@@ -36,33 +37,6 @@ fn matched_dice_used(staged: &[(u8, u8)], dice: (u8, u8)) -> (bool, bool) {
     (d0, d1)
 }
 
-/// Split `dice_jans` into (viewer_jans, opponent_jans).
-fn split_jans(dice_jans: &[JanEntry], viewer_is_active: bool) -> (Vec<JanEntry>, Vec<JanEntry>) {
-    let mut mine = Vec::new();
-    let mut theirs = Vec::new();
-    for e in dice_jans {
-        if viewer_is_active {
-            if e.total >= 0 {
-                mine.push(e.clone());
-            } else {
-                theirs.push(JanEntry {
-                    total: -e.total,
-                    points_per: -e.points_per,
-                    ..e.clone()
-                });
-            }
-        } else if e.total >= 0 {
-            theirs.push(e.clone());
-        } else {
-            mine.push(JanEntry {
-                total: -e.total,
-                points_per: -e.points_per,
-                ..e.clone()
-            });
-        }
-    }
-    (mine, theirs)
-}
 
 #[component]
 pub fn GameScreen(state: GameUiState) -> impl IntoView {
@@ -132,7 +106,10 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
     let cmd_tx_quit = cmd_tx.clone();
     let cmd_tx_end_quit = cmd_tx.clone();
     let cmd_tx_end_replay = cmd_tx.clone();
-    let show_hold_go = is_my_turn && vs.turn_stage == SerTurnStage::HoldOrGoChoice;
+    // Only show the fallback Go button when there is no ScoringPanel showing it.
+    let show_hold_go = is_my_turn
+        && vs.turn_stage == SerTurnStage::HoldOrGoChoice
+        && state.my_scored_event.is_none();
 
     // ── Valid move sequences for this turn ─────────────────────────────────────
     // Computed once per ViewState snapshot; used by Board (highlighting) and the
@@ -155,16 +132,18 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
     // Clone for the empty-move button reactive closure (Board consumes the original).
     let valid_seqs_empty = valid_sequences.clone();
 
-    // ── Jan split: viewer_jans / opponent_jans ─────────────────────────────────
-    let (my_jans, opp_jans) = split_jans(&vs.dice_jans, is_my_turn && !show_roll);
-
     // ── Scores ─────────────────────────────────────────────────────────────────
     let my_score = vs.scores[player_id as usize].clone();
     let opp_score = vs.scores[1 - player_id as usize].clone();
 
+    // ── Scoring notifications ──────────────────────────────────────────────────
+    let my_scored_event = state.my_scored_event.clone();
+    let opp_scored_event = state.opp_scored_event.clone();
+
     // ── Capture for closures ───────────────────────────────────────────────────
     let stage = vs.stage.clone();
     let turn_stage = vs.turn_stage.clone();
+    let turn_stage_for_panel = turn_stage.clone();
     let room_id = state.room_id.clone();
     let is_bot_game = state.is_bot_game;
 
@@ -199,7 +178,7 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
             </div>
 
             // ── Opponent score (above board) ─────────────────────────────────
-            <PlayerScorePanel score=opp_score jans=opp_jans is_you=false />
+            <PlayerScorePanel score=opp_score is_you=false />
 
             // ── Board + side panel ───────────────────────────────────────────
             <div class="board-and-panel">
@@ -256,6 +235,14 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
                         </div>
                     })}
 
+                    // Scoring notifications (own then opponent)
+                    {my_scored_event.map(|event| view! {
+                        <ScoringPanel event=event turn_stage=turn_stage_for_panel />
+                    })}
+                    {opp_scored_event.map(|event| view! {
+                        <ScoringPanel event=event turn_stage=SerTurnStage::RollDice is_opponent=true />
+                    })}
+
                     // Action buttons
                     <div class="action-buttons">
                         {waiting_for_confirm.then(|| view! {
@@ -263,6 +250,7 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
                                 pending.update(|q| { q.pop_front(); });
                             }>{t!(i18n, continue_btn)}</button>
                         })}
+                        // Fallback Go button when no scoring panel (e.g. after reconnect)
                         {show_hold_go.then(|| view! {
                             <button class="btn btn-primary" on:click=move |_| {
                                 cmd_tx_go.unbounded_send(NetCommand::Action(PlayerAction::Go)).ok();
@@ -302,7 +290,7 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
             </div>
 
             // ── Player score (below board) ────────────────────────────────────
-            <PlayerScorePanel score=my_score jans=my_jans is_you=true />
+            <PlayerScorePanel score=my_score is_you=true />
 
             // ── Game-over overlay ─────────────────────────────────────────────
             {stage_is_ended.then(|| {

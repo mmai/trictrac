@@ -1,6 +1,6 @@
-# Trictrac — Research Notes
+# Trictrac — store crate overview
 
-## 1. Rust Engine: Module Map
+## 1. Module Map
 
 | Module                 | Responsibility                                                            |
 | ---------------------- | ------------------------------------------------------------------------- |

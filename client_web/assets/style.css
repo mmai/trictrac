@@ -423,10 +423,10 @@ input[type="text"] {
 
 .top-row .field { justify-content: flex-start; }
 
-.field.clickable { cursor: pointer; }
-.field.clickable:hover { background: #e8c060 !important; }
-.field.selected  { background: #88bb44 !important; outline: 2px solid #446622; }
-.field.dest      { background: #aad060 !important; }
+.field.clickable { cursor: pointer; background: #aad060 !important; }
+.field.clickable:hover { background: #88bb44 !important; }
+.field.selected  { background: #709a20 !important; outline: 2px solid #446622; }
+/* .field.dest      { background: #aad060 !important; } */
 
 .field-num {
     font-size: 0.65rem;

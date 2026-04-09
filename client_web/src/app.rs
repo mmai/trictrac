@@ -13,6 +13,7 @@ use crate::i18n::I18nContextProvider;
 use crate::trictrac::backend::TrictracBackend;
 use crate::trictrac::bot_local::bot_decide;
 use crate::trictrac::types::{GameDelta, JanEntry, PlayerAction, ScoredEvent, SerTurnStage, ViewState};
+use trictrac_store::CheckerMove;
 
 use std::collections::VecDeque;
 
@@ -35,6 +36,8 @@ pub struct GameUiState {
     /// Points scored by this player in the transition to this state (if any).
     pub my_scored_event: Option<ScoredEvent>,
     pub opp_scored_event: Option<ScoredEvent>,
+    /// Checker moves to animate on this render. None when board is unchanged.
+    pub last_moves: Option<(CheckerMove, CheckerMove)>,
 }
 
 /// Reason the UI is paused waiting for the player to click Continue.
@@ -272,6 +275,7 @@ pub fn App() -> impl IntoView {
                                     pause_reason: None,
                                     my_scored_event: None,
                                     opp_scored_event: None,
+                                    last_moves: compute_last_moves(&prev_vs, &vs),
                                 },
                                 pending,
                                 screen,
@@ -338,6 +342,7 @@ async fn run_local_bot_game(
         pause_reason: None,
         my_scored_event: None,
         opp_scored_event: None,
+        last_moves: None,
     }));
 
     loop {
@@ -361,6 +366,7 @@ async fn run_local_bot_game(
                     pause_reason: None,
                     my_scored_event: scored,
                     opp_scored_event: opp_scored,
+                    last_moves: compute_last_moves(&prev_vs, &vs),
                 }));
             }
             Some(NetCommand::PlayVsBot) => return true,
@@ -389,6 +395,7 @@ async fn run_local_bot_game(
                             pause_reason: None,
                             my_scored_event: None,
                             opp_scored_event: None,
+                            last_moves: compute_last_moves(&prev_vs, &vs),
                         },
                         pending,
                         screen,
@@ -397,6 +404,22 @@ async fn run_local_bot_game(
             }
         }
     }
+}
+
+/// Returns the checker moves to animate when the board changed between two ViewStates.
+/// Returns `None` when the board is unchanged or no real moves were recorded.
+fn compute_last_moves(prev: &ViewState, next: &ViewState) -> Option<(CheckerMove, CheckerMove)> {
+    if prev.board == next.board {
+        return None;
+    }
+    let (m1, m2) = next.dice_moves;
+    if m1 == CheckerMove::default() && m2 == CheckerMove::default() {
+        // Relies on the engine invariant: dice_moves is updated atomically with the board
+        // change in the Move event handler. Any future engine path that mutates the board
+        // without setting dice_moves would bypass this guard and replay stale animation.
+        return None;
+    }
+    Some((m1, m2))
 }
 
 /// Computes a scoring event for `player_id` by comparing the previous and next
@@ -471,7 +494,9 @@ fn push_or_show(
                 ..new_state.clone()
             });
         });
-        screen.set(Screen::Playing(new_state));
+        // Animation belongs to the buffered confirmation step; clear it on the
+        // fallback live state so it doesn't fire again after the queue drains.
+        screen.set(Screen::Playing(GameUiState { last_moves: None, ..new_state }));
     } else {
         // No pause: show scoring directly on the live state.
         screen.set(Screen::Playing(GameUiState {
@@ -528,6 +553,7 @@ mod tests {
             scores: [score(), score()],
             dice,
             dice_jans: Vec::new(),
+            dice_moves: (CheckerMove::default(), CheckerMove::default()),
         }
     }
 

@@ -41,6 +41,8 @@ pub struct ViewState {
     pub dice: (u8, u8),
     /// Jans (scoring events) triggered by the last dice roll.
     pub dice_jans: Vec<JanEntry>,
+    /// Last two checker moves played; default when no move has occurred yet.
+    pub dice_moves: (CheckerMove, CheckerMove),
 }
 
 /// One scoring event from a dice roll.
@@ -73,6 +75,7 @@ impl ViewState {
             ],
             dice: (0, 0),
             dice_jans: Vec::new(),
+            dice_moves: (CheckerMove::default(), CheckerMove::default()),
         }
     }
 
@@ -166,6 +169,7 @@ impl ViewState {
             scores: [score_for(host_store_id), score_for(guest_store_id)],
             dice: (gs.dice.values.0, gs.dice.values.1),
             dice_jans,
+            dice_moves: gs.dice_moves,
         }
     }
 }

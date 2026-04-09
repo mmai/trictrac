@@ -119,6 +119,8 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
 
     let is_double_dice = dice.0 == dice.1 && dice.0 != 0;
 
+    let last_moves = state.last_moves;
+
     // ── Capture for closures ───────────────────────────────────────────────────
     let stage = vs.stage.clone();
     let turn_stage = vs.turn_stage.clone();
@@ -214,6 +216,7 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
                     bar_dice=show_dice.then_some(dice)
                     bar_is_move=is_move_stage
                     bar_is_double=is_double_dice
+                    last_moves=last_moves
                 />
 
                 // ── Side panel (scoring panels only) ─────────────────────────

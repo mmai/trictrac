@@ -999,6 +999,25 @@ body {
     letter-spacing: 0.14em;
 }
 
+/* ── §4a — Checker slide animation ─────────────────────────────────── */
+@keyframes checker-slide-in {
+    from { transform: translate(var(--slide-dx, 0px), var(--slide-dy, 0px)); }
+    to   { transform: none; }
+}
+/* Only the arriving (outermost) checker animates; --slide-dx/dy are set
+   as inline styles on that element at render time, so no flash occurs. */
+.checker.arriving {
+    animation: checker-slide-in 0.28s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+/* Lift the field that owns an arriving checker above its siblings so the
+   checker doesn't slide under adjacent fields (isolation:isolate traps
+   z-index within each field's stacking context). */
+.field:has(.checker.arriving) {
+    isolation: auto;
+    z-index: 10;
+    position: relative;
+}
+
 /* ── Checker lift on selected field (§4b) ───────────────────────────── */
 .field.selected .checker-stack {
     transform: translateY(-5px);

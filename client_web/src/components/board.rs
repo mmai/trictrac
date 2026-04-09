@@ -1,8 +1,8 @@
 use leptos::prelude::*;
 use trictrac_store::CheckerMove;
 
-use crate::trictrac::types::{SerTurnStage, ViewState};
 use super::die::Die;
+use crate::trictrac::types::{SerTurnStage, ViewState};
 
 /// Field numbers in visual display order (left-to-right for each quarter), white's perspective.
 const TOP_LEFT_W: [u8; 6] = [13, 14, 15, 16, 17, 18];
@@ -20,17 +20,21 @@ const BOT_RIGHT_B: [u8; 6] = [18, 17, 16, 15, 14, 13];
 /// Returns true when `field_num` is the rest corner for this perspective.
 #[allow(dead_code)]
 fn is_rest_corner(field_num: u8, is_white: bool) -> bool {
-    if is_white { field_num == 12 } else { field_num == 13 }
+    if is_white {
+        field_num == 12
+    } else {
+        field_num == 13
+    }
 }
 
 /// Zone CSS class for a field number (field coordinates are always White's 1-24).
 fn field_zone_class(field_num: u8) -> &'static str {
     match field_num {
-        1..=6   => "zone-petit",
-        7..=12  => "zone-grand",
+        1..=6 => "zone-petit",
+        7..=12 => "zone-grand",
         13..=18 => "zone-retour",
         19..=24 => "zone-dernier",
-        _       => "",
+        _ => "",
     }
 }
 
@@ -39,11 +43,20 @@ fn bar_matched_dice_used(staged: &[(u8, u8)], dice: (u8, u8)) -> (bool, bool) {
     let mut d0 = false;
     let mut d1 = false;
     for &(from, to) in staged {
-        let dist = if from < to { to.saturating_sub(from) } else { from.saturating_sub(to) };
-        if !d0 && dist == dice.0 { d0 = true; }
-        else if !d1 && dist == dice.1 { d1 = true; }
-        else if !d0 { d0 = true; }
-        else { d1 = true; }
+        let dist = if from < to {
+            to.saturating_sub(from)
+        } else {
+            from.saturating_sub(to)
+        };
+        if !d0 && dist == dice.0 {
+            d0 = true;
+        } else if !d1 && dist == dice.1 {
+            d1 = true;
+        } else if !d0 {
+            d0 = true;
+        } else {
+            d1 = true;
+        }
     }
     (d0, d1)
 }
@@ -72,7 +85,8 @@ fn displayed_value(
 /// Fields whose checkers may be selected as the next origin given already-staged moves.
 fn valid_origins_for(seqs: &[(CheckerMove, CheckerMove)], staged: &[(u8, u8)]) -> Vec<u8> {
     let mut v: Vec<u8> = match staged.len() {
-        0 => seqs.iter()
+        0 => seqs
+            .iter()
             .map(|(m1, _)| m1.get_from() as u8)
             .filter(|&f| f != 0)
             .collect(),
@@ -103,27 +117,32 @@ fn field_center(f: usize, is_white: bool) -> Option<(f32, f32)> {
         match f {
             13..=18 => (f - 13, false, true),
             19..=24 => (f - 19, true, true),
-            7..=12  => (12 - f, false, false),
-            1..=6   => (6 - f, true, false),
-            _       => return None,
+            7..=12 => (12 - f, false, false),
+            1..=6 => (6 - f, true, false),
+            _ => return None,
         }
     } else {
         match f {
-            1..=6   => (f - 1, false, true),
-            7..=12  => (f - 7, true, true),
+            1..=6 => (f - 1, false, true),
+            7..=12 => (f - 7, true, true),
             19..=24 => (24 - f, false, false),
             13..=18 => (18 - f, true, false),
-            _       => return None,
+            _ => return None,
         }
     };
     // Left-quarter field i center x:  4(pad) + i*62 + 30(half field) = 34 + 62i
     // Right-quarter:  4 + 370(quarter) + 4(gap) + 68(bar) + 4(gap) + i*62 + 30 = 480 + 62i
-    let x = if right { 480.0 + qi as f32 * 62.0 } else { 34.0 + qi as f32 * 62.0 };
+    let x = if right {
+        480.0 + qi as f32 * 62.0
+    } else {
+        34.0 + qi as f32 * 62.0
+    };
     // Top row triangle base (wide end) ≈ y=30; bot row triangle base ≈ y=358.
     // (Top base: 4pad + 4field-pad + 20half-checker ≈ 28; Bot base: 388 − 4pad − 4field-pad − 20 ≈ 360)
     let y = if top { 30.0 } else { 358.0 };
     Some((x, y))
 }
+
 
 /// SVG `<g>` element drawing one arrow (shadow + gold) from `fp` to `tp`.
 fn arrow_svg(fp: (f32, f32), tp: (f32, f32)) -> AnyView {
@@ -153,15 +172,21 @@ fn arrow_svg(fp: (f32, f32), tp: (f32, f32)) -> AnyView {
     let bary = y2 - ny * ah;
     let pts = format!(
         "{:.1},{:.1} {:.1},{:.1} {:.1},{:.1}",
-        x2, y2,
-        bx + px * aw, bary + py * aw,
-        bx - px * aw, bary - py * aw,
+        x2,
+        y2,
+        bx + px * aw,
+        bary + py * aw,
+        bx - px * aw,
+        bary - py * aw,
     );
     let shadow_pts = format!(
         "{:.1},{:.1} {:.1},{:.1} {:.1},{:.1}",
-        x2, y2,
-        bx + px * (aw + 1.5), bary + py * (aw + 1.5),
-        bx - px * (aw + 1.5), bary - py * (aw + 1.5),
+        x2,
+        y2,
+        bx + px * (aw + 1.5),
+        bary + py * (aw + 1.5),
+        bx - px * (aw + 1.5),
+        bary - py * (aw + 1.5),
     );
 
     view! {
@@ -187,9 +212,14 @@ fn arrow_svg(fp: (f32, f32), tp: (f32, f32)) -> AnyView {
 
 /// Valid destinations for a selected origin given already-staged moves.
 /// May include 0 (exit); callers handle that case.
-fn valid_dests_for(seqs: &[(CheckerMove, CheckerMove)], staged: &[(u8, u8)], origin: u8) -> Vec<u8> {
+fn valid_dests_for(
+    seqs: &[(CheckerMove, CheckerMove)],
+    staged: &[(u8, u8)],
+    origin: u8,
+) -> Vec<u8> {
     let mut v: Vec<u8> = match staged.len() {
-        0 => seqs.iter()
+        0 => seqs
+            .iter()
             .filter(|(m1, _)| m1.get_from() as u8 == origin)
             .map(|(m1, _)| m1.get_to() as u8)
             .collect(),
@@ -222,11 +252,17 @@ pub fn Board(
     /// All valid two-move sequences for this turn (empty when not in move stage).
     valid_sequences: Vec<(CheckerMove, CheckerMove)>,
     /// Dice to display in the center bars; None means dice not yet rolled (cups shown upright).
-    #[prop(default = None)] bar_dice: Option<(u8, u8)>,
+    #[prop(default = None)]
+    bar_dice: Option<(u8, u8)>,
     /// Whether we're in the move stage (determines used/unused die appearance).
-    #[prop(default = false)] bar_is_move: bool,
+    #[prop(default = false)]
+    bar_is_move: bool,
     /// Whether the dice are a double (golden glow).
-    #[prop(default = false)] bar_is_double: bool,
+    #[prop(default = false)]
+    bar_is_double: bool,
+    /// Checker moves to animate on mount (None when board unchanged).
+    #[prop(default = None)]
+    last_moves: Option<(CheckerMove, CheckerMove)>,
 ) -> impl IntoView {
     let board = view_state.board;
     let is_move_stage = view_state.active_mp_player == Some(player_id)
@@ -245,12 +281,12 @@ pub fn Board(
     let exit_field_test: fn(u8) -> bool;
     if is_white {
         let in_exit: i8 = board_snapshot[18..24].iter().map(|&v| v.max(0)).sum();
-        let total:   i8 = board_snapshot.iter().map(|&v| v.max(0)).sum();
+        let total: i8 = board_snapshot.iter().map(|&v| v.max(0)).sum();
         all_in_exit = total > 0 && in_exit == total;
         exit_field_test = |f| matches!(f, 19..=24);
     } else {
         let in_exit: i8 = board_snapshot[0..6].iter().map(|&v| (-v).max(0)).sum();
-        let total:   i8 = board_snapshot.iter().map(|&v| (-v).max(0)).sum();
+        let total: i8 = board_snapshot.iter().map(|&v| (-v).max(0)).sum();
         all_in_exit = total > 0 && in_exit == total;
         exit_field_test = |f| matches!(f, 1..=6);
     }
@@ -268,8 +304,23 @@ pub fn Board(
                 } else {
                     None
                 };
+                // §4a — slide delta for the arriving checker at this field.
+                // Computed once per field at render time; Option<(f32,f32)> is Copy.
+                let slide_delta: Option<(f32, f32)> = last_moves.and_then(|(m1, m2)| {
+                    [m1, m2].iter().find_map(|m| {
+                        if m.get_to() != field_num as usize || m.get_from() == m.get_to() {
+                            return None;
+                        }
+                        let (fx, fy) = field_center(m.get_from(), is_white)?;
+                        let (tx, ty) = field_center(m.get_to(), is_white)?;
+                        let dx = fx - tx;
+                        let dy = fy - ty;
+                        (dx.abs() >= 1.0 || dy.abs() >= 1.0).then_some((dx, dy))
+                    })
+                });
                 view! {
                     <div
+                        id={format!("field-{field_num}")}
                         title=corner_title
                         class=move || {
                             let staged = staged_moves.get();
@@ -383,6 +434,16 @@ pub fn Board(
                                     } else {
                                         String::new()
                                     };
+                                    if i == outer_idx {
+                                        if let Some((dx, dy)) = slide_delta {
+                                            return view! {
+                                                <div
+                                                    class=format!("checker {color} arriving")
+                                                    style=format!("--slide-dx:{dx:.1}px;--slide-dy:{dy:.1}px")
+                                                >{label}</div>
+                                            }.into_any();
+                                        }
+                                    }
                                     view! {
                                         <div class=format!("checker {color}")>{label}</div>
                                     }.into_any()
@@ -402,7 +463,11 @@ pub fn Board(
         match bar_dice {
             None => view! { <div class="bar-die-slot"></div> }.into_any(),
             Some(dice_vals) => {
-                let die_val = if die_idx == 0 { dice_vals.0 } else { dice_vals.1 };
+                let die_val = if die_idx == 0 {
+                    dice_vals.0
+                } else {
+                    dice_vals.1
+                };
                 view! {
                     <div class="bar-die-slot">
                         {move || {
@@ -421,6 +486,7 @@ pub fn Board(
             }
         }
     };
+
 
     let (tl, tr, bl, br) = if is_white {
         (&TOP_LEFT_W, &TOP_RIGHT_W, &BOT_LEFT_W, &BOT_RIGHT_W)

@@ -48,5 +48,8 @@
   "bredouille_applied": "Bredouille !",
   "hold": "Tenir",
   "opp_scored_pts": "Adversaire +{{ n }} pts",
-  "opp_hole_made": "Trou adverse ! {{ holes }}/12"
+  "opp_hole_made": "Trou adverse ! {{ holes }}/12",
+  "hint_move": "Cliquez un champ surligné pour déplacer",
+  "hint_hold_or_go": "Tenir pour garder les points — S'en aller pour repartir",
+  "hint_continue": "Cliquez Continuer quand vous êtes prêt"
 }

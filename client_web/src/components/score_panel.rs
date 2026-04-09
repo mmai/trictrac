@@ -28,10 +28,17 @@ pub fn PlayerScorePanel(score: PlayerScore, is_you: bool) -> impl IntoView {
     let i18n = use_i18n();
 
     let points_pct = format!("{}%", (score.points as u32 * 100 / 12).min(100));
-    let holes_pct = format!("{}%", (score.holes as u32 * 100 / 12).min(100));
     let points_val = format!("{}/12", score.points);
-    let holes_val = format!("{}/12", score.holes);
+    let holes = score.holes;
     let can_bredouille = score.can_bredouille;
+
+    // 12 peg holes; filled up to `holes`
+    let pegs: Vec<AnyView> = (1u8..=12)
+        .map(|i| {
+            let cls = if i <= holes { "peg-hole filled" } else { "peg-hole" };
+            view! { <div class=cls></div> }.into_any()
+        })
+        .collect();
 
     view! {
         <div class="player-score-panel">
@@ -54,10 +61,8 @@ pub fn PlayerScorePanel(score: PlayerScore, is_you: bool) -> impl IntoView {
                 </div>
                 <div class="score-bar-row">
                     <span class="score-bar-label">{t!(i18n, holes_label)}</span>
-                    <div class="score-bar">
-                        <div class="score-bar-fill score-bar-holes" style=format!("width:{holes_pct}")></div>
-                    </div>
-                    <span class="score-bar-value">{holes_val}</span>
+                    <div class="peg-track">{pegs}</div>
+                    <span class="score-bar-value">{format!("{holes}/12")}</span>
                 </div>
             </div>
         </div>

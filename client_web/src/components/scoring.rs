@@ -11,12 +11,8 @@ use super::score_panel::jan_label;
 fn scoring_jan_row(entry: JanEntry) -> impl IntoView {
     let i18n = use_i18n();
     let hovered = use_context::<RwSignal<Vec<(CheckerMove, CheckerMove)>>>();
-    let label = jan_label(&entry.jan);
-    let double_tag = if entry.is_double {
-        t_string!(i18n, jan_double).to_owned()
-    } else {
-        t_string!(i18n, jan_simple).to_owned()
-    };
+    let jan = entry.jan;
+    let is_double = entry.is_double;
     let ways_tag = format!("×{}", entry.ways);
     let pts_str = format!("+{}", entry.total);
     let moves_hover = entry.moves.clone();
@@ -35,8 +31,12 @@ fn scoring_jan_row(entry: JanEntry) -> impl IntoView {
                 }
             }
         >
-            <span class="jan-label">{label}</span>
-            <span class="jan-tag">{double_tag}</span>
+            <span class="jan-label">{move || jan_label(&jan)}</span>
+            <span class="jan-tag">{move || if is_double {
+                t_string!(i18n, jan_double).to_owned()
+            } else {
+                t_string!(i18n, jan_simple).to_owned()
+            }}</span>
             <span class="jan-tag">{ways_tag}</span>
             <span class="jan-pts">{pts_str}</span>
         </div>
@@ -86,17 +86,22 @@ pub fn ScoringPanel(
                     })}
                 </div>
             })}
-            {show_hold_go.then(|| view! {
-                <div class="hold-go-buttons">
-                    <button class="btn btn-secondary">
-                        {t!(i18n, hold)}
-                    </button>
-                    <button class="btn btn-primary" on:click=move |_| {
-                        cmd_tx.unbounded_send(NetCommand::Action(PlayerAction::Go)).ok();
-                    }>
-                        {t!(i18n, go)}
-                    </button>
-                </div>
+            {show_hold_go.then(|| {
+                let dismissed = RwSignal::new(false);
+                view! {
+                    <div class="hold-go-buttons" class:hidden=move || dismissed.get()>
+                        <button class="btn btn-secondary" on:click=move |_| {
+                            dismissed.set(true);
+                        }>
+                            {t!(i18n, hold)}
+                        </button>
+                        <button class="btn btn-primary" on:click=move |_| {
+                            cmd_tx.unbounded_send(NetCommand::Action(PlayerAction::Go)).ok();
+                        }>
+                            {t!(i18n, go)}
+                        </button>
+                    </div>
+                }
             })}
         </div>
     }

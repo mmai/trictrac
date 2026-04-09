@@ -9,34 +9,8 @@ use crate::i18n::*;
 use crate::trictrac::types::{PlayerAction, SerStage, SerTurnStage};
 
 use super::board::Board;
-use super::die::Die;
 use super::score_panel::PlayerScorePanel;
 use super::scoring::ScoringPanel;
-
-#[allow(dead_code)]
-/// Returns (d0_used, d1_used) by matching each staged move's distance to a die.
-fn matched_dice_used(staged: &[(u8, u8)], dice: (u8, u8)) -> (bool, bool) {
-    let mut d0 = false;
-    let mut d1 = false;
-    for &(from, to) in staged {
-        let dist = if from < to {
-            to.saturating_sub(from)
-        } else {
-            from.saturating_sub(to)
-        };
-        if !d0 && dist == dice.0 {
-            d0 = true;
-        } else if !d1 && dist == dice.1 {
-            d1 = true;
-        } else if !d0 {
-            d0 = true;
-        } else {
-            d1 = true;
-        }
-    }
-    (d0, d1)
-}
-
 
 #[component]
 pub fn GameScreen(state: GameUiState) -> impl IntoView {
@@ -139,18 +113,27 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
     // ── Scoring notifications ──────────────────────────────────────────────────
     let my_scored_event = state.my_scored_event.clone();
     let opp_scored_event = state.opp_scored_event.clone();
+    let hole_toast_info = my_scored_event.as_ref()
+        .filter(|e| e.holes_gained > 0)
+        .map(|e| (e.holes_total, e.bredouille));
+
+    let is_double_dice = dice.0 == dice.1 && dice.0 != 0;
 
     // ── Capture for closures ───────────────────────────────────────────────────
     let stage = vs.stage.clone();
     let turn_stage = vs.turn_stage.clone();
     let turn_stage_for_panel = turn_stage.clone();
+    let turn_stage_for_sub = turn_stage.clone();
     let room_id = state.room_id.clone();
     let is_bot_game = state.is_bot_game;
 
     // ── Game-over info ─────────────────────────────────────────────────────────
     let stage_is_ended = stage == SerStage::Ended;
     let winner_is_me = my_score.holes >= 12;
+    let my_name_end = my_score.name.clone();
+    let my_holes_end = my_score.holes;
     let opp_name_end = opp_score.name.clone();
+    let opp_holes_end = opp_score.holes;
 
     view! {
         <div class="game-container">
@@ -180,6 +163,46 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
             // ── Opponent score (above board) ─────────────────────────────────
             <PlayerScorePanel score=opp_score is_you=false />
 
+            // ── Status bar — full width, above board (§10b) ──────────────────
+            <div class="game-status">
+                {move || {
+                    if let Some(ref reason) = pause_reason {
+                        return String::from(match reason {
+                            PauseReason::AfterOpponentRoll => t_string!(i18n, after_opponent_roll),
+                            PauseReason::AfterOpponentGo   => t_string!(i18n, after_opponent_go),
+                            PauseReason::AfterOpponentMove => t_string!(i18n, after_opponent_move),
+                        });
+                    }
+                    let n = staged_moves.get().len();
+                    if is_move_stage {
+                        t_string!(i18n, select_move, n = n + 1)
+                    } else {
+                        String::from(match (&stage, is_my_turn, &turn_stage) {
+                            (SerStage::Ended, _, _) => t_string!(i18n, game_over),
+                            (SerStage::PreGame, _, _) => t_string!(i18n, waiting_for_opponent),
+                            (SerStage::InGame, true, SerTurnStage::RollDice) => t_string!(i18n, your_turn_roll),
+                            (SerStage::InGame, true, SerTurnStage::HoldOrGoChoice) => t_string!(i18n, hold_or_go),
+                            (SerStage::InGame, true, _) => t_string!(i18n, your_turn),
+                            (SerStage::InGame, false, _) => t_string!(i18n, opponent_turn),
+                        })
+                    }
+                }}
+            </div>
+
+            // ── Contextual sub-prompt (§8a) ──────────────────────────────────
+            {move || {
+                let hint: String = if waiting_for_confirm {
+                    t_string!(i18n, hint_continue).to_owned()
+                } else if is_move_stage {
+                    t_string!(i18n, hint_move).to_owned()
+                } else if is_my_turn && turn_stage_for_sub == SerTurnStage::HoldOrGoChoice {
+                    t_string!(i18n, hint_hold_or_go).to_owned()
+                } else {
+                    String::new()
+                };
+                (!hint.is_empty()).then(|| view! { <p class="game-sub-prompt">{hint}</p> })
+            }}
+
             // ── Board + side panel ───────────────────────────────────────────
             <div class="board-and-panel">
                 <Board
@@ -188,105 +211,64 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
                     selected_origin=selected_origin
                     staged_moves=staged_moves
                     valid_sequences=valid_sequences
+                    bar_dice=show_dice.then_some(dice)
+                    bar_is_move=is_move_stage
+                    bar_is_double=is_double_dice
                 />
 
-                // ── Side panel ───────────────────────────────────────────────
+                // ── Side panel (scoring panels only) ─────────────────────────
                 <div class="side-panel">
-                    // Status message
-                    <div class="status-bar">
-                        <span>{move || {
-                            if let Some(ref reason) = pause_reason {
-                                return String::from(match reason {
-                                    PauseReason::AfterOpponentRoll => t_string!(i18n, after_opponent_roll),
-                                    PauseReason::AfterOpponentGo   => t_string!(i18n, after_opponent_go),
-                                    PauseReason::AfterOpponentMove => t_string!(i18n, after_opponent_move),
-                                });
-                            }
-                            let n = staged_moves.get().len();
-                            if is_move_stage {
-                                t_string!(i18n, select_move, n = n + 1)
-                            } else {
-                                String::from(match (&stage, is_my_turn, &turn_stage) {
-                                    (SerStage::Ended, _, _) => t_string!(i18n, game_over),
-                                    (SerStage::PreGame, _, _) => t_string!(i18n, waiting_for_opponent),
-                                    (SerStage::InGame, true, SerTurnStage::RollDice) => t_string!(i18n, your_turn_roll),
-                                    (SerStage::InGame, true, SerTurnStage::HoldOrGoChoice) => t_string!(i18n, hold_or_go),
-                                    (SerStage::InGame, true, _) => t_string!(i18n, your_turn),
-                                    (SerStage::InGame, false, _) => t_string!(i18n, opponent_turn),
-                                })
-                            }
-                        }}</span>
-                    </div>
-
-                    // Dice (always shown when rolled, used state depends on whose turn)
-                    {show_dice.then(|| view! {
-                        <div class="dice-bar">
-                            {move || {
-                                let (d0, d1) = if is_move_stage {
-                                    matched_dice_used(&staged_moves.get(), dice)
-                                } else {
-                                    (true, true)
-                                };
-                                view! {
-                                    <Die value=dice.0 used=d0 />
-                                    <Die value=dice.1 used=d1 />
-                                }
-                            }}
-                        </div>
-                    })}
-
-                    // Scoring notifications (own then opponent)
                     {my_scored_event.map(|event| view! {
                         <ScoringPanel event=event turn_stage=turn_stage_for_panel />
                     })}
                     {opp_scored_event.map(|event| view! {
                         <ScoringPanel event=event turn_stage=SerTurnStage::RollDice is_opponent=true />
                     })}
-
-                    // Action buttons
-                    <div class="action-buttons">
-                        {waiting_for_confirm.then(|| view! {
-                            <button class="btn btn-primary" on:click=move |_| {
-                                pending.update(|q| { q.pop_front(); });
-                            }>{t!(i18n, continue_btn)}</button>
-                        })}
-                        // Fallback Go button when no scoring panel (e.g. after reconnect)
-                        {show_hold_go.then(|| view! {
-                            <button class="btn btn-primary" on:click=move |_| {
-                                cmd_tx_go.unbounded_send(NetCommand::Action(PlayerAction::Go)).ok();
-                            }>{t!(i18n, go)}</button>
-                        })}
-                        {move || {
-                            // Show the empty-move button only when (0,0) is a valid
-                            // first or second move given what has already been staged.
-                            let staged = staged_moves.get();
-                            let show = is_move_stage && staged.len() < 2 && (
-                                valid_seqs_empty.is_empty() || match staged.len() {
-                                    0 => valid_seqs_empty.iter().any(|(m1, _)| m1.get_from() == 0),
-                                    1 => {
-                                        let (f0, t0) = staged[0];
-                                        valid_seqs_empty.iter()
-                                            .filter(|(m1, _)| {
-                                                m1.get_from() as u8 == f0
-                                                    && m1.get_to() as u8 == t0
-                                            })
-                                            .any(|(_, m2)| m2.get_from() == 0)
-                                    }
-                                    _ => false,
-                                }
-                            );
-                            show.then(|| view! {
-                                <button
-                                    class="btn btn-secondary"
-                                    on:click=move |_| {
-                                        selected_origin.set(None);
-                                        staged_moves.update(|v| v.push((0, 0)));
-                                    }
-                                >{t!(i18n, empty_move)}</button>
-                            })
-                        }}
-                    </div>
                 </div>
+            </div>
+
+            // ── Action buttons below board (§10c) ────────────────────────────
+            <div class="board-actions">
+                {waiting_for_confirm.then(|| view! {
+                    <button class="btn btn-primary" on:click=move |_| {
+                        pending.update(|q| { q.pop_front(); });
+                    }>{t!(i18n, continue_btn)}</button>
+                })}
+                // Fallback Go button when no scoring panel (e.g. after reconnect)
+                {show_hold_go.then(|| view! {
+                    <button class="btn btn-primary" on:click=move |_| {
+                        cmd_tx_go.unbounded_send(NetCommand::Action(PlayerAction::Go)).ok();
+                    }>{t!(i18n, go)}</button>
+                })}
+                {move || {
+                    // Show the empty-move button only when (0,0) is a valid
+                    // first or second move given what has already been staged.
+                    let staged = staged_moves.get();
+                    let show = is_move_stage && staged.len() < 2 && (
+                        valid_seqs_empty.is_empty() || match staged.len() {
+                            0 => valid_seqs_empty.iter().any(|(m1, _)| m1.get_from() == 0),
+                            1 => {
+                                let (f0, t0) = staged[0];
+                                valid_seqs_empty.iter()
+                                    .filter(|(m1, _)| {
+                                        m1.get_from() as u8 == f0
+                                            && m1.get_to() as u8 == t0
+                                    })
+                                    .any(|(_, m2)| m2.get_from() == 0)
+                            }
+                            _ => false,
+                        }
+                    );
+                    show.then(|| view! {
+                        <button
+                            class="btn btn-secondary"
+                            on:click=move |_| {
+                                selected_origin.set(None);
+                                staged_moves.update(|v| v.push((0, 0)));
+                            }
+                        >{t!(i18n, empty_move)}</button>
+                    })
+                }}
             </div>
 
             // ── Player score (below board) ────────────────────────────────────
@@ -304,6 +286,13 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
                         <div class="game-over-box">
                             <h2>{t!(i18n, game_over)}</h2>
                             <p class="game-over-winner">{winner_text}</p>
+                            <div class="game-over-score">
+                                <span class="game-over-score-name">{my_name_end}</span>
+                                <span class="game-over-score-nums">
+                                    {format!("{my_holes_end} — {opp_holes_end}")}
+                                </span>
+                                <span class="game-over-score-name">{opp_name_end.clone()}</span>
+                            </div>
                             <div class="game-over-actions">
                                 <button class="btn btn-secondary" on:click=move |_| {
                                     cmd_tx_end_quit.unbounded_send(NetCommand::Disconnect).ok();
@@ -317,6 +306,17 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
                         </div>
                     </div>
                 }
+            })}
+
+            // ── Hole toast (§6a) — board-centered overlay when a hole is won ──
+            {hole_toast_info.map(|(holes_total, bredouille)| view! {
+                <div class="hole-toast" class:hole-toast-bredouille=bredouille>
+                    <div class="hole-toast-title">"Trou !"</div>
+                    <div class="hole-toast-count">{format!("{holes_total} / 12")}</div>
+                    {bredouille.then(|| view! {
+                        <div class="hole-toast-bredouille">"× 2 bredouille"</div>
+                    })}
+                </div>
             })}
         </div>
     }

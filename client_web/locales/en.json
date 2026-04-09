@@ -48,5 +48,8 @@
   "bredouille_applied": "Bredouille!",
   "hold": "Hold",
   "opp_scored_pts": "Opponent +{{ n }} pts",
-  "opp_hole_made": "Opponent hole! {{ holes }}/12"
+  "opp_hole_made": "Opponent hole! {{ holes }}/12",
+  "hint_move": "Click a highlighted field to move a checker",
+  "hint_hold_or_go": "Hold to keep points — Go to reset the setting",
+  "hint_continue": "Click Continue when ready"
 }

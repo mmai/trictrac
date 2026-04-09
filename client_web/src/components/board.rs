@@ -2,6 +2,7 @@ use leptos::prelude::*;
 use trictrac_store::CheckerMove;
 
 use crate::trictrac::types::{SerTurnStage, ViewState};
+use super::die::Die;
 
 /// Field numbers in visual display order (left-to-right for each quarter), white's perspective.
 const TOP_LEFT_W: [u8; 6] = [13, 14, 15, 16, 17, 18];
@@ -14,6 +15,38 @@ const TOP_LEFT_B: [u8; 6] = [1, 2, 3, 4, 5, 6];
 const TOP_RIGHT_B: [u8; 6] = [7, 8, 9, 10, 11, 12];
 const BOT_LEFT_B: [u8; 6] = [24, 23, 22, 21, 20, 19];
 const BOT_RIGHT_B: [u8; 6] = [18, 17, 16, 15, 14, 13];
+
+/// The rest corner is field 12 (White) or field 13 (Black) in the store's coordinate system.
+/// Returns true when `field_num` is the rest corner for this perspective.
+#[allow(dead_code)]
+fn is_rest_corner(field_num: u8, is_white: bool) -> bool {
+    if is_white { field_num == 12 } else { field_num == 13 }
+}
+
+/// Zone CSS class for a field number (field coordinates are always White's 1-24).
+fn field_zone_class(field_num: u8) -> &'static str {
+    match field_num {
+        1..=6   => "zone-petit",
+        7..=12  => "zone-grand",
+        13..=18 => "zone-retour",
+        19..=24 => "zone-dernier",
+        _       => "",
+    }
+}
+
+/// Returns (d0_used, d1_used) for the bar dice display.
+fn bar_matched_dice_used(staged: &[(u8, u8)], dice: (u8, u8)) -> (bool, bool) {
+    let mut d0 = false;
+    let mut d1 = false;
+    for &(from, to) in staged {
+        let dist = if from < to { to.saturating_sub(from) } else { from.saturating_sub(to) };
+        if !d0 && dist == dice.0 { d0 = true; }
+        else if !d1 && dist == dice.1 { d1 = true; }
+        else if !d0 { d0 = true; }
+        else { d1 = true; }
+    }
+    (d0, d1)
+}
 
 /// Returns the displayed board value for `field_num` after applying `staged_moves`.
 /// Field numbers are always in white's coordinate system (1–24).
@@ -59,8 +92,9 @@ fn valid_origins_for(seqs: &[(CheckerMove, CheckerMove)], staged: &[(u8, u8)]) -
 }
 
 /// Pixel center of a board field in the SVG overlay coordinate space.
-/// Geometry is derived from CSS: field 60px wide, 180px tall, board padding 4px,
-/// board-row gap 4px, board-bar 20px, board-center-bar 12px.
+/// Geometry: field 60×180px, board padding 4px, gap 4px, bar 20px, center-bar 12px.
+/// With triangular flèches, arrows target the WIDE BASE of each triangle —
+/// that is where the checker stack actually sits.
 fn field_center(f: usize, is_white: bool) -> Option<(f32, f32)> {
     if f == 0 || f > 24 {
         return None;
@@ -69,24 +103,25 @@ fn field_center(f: usize, is_white: bool) -> Option<(f32, f32)> {
         match f {
             13..=18 => (f - 13, false, true),
             19..=24 => (f - 19, true, true),
-            7..=12 => (12 - f, false, false),
-            1..=6 => (6 - f, true, false),
-            _ => return None,
+            7..=12  => (12 - f, false, false),
+            1..=6   => (6 - f, true, false),
+            _       => return None,
         }
     } else {
         match f {
-            1..=6 => (f - 1, false, true),
-            7..=12 => (f - 7, true, true),
+            1..=6   => (f - 1, false, true),
+            7..=12  => (f - 7, true, true),
             19..=24 => (24 - f, false, false),
             13..=18 => (18 - f, true, false),
-            _ => return None,
+            _       => return None,
         }
     };
-    // Left-quarter field i center x: 4 + i*62 + 30 = 34 + 62i
-    // Right-quarter field i center x: 4 + 370 + 4 + 20 + 4 + i*62 + 30 = 432 + 62i
-    let x = if right { 432.0 + qi as f32 * 62.0 } else { 34.0 + qi as f32 * 62.0 };
-    // Top row center y: 4 + 90 = 94; bot row: 4 + 180 + 4 + 12 + 4 + 90 = 294
-    let y = if top { 94.0 } else { 294.0 };
+    // Left-quarter field i center x:  4(pad) + i*62 + 30(half field) = 34 + 62i
+    // Right-quarter:  4 + 370(quarter) + 4(gap) + 68(bar) + 4(gap) + i*62 + 30 = 480 + 62i
+    let x = if right { 480.0 + qi as f32 * 62.0 } else { 34.0 + qi as f32 * 62.0 };
+    // Top row triangle base (wide end) ≈ y=30; bot row triangle base ≈ y=358.
+    // (Top base: 4pad + 4field-pad + 20half-checker ≈ 28; Bot base: 388 − 4pad − 4field-pad − 20 ≈ 360)
+    let y = if top { 30.0 } else { 358.0 };
     Some((x, y))
 }
 
@@ -186,6 +221,12 @@ pub fn Board(
     staged_moves: RwSignal<Vec<(u8, u8)>>,
     /// All valid two-move sequences for this turn (empty when not in move stage).
     valid_sequences: Vec<(CheckerMove, CheckerMove)>,
+    /// Dice to display in the center bars; None means dice not yet rolled (cups shown upright).
+    #[prop(default = None)] bar_dice: Option<(u8, u8)>,
+    /// Whether we're in the move stage (determines used/unused die appearance).
+    #[prop(default = false)] bar_is_move: bool,
+    /// Whether the dice are a double (golden glow).
+    #[prop(default = false)] bar_is_double: bool,
 ) -> impl IntoView {
     let board = view_state.board;
     let is_move_stage = view_state.active_mp_player == Some(player_id)
@@ -196,6 +237,24 @@ pub fn Board(
     let is_white = player_id == 0;
     let hovered_moves = use_context::<RwSignal<Vec<(CheckerMove, CheckerMove)>>>();
 
+    // Exit-eligible (§8c): all the player's checkers are in their last jan.
+    // White last jan = fields 19-24 (board indices 18-23, positive values).
+    // Black last jan = fields 1-6  (board indices 0-5, negative values).
+    let board_snapshot = view_state.board;
+    let all_in_exit: bool;
+    let exit_field_test: fn(u8) -> bool;
+    if is_white {
+        let in_exit: i8 = board_snapshot[18..24].iter().map(|&v| v.max(0)).sum();
+        let total:   i8 = board_snapshot.iter().map(|&v| v.max(0)).sum();
+        all_in_exit = total > 0 && in_exit == total;
+        exit_field_test = |f| matches!(f, 19..=24);
+    } else {
+        let in_exit: i8 = board_snapshot[0..6].iter().map(|&v| (-v).max(0)).sum();
+        let total:   i8 = board_snapshot.iter().map(|&v| (-v).max(0)).sum();
+        all_in_exit = total > 0 && in_exit == total;
+        exit_field_test = |f| matches!(f, 1..=6);
+    }
+
     // `valid_sequences` is cloned per field (the Vec is small; Send-safe unlike Rc).
     let fields_from = |nums: &[u8], is_top_row: bool| -> Vec<AnyView> {
         nums.iter()
@@ -204,8 +263,14 @@ pub fn Board(
                 // is Send, which Leptos requires for reactive attribute functions.
                 let seqs_c = valid_sequences.clone();
                 let seqs_k = valid_sequences.clone();
+                let corner_title = if is_rest_corner(field_num, is_white) {
+                    Some("Coin de repos — must enter and leave with 2 checkers")
+                } else {
+                    None
+                };
                 view! {
                     <div
+                        title=corner_title
                         class=move || {
                             let staged = staged_moves.get();
                             let val = displayed_value(board, &staged, is_white, field_num);
@@ -213,7 +278,20 @@ pub fn Board(
                             let can_stage = is_move_stage && staged.len() < 2;
                             let sel = selected_origin.get();
 
-                            let mut cls = "field".to_string();
+                            let mut cls = format!("field {}", field_zone_class(field_num));
+                            if is_rest_corner(field_num, is_white) {
+                                cls.push_str(" corner");
+                                // Pulse when the corner can be reached this turn
+                                if !seqs_c.is_empty() && seqs_c.iter().any(|(m1, m2)| {
+                                    m1.get_to() as u8 == field_num
+                                        || m2.get_to() as u8 == field_num
+                                }) {
+                                    cls.push_str(" corner-available");
+                                }
+                            }
+                            if all_in_exit && exit_field_test(field_num) {
+                                cls.push_str(" exit-eligible");
+                            }
 
                             if seqs_c.is_empty() {
                                 // No restriction (dice not rolled or not move stage)
@@ -319,53 +397,100 @@ pub fn Board(
             .collect()
     };
 
+    // ── Bar content: die in the center bar (die_idx 0 = top bar, 1 = bottom bar) ──
+    let bar_content = move |die_idx: u8| -> AnyView {
+        match bar_dice {
+            None => view! { <div class="bar-die-slot"></div> }.into_any(),
+            Some(dice_vals) => {
+                let die_val = if die_idx == 0 { dice_vals.0 } else { dice_vals.1 };
+                view! {
+                    <div class="bar-die-slot">
+                        {move || {
+                            let staged = staged_moves.get();
+                            let (u0, u1) = if bar_is_move {
+                                bar_matched_dice_used(&staged, dice_vals)
+                            } else {
+                                (true, true)
+                            };
+                            let used = if die_idx == 0 { u0 } else { u1 };
+                            view! { <Die value=die_val used=used is_double=bar_is_double /> }
+                        }}
+                    </div>
+                }
+                .into_any()
+            }
+        }
+    };
+
     let (tl, tr, bl, br) = if is_white {
         (&TOP_LEFT_W, &TOP_RIGHT_W, &BOT_LEFT_W, &BOT_RIGHT_W)
     } else {
         (&TOP_LEFT_B, &TOP_RIGHT_B, &BOT_LEFT_B, &BOT_RIGHT_B)
     };
 
+    // Zone label pairs (top-left, top-right, bot-left, bot-right) per perspective.
+    let (label_tl, label_tr, label_bl, label_br) = if is_white {
+        ("jan de retour", "dernier jan", "grand jan", "petit jan")
+    } else {
+        ("petit jan", "grand jan", "dernier jan", "jan de retour")
+    };
+
     view! {
-        <div class="board">
-            <div class="board-row top-row">
-                <div class="board-quarter">{fields_from(tl, true)}</div>
-                <div class="board-bar"></div>
-                <div class="board-quarter">{fields_from(tr, true)}</div>
+        // board-wrapper keeps zone labels outside .board so the SVG overlay
+        // inside .board stays correctly positioned (position:absolute top:0 left:0
+        // is relative to .board, not the wrapper).
+        <div class="board-wrapper">
+            <div class="zone-labels-row">
+                <div class="zone-label zone-label-quarter">{label_tl}</div>
+                <div class="zone-label zone-label-bar"></div>
+                <div class="zone-label zone-label-quarter">{label_tr}</div>
             </div>
-            <div class="board-center-bar"></div>
-            <div class="board-row bot-row">
-                <div class="board-quarter">{fields_from(bl, false)}</div>
-                <div class="board-bar"></div>
-                <div class="board-quarter">{fields_from(br, false)}</div>
+            <div class="board">
+                <div class="board-row top-row">
+                    <div class="board-quarter">{fields_from(tl, true)}</div>
+                    <div class="board-bar">{bar_content(0)}</div>
+                    <div class="board-quarter">{fields_from(tr, true)}</div>
+                </div>
+                <div class="board-center-bar"></div>
+                <div class="board-row bot-row">
+                    <div class="board-quarter">{fields_from(bl, false)}</div>
+                    <div class="board-bar">{bar_content(1)}</div>
+                    <div class="board-quarter">{fields_from(br, false)}</div>
+                </div>
+                // SVG overlay: arrows for hovered jan moves
+                <svg
+                    width="824" height="388"
+                    style="position:absolute;top:0;left:0;pointer-events:none;overflow:visible"
+                >
+                    {move || {
+                        let Some(hm) = hovered_moves else { return vec![]; };
+                        let pairs = hm.get();
+                        if pairs.is_empty() { return vec![]; }
+                        // Collect unique individual (from, to) moves; skip empty/exit.
+                        let mut moves: Vec<(usize, usize)> = pairs.iter()
+                            .flat_map(|(m1, m2)| [
+                                (m1.get_from(), m1.get_to()),
+                                (m2.get_from(), m2.get_to()),
+                            ])
+                            .filter(|&(f, t)| f != 0 && t != 0)
+                            .collect();
+                        moves.sort_unstable();
+                        moves.dedup();
+                        moves.into_iter()
+                            .filter_map(|(from, to)| {
+                                let p1 = field_center(from, is_white)?;
+                                let p2 = field_center(to, is_white)?;
+                                Some(arrow_svg(p1, p2))
+                            })
+                            .collect()
+                    }}
+                </svg>
             </div>
-            // SVG overlay: arrows for hovered jan moves
-            <svg
-                width="776" height="388"
-                style="position:absolute;top:0;left:0;pointer-events:none;overflow:visible"
-            >
-                {move || {
-                    let Some(hm) = hovered_moves else { return vec![]; };
-                    let pairs = hm.get();
-                    if pairs.is_empty() { return vec![]; }
-                    // Collect unique individual (from, to) moves; skip empty/exit.
-                    let mut moves: Vec<(usize, usize)> = pairs.iter()
-                        .flat_map(|(m1, m2)| [
-                            (m1.get_from(), m1.get_to()),
-                            (m2.get_from(), m2.get_to()),
-                        ])
-                        .filter(|&(f, t)| f != 0 && t != 0)
-                        .collect();
-                    moves.sort_unstable();
-                    moves.dedup();
-                    moves.into_iter()
-                        .filter_map(|(from, to)| {
-                            let p1 = field_center(from, is_white)?;
-                            let p2 = field_center(to, is_white)?;
-                            Some(arrow_svg(p1, p2))
-                        })
-                        .collect()
-                }}
-            </svg>
+            <div class="zone-labels-row">
+                <div class="zone-label zone-label-quarter">{label_bl}</div>
+                <div class="zone-label zone-label-bar"></div>
+                <div class="zone-label zone-label-quarter">{label_br}</div>
+            </div>
         </div>
     }
 }

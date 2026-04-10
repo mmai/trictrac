@@ -827,6 +827,29 @@ body {
     animation: exit-glow 2s ease-in-out infinite;
 }
 
+/* ── §6c — Jan hover field highlight ────────────────────────────────── */
+.field.jan-hovered {
+    --fc: rgba(190, 140, 35, 0.8) !important;
+}
+
+/* ── §6e — Hit (battue) ripple ──────────────────────────────────────── */
+@keyframes hit-ripple {
+    from { transform: translate(-50%, -50%) scale(0.4); opacity: 0.9; }
+    to   { transform: translate(-50%, -50%) scale(2.2); opacity: 0; }
+}
+.hit-ripple {
+    position: absolute;
+    left: 50%;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 2px solid rgba(200, 164, 72, 0.9);
+    pointer-events: none;
+    animation: hit-ripple 0.5s ease-out forwards;
+}
+.hit-ripple-top { top: 26px; }
+.hit-ripple-bot { bottom: 26px; }
+
 /* ── Interactive states — after .corner to take visual priority ─────── */
 .field.clickable {
     cursor: pointer;

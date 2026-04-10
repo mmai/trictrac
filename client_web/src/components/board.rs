@@ -263,6 +263,9 @@ pub fn Board(
     /// Checker moves to animate on mount (None when board unchanged).
     #[prop(default = None)]
     last_moves: Option<(CheckerMove, CheckerMove)>,
+    /// Fields where a hit (battue) was scored this turn — show ripple animation.
+    #[prop(default = vec![])]
+    hit_fields: Vec<u8>,
 ) -> impl IntoView {
     let board = view_state.board;
     let is_move_stage = view_state.active_mp_player == Some(player_id)
@@ -318,6 +321,8 @@ pub fn Board(
                         (dx.abs() >= 1.0 || dy.abs() >= 1.0).then_some((dx, dy))
                     })
                 });
+                // §6e — ripple on hit fields (battue).
+                let is_hit_field = hit_fields.contains(&field_num);
                 view! {
                     <div
                         id={format!("field-{field_num}")}
@@ -372,6 +377,21 @@ pub fn Board(
                                 }
                             }
 
+                            // §6c: highlight fields touched by the hovered jan
+                            if let Some(hm) = hovered_moves {
+                                let pairs = hm.get();
+                                let f = field_num as usize;
+                                let highlighted = pairs.iter().any(|(m1, m2)| {
+                                    (m1.get_from() != 0 && m1.get_from() == f)
+                                        || (m1.get_to() != 0 && m1.get_to() == f)
+                                        || (m2.get_from() != 0 && m2.get_from() == f)
+                                        || (m2.get_to() != 0 && m2.get_to() == f)
+                                });
+                                if highlighted {
+                                    cls.push_str(" jan-hovered");
+                                }
+                            }
+
                             cls
                         }
                         on:click=move |_| {
@@ -423,7 +443,14 @@ pub fn Board(
                             let moves = staged_moves.get();
                             let val = displayed_value(board, &moves, is_white, field_num);
                             let count = val.unsigned_abs();
-                            (count > 0).then(|| {
+                            // §6e — ripple on hit (battue) fields; must be inside the
+                            // reactive closure so Leptos uses the same direct rendering
+                            // path as .arriving (avoids node-move that resets animation).
+                            let ripple = is_hit_field.then(|| {
+                                let cls = if is_top_row { "hit-ripple hit-ripple-top" } else { "hit-ripple hit-ripple-bot" };
+                                view! { <div class=cls></div> }.into_any()
+                            });
+                            let stack = (count > 0).then(|| {
                                 let color = if val > 0 { "white" } else { "black" };
                                 let display_n = (count as usize).min(4);
                                 // outermost index: last for top rows, first for bottom rows.
@@ -448,8 +475,9 @@ pub fn Board(
                                         <div class=format!("checker {color}")>{label}</div>
                                     }.into_any()
                                 }).collect();
-                                view! { <div class="checker-stack">{chips}</div> }
-                            })
+                                view! { <div class="checker-stack">{chips}</div> }.into_any()
+                            });
+                            (ripple, stack)
                         }}
                     </div>
                 }

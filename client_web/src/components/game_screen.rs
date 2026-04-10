@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 
 use futures::channel::mpsc::UnboundedSender;
 use leptos::prelude::*;
-use trictrac_store::{Board as StoreBoard, CheckerMove, Color, Dice as StoreDice, MoveRules};
+use trictrac_store::{Board as StoreBoard, CheckerMove, Color, Dice as StoreDice, Jan, MoveRules};
 
 use crate::app::{GameUiState, NetCommand, PauseReason};
 use crate::i18n::*;
@@ -121,6 +121,39 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
 
     let last_moves = state.last_moves;
 
+    // §6e — fields where a battue (hit) was scored; ripple animation shown there.
+    let hit_fields: Vec<u8> = {
+        let is_hit_jan = |jan: &Jan| matches!(
+            jan,
+            Jan::TrueHitSmallJan
+                | Jan::TrueHitBigJan
+                | Jan::TrueHitOpponentCorner
+                | Jan::FalseHitSmallJan
+                | Jan::FalseHitBigJan
+        );
+        let mut fields: Vec<u8> = vec![];
+        for event_opt in [&my_scored_event, &opp_scored_event] {
+            if let Some(event) = event_opt {
+                for entry in &event.jans {
+                    if is_hit_jan(&entry.jan) {
+                        for (m1, m2) in &entry.moves {
+                            for m in [m1, m2] {
+                                let to = m.get_to() as u8;
+                                if to != 0 && !fields.contains(&to) {
+                                    fields.push(to);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if !fields.is_empty() {
+            leptos::logging::log!("[6e] hit_fields = {:?}", fields);
+        }
+        fields
+    };
+
     // ── Capture for closures ───────────────────────────────────────────────────
     let stage = vs.stage.clone();
     let turn_stage = vs.turn_stage.clone();
@@ -217,6 +250,7 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
                     bar_is_move=is_move_stage
                     bar_is_double=is_double_dice
                     last_moves=last_moves
+                    hit_fields=hit_fields
                 />
 
                 // ── Side panel (scoring panels only) ─────────────────────────

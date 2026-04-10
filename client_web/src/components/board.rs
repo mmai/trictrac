@@ -32,8 +32,8 @@ fn field_zone_class(field_num: u8) -> &'static str {
     match field_num {
         1..=6 => "zone-petit",
         7..=12 => "zone-grand",
-        13..=18 => "zone-retour",
-        19..=24 => "zone-dernier",
+        13..=18 => "zone-opponent",
+        19..=24 => "zone-retour",
         _ => "",
     }
 }
@@ -142,7 +142,6 @@ fn field_center(f: usize, is_white: bool) -> Option<(f32, f32)> {
     let y = if top { 30.0 } else { 358.0 };
     Some((x, y))
 }
-
 
 /// SVG `<g>` element drawing one arrow (shadow + gold) from `fp` to `tp`.
 fn arrow_svg(fp: (f32, f32), tp: (f32, f32)) -> AnyView {
@@ -515,7 +514,6 @@ pub fn Board(
         }
     };
 
-
     let (tl, tr, bl, br) = if is_white {
         (&TOP_LEFT_W, &TOP_RIGHT_W, &BOT_LEFT_W, &BOT_RIGHT_W)
     } else {
@@ -524,9 +522,9 @@ pub fn Board(
 
     // Zone label pairs (top-left, top-right, bot-left, bot-right) per perspective.
     let (label_tl, label_tr, label_bl, label_br) = if is_white {
-        ("jan de retour", "dernier jan", "grand jan", "petit jan")
+        ("", "jan de retour", "grand jan", "petit jan")
     } else {
-        ("petit jan", "grand jan", "dernier jan", "jan de retour")
+        ("petit jan", "grand jan", "jan de retour", "")
     };
 
     view! {

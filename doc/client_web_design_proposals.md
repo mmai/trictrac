@@ -37,7 +37,7 @@ The board body between triangles becomes visible as the wood/felt surface — th
 **Proposals**:
 
 ### 2a. Zone labels
-Add thin labels (`"petit jan"`, `"grand jan"`, `"jan de retour"`, `"dernier jan"`) beneath the board-row (or as a subtle strip above/below the quarter). These should use the serif font at very small size and low opacity — decorative, not noisy.
+Add thin labels (`"petit jan"`, `"grand jan"`, `"jan de retour"`) beneath the board-row (or as a subtle strip above/below the quarter). These should use the serif font at very small size and low opacity — decorative, not noisy.
 
 ### 2b. Field color shift per zone
 The physical game uses alternating colors within each quarter, but different quarters can use slightly different base hues:

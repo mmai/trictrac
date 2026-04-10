@@ -785,13 +785,13 @@ body {
 .board-quarter .field.zone-petit:nth-child(even),
 .board-quarter .field.zone-grand:nth-child(even)  { --fc: var(--field-ivory); }
 
-/* Jan de retour — cooler: dark teal / silvery-green ivory */
-.board-quarter .field.zone-retour:nth-child(odd)  { --fc: #1e3d32; }
-.board-quarter .field.zone-retour:nth-child(even) { --fc: #e5eadc; }
+/* Opponent's grand-jan — cooler: dark teal / silvery-green ivory */
+.board-quarter .field.zone-opponent:nth-child(odd)  { --fc: #1e3d32; }
+.board-quarter .field.zone-opponent:nth-child(even) { --fc: #e5eadc; }
 
-/* Dernier jan — warmer: amber-brown / warm amber ivory */
-.board-quarter .field.zone-dernier:nth-child(odd)  { --fc: #6a2810; }
-.board-quarter .field.zone-dernier:nth-child(even) { --fc: #f2dfa0; }
+/* Jan de retour — warmer: amber-brown / warm amber ivory */
+.board-quarter .field.zone-retour:nth-child(odd)  { --fc: #6a2810; }
+.board-quarter .field.zone-retour:nth-child(even) { --fc: #f2dfa0; }
 
 /* ── Rest corner (§3) — before .clickable so green wins when interactive ── */
 .field.corner { --fc: var(--field-corner) !important; }

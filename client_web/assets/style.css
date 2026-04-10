@@ -249,12 +249,15 @@ body {
 }
 
 /* ── Game container ─────────────────────────────────────────────────── */
+/* No width: 100% — let it size to content (the board wrapper, ~832px).
+   This keeps the board pinned at the same horizontal position whether or
+   not the side panel is visible, and aligns the status bar / score panels
+   with the board rather than with the viewport edge. */
 .game-container {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 0.6rem;
-    width: 100%;
 }
 
 /* ── Language switcher (in-game) ────────────────────────────────────── */
@@ -325,17 +328,25 @@ body {
 }
 
 /* ── Player score panel ─────────────────────────────────────────────── */
+/* Horizontal banner: name on the left, score bars expanding to fill the
+   board width — no more empty right half on large screens. */
 .player-score-panel {
     background: var(--ui-parchment);
     border-radius: 5px;
-    padding: 0.45rem 1rem;
+    padding: 0.45rem 1.25rem;
     font-size: 0.88rem;
     box-shadow: 0 2px 6px rgba(0,0,0,0.25);
     width: 100%;
     border-top: 2px solid var(--ui-gold-dark);
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
 }
 
-.player-score-header { margin-bottom: 0.35rem; }
+.player-score-header {
+    flex-shrink: 0;
+    min-width: 90px;
+}
 
 .player-name {
     font-family: var(--font-display);
@@ -345,25 +356,28 @@ body {
     letter-spacing: 0.02em;
 }
 
-.score-bars { display: flex; flex-direction: column; gap: 5px; }
+/* Bars sit side-by-side (points | holes) filling remaining width */
+.score-bars { display: flex; flex-direction: row; gap: 1.5rem; flex: 1; align-items: center; }
 
 .score-bar-row {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    flex: 1;
 }
 
 .score-bar-label {
     font-size: 0.75rem;
     color: #665544;
-    width: 3.5rem;
+    width: 3rem;
     text-align: right;
     flex-shrink: 0;
 }
 
 /* ── Points bar ─────────────────────────────────────────────────────── */
 .score-bar {
-    width: 140px;
+    flex: 1;
+    max-width: 220px;
     height: 8px;
     background: rgba(0,0,0,0.1);
     border-radius: 4px;
@@ -424,18 +438,21 @@ body {
 }
 
 /* ── Board + side panel ─────────────────────────────────────────────── */
+/* .board-and-panel is sized to the board wrapper only; the side panel is
+   positioned absolutely so it floats to the right without pushing the
+   board and breaking its horizontal alignment. */
 .board-and-panel {
-    display: flex;
-    flex-direction: row;
-    align-items: flex-start;
-    gap: 1rem;
+    position: relative;
 }
 
 .side-panel {
+    position: absolute;
+    left: calc(100% + 1rem);
+    top: 0;
     display: flex;
     flex-direction: column;
     gap: 0.65rem;
-    min-width: 160px;
+    width: 200px;
     padding-top: 0.15rem;
 }
 
@@ -785,8 +802,10 @@ body {
 .board-quarter .field.zone-petit:nth-child(even),
 .board-quarter .field.zone-grand:nth-child(even)  { --fc: var(--field-ivory); }
 
-/* Opponent's grand-jan — cooler: dark teal / silvery-green ivory */
-.board-quarter .field.zone-opponent:nth-child(odd)  { --fc: #1e3d32; }
+/* Opponent's grand-jan — deep slate-blue / silvery-green ivory.
+   Previously #1e3d32 was nearly identical to the felt (#1d3d28); now using
+   a clearly distinguishable cool blue that reads well against the green. */
+.board-quarter .field.zone-opponent:nth-child(odd)  { --fc: #1a4f72; }
 .board-quarter .field.zone-opponent:nth-child(even) { --fc: #e5eadc; }
 
 /* Jan de retour — warmer: amber-brown / warm amber ivory */
@@ -872,10 +891,10 @@ body {
     font-variant-numeric: tabular-nums;
 }
 
-.board-quarter .field.zone-petit:nth-child(odd)  .field-num,
-.board-quarter .field.zone-grand:nth-child(odd)  .field-num,
-.board-quarter .field.zone-retour:nth-child(odd) .field-num,
-.board-quarter .field.zone-dernier:nth-child(odd) .field-num {
+.board-quarter .field.zone-petit:nth-child(odd)    .field-num,
+.board-quarter .field.zone-grand:nth-child(odd)    .field-num,
+.board-quarter .field.zone-retour:nth-child(odd)   .field-num,
+.board-quarter .field.zone-opponent:nth-child(odd) .field-num {
     color: rgba(240,215,190,0.38);
 }
 

@@ -40,9 +40,15 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
     let pending =
         use_context::<RwSignal<VecDeque<GameUiState>>>().expect("pending not found in context");
     let cmd_tx_effect = cmd_tx.clone();
-    Effect::new(move |_| {
+    // Tracks staged_moves length across Effect runs so we can detect additions.
+    Effect::new(move |prev_len: Option<usize>| {
         let moves = staged_moves.get();
-        if moves.len() == 2 {
+        let n = moves.len();
+        // Play checker sound whenever a move is added (own moves, immediate feedback).
+        if prev_len.map_or(false, |p| n > p) {
+            crate::sound::play_checker_move();
+        }
+        if n == 2 {
             let to_cm = |&(from, to): &(u8, u8)| {
                 CheckerMove::new(from as usize, to as usize).unwrap_or_default()
             };
@@ -55,6 +61,7 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
             staged_moves.set(vec![]);
             selected_origin.set(None);
         }
+        n
     });
 
     // ── Auto-roll effect ─────────────────────────────────────────────────────
@@ -161,6 +168,24 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
         }
         fields
     };
+
+    // ── Sound effects (fire once on mount = once per state snapshot) ──────────
+    // Dice roll: dice just appeared (no preceding moves in this snapshot).
+    if show_dice && last_moves.is_none() {
+        crate::sound::play_dice_roll_cinematic();
+    }
+    // Checker move: moves were committed in the preceding action.
+    if last_moves.is_some() {
+        crate::sound::play_checker_move();
+    }
+    // Scoring: hole takes priority over plain points.
+    if let Some(ref ev) = my_scored_event {
+        if ev.holes_gained > 0 {
+            crate::sound::play_hole_scored();
+        } else {
+            crate::sound::play_points_scored();
+        }
+    }
 
     // ── Capture for closures ───────────────────────────────────────────────────
     let stage = vs.stage.clone();
@@ -322,10 +347,11 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
 
             // ── Game-over overlay ─────────────────────────────────────────────
             {stage_is_ended.then(|| {
-                let winner_text = if winner_is_me {
+                let opp_name_end_clone = opp_name_end.clone();
+                let winner_text = move || if winner_is_me {
                     t_string!(i18n, you_win).to_owned()
                 } else {
-                    t_string!(i18n, opp_wins, name = opp_name_end.as_str())
+                    t_string!(i18n, opp_wins, name = opp_name_end_clone.as_str())
                 };
                 view! {
                     <div class="game-over-overlay">

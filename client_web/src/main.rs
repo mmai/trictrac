@@ -2,6 +2,7 @@ leptos_i18n::load_locales!();
 
 mod app;
 mod components;
+mod sound;
 mod trictrac;
 
 use app::App;

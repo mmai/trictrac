@@ -5,6 +5,8 @@ use leptos::prelude::*;
 use trictrac_store::CheckerMove;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen_futures::spawn_local;
+#[cfg(target_arch = "wasm32")]
+use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
 
 use crate::app::NetCommand;
 use crate::i18n::*;
@@ -84,27 +86,42 @@ pub fn ScoringPanel(
 
     let hovered_ctx = use_context::<RwSignal<Vec<(CheckerMove, CheckerMove)>>>();
 
-    // On mount: show all this event's moves as board arrows immediately.
-    // After 3.4 s (0.45 s slide-in + 3 s display + guard), slide to peek
-    // and clear arrows. A cancellation flag prevents stale tasks from
-    // interfering when the component is replaced by a new scored event.
+    // On mount: show all this event's moves as board arrows immediately,
+    // then after 3.4 s slide to peek and clear the arrows.
+    //
+    // Two important constraints:
+    // 1. The initial hm.set() must be deferred (spawn_local, not sync in body)
+    //    to avoid writing a reactive signal mid-render while Board reads it —
+    //    that triggers Leptos's cycle guard → `unreachable` WASM panic.
+    // 2. The cancellation flag must be Rc<Cell<bool>>, NOT RwSignal<bool>.
+    //    RwSignal is a NodeId into Leptos's arena; the arena slot is freed
+    //    when ScoringPanel's owner drops (on every GameScreen remount). If the
+    //    3.4 s future outlives the component and calls is_alive.get_untracked()
+    //    on a freed slot, that also panics with `unreachable`. Rc<Cell<bool>>
+    //    is reference-counted outside the arena and stays valid for as long as
+    //    the future holds onto it.
+    #[cfg(target_arch = "wasm32")]
     if let Some(hm) = hovered_ctx {
-        hm.set(all_moves.clone());
+        let is_alive = Arc::new(AtomicBool::new(true));
+        let is_alive_cleanup = is_alive.clone();
+        // on_cleanup requires Send + Sync; Arc<AtomicBool> satisfies both.
+        on_cleanup(move || is_alive_cleanup.store(false, Ordering::Relaxed));
 
-        #[cfg(target_arch = "wasm32")]
-        {
-            let is_alive = RwSignal::new(true);
-            on_cleanup(move || is_alive.set(false));
+        spawn_local(async move {
+            // Show arrows (runs in the next microtask, after render settles).
+            hm.set(all_moves);
 
-            spawn_local(async move {
-                TimeoutFuture::new(3_400).await;
-                if !is_alive.get_untracked() {
-                    return;
-                }
-                hm.set(vec![]);
-                peeked.set(true);
-            });
-        }
+            TimeoutFuture::new(3_400).await;
+            // Guard: component may have been destroyed while we were waiting.
+            // is_alive was set to false by on_cleanup, which runs before Leptos
+            // frees the signal arena slots — so peeked is still valid iff this
+            // returns true.
+            if !is_alive.load(Ordering::Relaxed) {
+                return;
+            }
+            hm.set(vec![]);
+            peeked.set(true);
+        });
     }
 
     let jan_rows: Vec<_> = event.jans.into_iter().map(scoring_jan_row).collect();

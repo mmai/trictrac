@@ -1,3 +1,4 @@
+use std::cell::Cell;
 use std::collections::VecDeque;
 
 use futures::channel::mpsc::UnboundedSender;
@@ -40,14 +41,19 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
     let pending =
         use_context::<RwSignal<VecDeque<GameUiState>>>().expect("pending not found in context");
     let cmd_tx_effect = cmd_tx.clone();
-    // Tracks staged_moves length across Effect runs so we can detect additions.
-    Effect::new(move |prev_len: Option<usize>| {
+    // Non-reactive counter so we can detect when staged_moves grows without
+    // returning a value from the Effect (which causes a Leptos reactive loop
+    // when the Effect also writes to the same signal it reads).
+    let prev_staged_len = Cell::new(0usize);
+
+    Effect::new(move |_| {
         let moves = staged_moves.get();
         let n = moves.len();
         // Play checker sound whenever a move is added (own moves, immediate feedback).
-        if prev_len.map_or(false, |p| n > p) {
+        if n > prev_staged_len.get() {
             crate::sound::play_checker_move();
         }
+        prev_staged_len.set(n);
         if n == 2 {
             let to_cm = |&(from, to): &(u8, u8)| {
                 CheckerMove::new(from as usize, to as usize).unwrap_or_default()
@@ -60,8 +66,9 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
                 .ok();
             staged_moves.set(vec![]);
             selected_origin.set(None);
+            // Reset the counter so the next turn starts clean.
+            prev_staged_len.set(0);
         }
-        n
     });
 
     // ── Auto-roll effect ─────────────────────────────────────────────────────

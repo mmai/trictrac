@@ -957,6 +957,22 @@ mod tests {
         state.board.set_positions(
             &Color::White,
             [
+                6, 0, 0, 0, 0, 0, 2, 2, 1, 2, 0, 2, 0, -5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+        );
+        state.dice.values = (3, 3);
+        let moves = (
+            CheckerMove::new(14, 11).unwrap(),
+            CheckerMove::new(14, 11).unwrap(),
+        );
+        assert_eq!(
+            Err(MoveError::OpponentCanFillQuarter),
+            state.moves_allowed(&moves)
+        );
+
+        state.board.set_positions(
+            &Color::White,
+            [
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, -12, 0, 0, 0, 0, 1, 0,
             ],
         );
@@ -1260,6 +1276,19 @@ mod tests {
             CheckerMove::new(3, 4).unwrap(),
         );
         assert!(!state.moves_possible(&moves));
+
+        state.board.set_positions(
+            &Color::White,
+            [
+                0, 0, 0, 0, 0, 0, 6, 2, 2, 2, 2, 2, -2, -6, -1, -3, -1, 0, -2, 0, 0, 0, 0, 0,
+            ],
+        );
+        state.dice.values = (5, 5);
+        let moves = (
+            CheckerMove::new(10, 15).unwrap(),
+            CheckerMove::new(15, 20).unwrap(),
+        );
+        assert!(state.moves_possible(&moves));
 
         // black moves
         let state = MoveRules::new(&Color::Black, &Board::default(), Dice::default());

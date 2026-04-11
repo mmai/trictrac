@@ -256,6 +256,7 @@ pub fn Board(
     /// Whether we're in the move stage (determines used/unused die appearance).
     #[prop(default = false)]
     bar_is_move: bool,
+    #[prop(default = false)] is_my_turn: bool,
     /// Whether the dice are a double (golden glow).
     #[prop(default = false)]
     bar_is_double: bool,
@@ -343,6 +344,9 @@ pub fn Board(
                                 }) {
                                     cls.push_str(" corner-available");
                                 }
+                            }
+                            if is_rest_corner(field_num, !is_white) {
+                                cls.push_str(" corner");
                             }
                             if all_in_exit && exit_field_test(field_num) {
                                 cls.push_str(" exit-eligible");
@@ -501,8 +505,10 @@ pub fn Board(
                             let staged = staged_moves.get();
                             let (u0, u1) = if bar_is_move {
                                 bar_matched_dice_used(&staged, dice_vals)
-                            } else {
+                            } else if is_my_turn {
                                 (true, true)
+                            } else {
+                                (false, false)
                             };
                             let used = if die_idx == 0 { u0 } else { u1 };
                             view! { <Die value=die_val used=used is_double=bar_is_double /> }

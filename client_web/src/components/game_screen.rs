@@ -37,8 +37,8 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
 
     let cmd_tx = use_context::<UnboundedSender<NetCommand>>()
         .expect("UnboundedSender<NetCommand> not found in context");
-    let pending = use_context::<RwSignal<VecDeque<GameUiState>>>()
-        .expect("pending not found in context");
+    let pending =
+        use_context::<RwSignal<VecDeque<GameUiState>>>().expect("pending not found in context");
     let cmd_tx_effect = cmd_tx.clone();
     Effect::new(move |_| {
         let moves = staged_moves.get();
@@ -68,7 +68,9 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
     if show_roll && !waiting_for_confirm {
         let cmd_tx_auto = cmd_tx.clone();
         Effect::new(move |_| {
-            cmd_tx_auto.unbounded_send(NetCommand::Action(PlayerAction::Roll)).ok();
+            cmd_tx_auto
+                .unbounded_send(NetCommand::Action(PlayerAction::Roll))
+                .ok();
         });
     }
 
@@ -92,13 +94,19 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
         let mut store_board = StoreBoard::new();
         store_board.set_positions(&Color::White, vs.board);
         let store_dice = StoreDice { values: dice };
-        let color = if player_id == 0 { Color::White } else { Color::Black };
+        let color = if player_id == 0 {
+            Color::White
+        } else {
+            Color::Black
+        };
         let rules = MoveRules::new(&color, &store_board, store_dice);
         let raw = rules.get_possible_moves_sequences(true, vec![]);
         if player_id == 0 {
             raw
         } else {
-            raw.into_iter().map(|(m1, m2)| (m1.mirror(), m2.mirror())).collect()
+            raw.into_iter()
+                .map(|(m1, m2)| (m1.mirror(), m2.mirror()))
+                .collect()
         }
     } else {
         vec![]
@@ -113,7 +121,8 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
     // ── Scoring notifications ──────────────────────────────────────────────────
     let my_scored_event = state.my_scored_event.clone();
     let opp_scored_event = state.opp_scored_event.clone();
-    let hole_toast_info = my_scored_event.as_ref()
+    let hole_toast_info = my_scored_event
+        .as_ref()
         .filter(|e| e.holes_gained > 0)
         .map(|e| (e.holes_total, e.bredouille));
 
@@ -123,14 +132,16 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
 
     // §6e — fields where a battue (hit) was scored; ripple animation shown there.
     let hit_fields: Vec<u8> = {
-        let is_hit_jan = |jan: &Jan| matches!(
-            jan,
-            Jan::TrueHitSmallJan
-                | Jan::TrueHitBigJan
-                | Jan::TrueHitOpponentCorner
-                | Jan::FalseHitSmallJan
-                | Jan::FalseHitBigJan
-        );
+        let is_hit_jan = |jan: &Jan| {
+            matches!(
+                jan,
+                Jan::TrueHitSmallJan
+                    | Jan::TrueHitBigJan
+                    | Jan::TrueHitOpponentCorner
+                    | Jan::FalseHitSmallJan
+                    | Jan::FalseHitBigJan
+            )
+        };
         let mut fields: Vec<u8> = vec![];
         for event_opt in [&my_scored_event, &opp_scored_event] {
             if let Some(event) = event_opt {
@@ -147,9 +158,6 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
                     }
                 }
             }
-        }
-        if !fields.is_empty() {
-            leptos::logging::log!("[6e] hit_fields = {:?}", fields);
         }
         fields
     };
@@ -248,6 +256,7 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
                     valid_sequences=valid_sequences
                     bar_dice=show_dice.then_some(dice)
                     bar_is_move=is_move_stage
+                    is_my_turn=is_my_turn
                     bar_is_double=is_double_dice
                     last_moves=last_moves
                     hit_fields=hit_fields

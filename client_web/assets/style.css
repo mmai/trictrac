@@ -450,8 +450,8 @@ body {
    strip after a few seconds, and reveal fully on hover. */
 .side-panel {
     position: absolute;
-    right: 0;
-    top: 0;
+    right: -8px;
+    top: 10px;
     z-index: 20;
     display: flex;
     flex-direction: column;
@@ -645,8 +645,7 @@ body {
 /* ── Wrapper: handles slide-in → peek → reveal lifecycle ──────────────
    The wrapper starts off-screen right (translateX(100%)), slides in on
    mount via animation, then Leptos adds .peeked after 3.4s to slide it
-   back to a 28px peek strip. First hover adds .revealed for permanent
-   visibility. pointer-events: auto overrides the parent's none. */
+   back to a 28px peek strip. */
 @keyframes scoring-panel-enter {
     from { transform: translateX(100%); }
     to   { transform: translateX(0); }
@@ -662,7 +661,7 @@ body {
 
 /* Peeked: slide right by the full panel width so the board is 100% clear.
    The panel's left portion stays visible in whatever free space exists to
-   the right of the board (depends on viewport width). */
+   the right of the board. */
 .scoring-panel-wrapper.peeked {
     transform: translateX(100%);
 }
@@ -868,8 +867,8 @@ body {
 .board-quarter .field.zone-retour:nth-child(odd)  { --fc: #6a2810; }
 .board-quarter .field.zone-retour:nth-child(even) { --fc: #f2dfa0; }
 
-/* ── Rest corner (§3) — before .clickable so green wins when interactive ── */
-.field.corner { --fc: var(--field-corner) !important; }
+/* ── Rest corner — before .clickable so green wins when interactive ── */
+/* .field.corner { --fc: var(--field-corner) !important; } */
 
 /* Crown glyph sits behind checkers (z-index:-1) so it shows only on empty corners */
 .field.corner::after {

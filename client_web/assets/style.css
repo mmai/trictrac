@@ -445,15 +445,19 @@ body {
     position: relative;
 }
 
+/* The side panel is anchored to the board's RIGHT edge. Scoring panel
+   wrappers inside it initially overlap the board; they slide to a peek
+   strip after a few seconds, and reveal fully on hover. */
 .side-panel {
     position: absolute;
-    left: calc(100% + 1rem);
+    right: 0;
     top: 0;
+    z-index: 20;
     display: flex;
     flex-direction: column;
-    gap: 0.65rem;
-    width: 200px;
+    gap: 0.5rem;
     padding-top: 0.15rem;
+    pointer-events: none; /* pass board clicks through the empty area */
 }
 
 .action-buttons { display: flex; flex-direction: column; gap: 0.5rem; }
@@ -637,22 +641,55 @@ body {
 .game-over-actions { display: flex; gap: 0.75rem; justify-content: center; }
 
 /* ── Scoring notification panel (§6b) ───────────────────────────────── */
-@keyframes score-panel-in {
-    from { transform: translateX(18px); opacity: 0; }
-    to   { transform: translateX(0);    opacity: 1; }
+
+/* ── Wrapper: handles slide-in → peek → reveal lifecycle ──────────────
+   The wrapper starts off-screen right (translateX(100%)), slides in on
+   mount via animation, then Leptos adds .peeked after 3.4s to slide it
+   back to a 28px peek strip. First hover adds .revealed for permanent
+   visibility. pointer-events: auto overrides the parent's none. */
+@keyframes scoring-panel-enter {
+    from { transform: translateX(100%); }
+    to   { transform: translateX(0); }
 }
 
+.scoring-panel-wrapper {
+    /* width: 290px; */
+    pointer-events: auto;
+    animation: scoring-panel-enter 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    filter: drop-shadow(-4px 0 14px rgba(0,0,0,0.38));
+}
+
+/* Peeked: slide right by the full panel width so the board is 100% clear.
+   The panel's left portion stays visible in whatever free space exists to
+   the right of the board (depends on viewport width). */
+.scoring-panel-wrapper.peeked {
+    transform: translateX(100%);
+}
+
+/* Click on the visible left strip → .revealed slides it back over the board.
+   A second click removes .revealed and returns to the peeked position. */
+.scoring-panel-wrapper.revealed {
+    transform: translateX(0);
+}
+
+/* Pointer cursor on the peeked (clickable) strip */
+.scoring-panel-wrapper.peeked:not(.revealed) {
+    cursor: pointer;
+}
+
+/* ── Inner panel card ─────────────────────────────────────────────────── */
 .scoring-panel {
     background: var(--ui-parchment);
     border-radius: 5px;
-    padding: 0.4rem 0.7rem;
+    padding: 0.45rem 0.85rem;
     font-size: 0.84rem;
     box-shadow: 0 1px 4px rgba(0,0,0,0.15);
     border-left: 3px solid var(--ui-green-accent);
     display: flex;
     flex-direction: column;
-    gap: 3px;
-    animation: score-panel-in 0.22s ease-out;
+    gap: 4px;
+    width: 100%;
 }
 
 .scoring-total {
@@ -660,15 +697,17 @@ body {
     font-weight: 600;
     font-size: 1rem;
     color: #1a5c1a;
+    white-space: nowrap;
 }
 
 .scoring-jan-row {
     display: flex;
     align-items: center;
     gap: 0.4rem;
-    padding: 1px 2px;
+    padding: 2px 3px;
     border-radius: 3px;
     cursor: default;
+    white-space: nowrap;
 }
 .scoring-jan-row:hover { background: rgba(0,0,0,0.05); }
 
@@ -687,6 +726,23 @@ body {
 }
 
 .hold-go-buttons { display: flex; gap: 0.5rem; margin-top: 4px; }
+
+/* ── Large-screen layout: panel in free space, no peek needed ─────────
+   Threshold: board (832) + body-padding (48) + panel-gap (16) + panel (290)
+   + symmetric left margin = 1492 px.
+   At this width the panel fits entirely to the right of the board. */
+@media (min-width: 1492px) {
+    .side-panel {
+        right: auto;
+        left: calc(100% + 1rem); /* outside board, no overlap */
+    }
+    /* Already fully visible in free space — peeked/revealed are no-ops. */
+    .scoring-panel-wrapper.peeked,
+    .scoring-panel-wrapper.revealed {
+        transform: none;
+        cursor: default;
+    }
+}
 
 /* ── Board wrapper ──────────────────────────────────────────────────── */
 .board-wrapper {

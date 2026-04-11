@@ -1,6 +1,10 @@
 use futures::channel::mpsc::UnboundedSender;
+#[cfg(target_arch = "wasm32")]
+use gloo_timers::future::TimeoutFuture;
 use leptos::prelude::*;
 use trictrac_store::CheckerMove;
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_futures::spawn_local;
 
 use crate::app::NetCommand;
 use crate::i18n::*;
@@ -8,6 +12,10 @@ use crate::trictrac::types::{JanEntry, PlayerAction, ScoredEvent, SerTurnStage};
 
 use super::score_panel::jan_label;
 
+/// One row in the scoring panel. Sets the hovered-moves context on enter
+/// (so board shows arrows for that jan's moves), but does NOT clear on
+/// leave — clearing is handled by the outer wrapper's mouseleave so that
+/// arrows persist while the pointer moves between rows.
 fn scoring_jan_row(entry: JanEntry) -> impl IntoView {
     let i18n = use_i18n();
     let hovered = use_context::<RwSignal<Vec<(CheckerMove, CheckerMove)>>>();
@@ -23,11 +31,6 @@ fn scoring_jan_row(entry: JanEntry) -> impl IntoView {
             on:mouseenter=move |_| {
                 if let Some(h) = hovered {
                     h.set(moves_hover.clone());
-                }
-            }
-            on:mouseleave=move |_| {
-                if let Some(h) = hovered {
-                    h.set(vec![]);
                 }
             }
         >
@@ -58,51 +61,132 @@ pub fn ScoringPanel(
     let holes_total = event.holes_total;
     let bredouille = event.bredouille;
     let show_hold_go = !is_opponent && turn_stage == SerTurnStage::HoldOrGoChoice;
-    let panel_class = if is_opponent { "scoring-panel scoring-panel-opp" } else { "scoring-panel" };
+    let panel_class = if is_opponent {
+        "scoring-panel scoring-panel-opp"
+    } else {
+        "scoring-panel"
+    };
+
+    // ── Lifecycle signals ──────────────────────────────────────────────────
+    // peeked: added after 3.4 s (slide to peek strip)
+    // revealed: added on first hover of the peek strip (stay open permanently)
+    let peeked = RwSignal::new(false);
+    let revealed = RwSignal::new(false);
+
+    // ── Collect all moves from all jans for automatic arrow display ────────
+    let all_moves: Vec<(CheckerMove, CheckerMove)> = event
+        .jans
+        .iter()
+        .flat_map(|e| e.moves.iter().cloned())
+        .collect();
+    let all_moves_click   = all_moves.clone();
+    let all_moves_enter   = all_moves.clone();
+
+    let hovered_ctx = use_context::<RwSignal<Vec<(CheckerMove, CheckerMove)>>>();
+
+    // On mount: show all this event's moves as board arrows immediately.
+    // After 3.4 s (0.45 s slide-in + 3 s display + guard), slide to peek
+    // and clear arrows. A cancellation flag prevents stale tasks from
+    // interfering when the component is replaced by a new scored event.
+    if let Some(hm) = hovered_ctx {
+        hm.set(all_moves.clone());
+
+        #[cfg(target_arch = "wasm32")]
+        {
+            let is_alive = RwSignal::new(true);
+            on_cleanup(move || is_alive.set(false));
+
+            spawn_local(async move {
+                TimeoutFuture::new(3_400).await;
+                if !is_alive.get_untracked() {
+                    return;
+                }
+                hm.set(vec![]);
+                peeked.set(true);
+            });
+        }
+    }
 
     let jan_rows: Vec<_> = event.jans.into_iter().map(scoring_jan_row).collect();
 
     view! {
-        <div class=panel_class>
-            <div class="scoring-total">
-                {move || if is_opponent {
-                    t_string!(i18n, opp_scored_pts, n = points_earned)
-                } else {
-                    t_string!(i18n, scored_pts, n = points_earned)
-                }}
-            </div>
-            {jan_rows}
-            {(holes_gained > 0).then(|| view! {
-                <div class="scoring-hole">
-                    <span>{move || if is_opponent {
-                        t_string!(i18n, opp_hole_made, holes = holes_total)
-                    } else {
-                        t_string!(i18n, hole_made, holes = holes_total)
-                    }}</span>
-                    {bredouille.then(|| view! {
-                        <span class="bredouille-badge">
-                            {move || t_string!(i18n, bredouille_applied)}
-                        </span>
-                    })}
-                </div>
-            })}
-            {show_hold_go.then(|| {
-                let dismissed = RwSignal::new(false);
-                view! {
-                    <div class="hold-go-buttons" class:hidden=move || dismissed.get()>
-                        <button class="btn btn-secondary" on:click=move |_| {
-                            dismissed.set(true);
-                        }>
-                            {t!(i18n, hold)}
-                        </button>
-                        <button class="btn btn-primary" on:click=move |_| {
-                            cmd_tx.unbounded_send(NetCommand::Action(PlayerAction::Go)).ok();
-                        }>
-                            {t!(i18n, go)}
-                        </button>
-                    </div>
+        // ── Outer wrapper: owns the slide / peek / reveal animation ───────
+        // pointer-events are on by default (parent .side-panel sets none,
+        // and .scoring-panel-wrapper overrides back to auto in CSS).
+        <div
+            class="scoring-panel-wrapper"
+            class:peeked=move || peeked.get()
+            class:revealed=move || revealed.get()
+            // Click toggles revealed↔peeked when the panel is in its peeked state.
+            on:click=move |_| {
+                if peeked.get_untracked() {
+                    revealed.update(|r| *r = !*r);
                 }
-            })}
+                // Show arrows when clicking to open, clear when clicking to close.
+                if let Some(hm) = hovered_ctx {
+                    if !revealed.get_untracked() {
+                        hm.set(all_moves_click.clone());
+                    } else {
+                        hm.set(vec![]);
+                    }
+                }
+            }
+            on:mouseenter=move |_| {
+                // Show all event moves as arrows while the cursor is inside.
+                if let Some(hm) = hovered_ctx {
+                    hm.set(all_moves_enter.clone());
+                }
+            }
+            on:mouseleave=move |_| {
+                if let Some(hm) = hovered_ctx {
+                    hm.set(vec![]);
+                }
+            }
+        >
+            <div class=panel_class>
+                <div class="scoring-total">
+                    {move || if is_opponent {
+                        t_string!(i18n, opp_scored_pts, n = points_earned)
+                    } else {
+                        t_string!(i18n, scored_pts, n = points_earned)
+                    }}
+                </div>
+                {jan_rows}
+                {(holes_gained > 0).then(|| view! {
+                    <div class="scoring-hole">
+                        <span>{move || if is_opponent {
+                            t_string!(i18n, opp_hole_made, holes = holes_total)
+                        } else {
+                            t_string!(i18n, hole_made, holes = holes_total)
+                        }}</span>
+                        {bredouille.then(|| view! {
+                            <span class="bredouille-badge">
+                                {move || t_string!(i18n, bredouille_applied)}
+                            </span>
+                        })}
+                    </div>
+                })}
+                {show_hold_go.then(|| {
+                    let dismissed = RwSignal::new(false);
+                    view! {
+                        <div class="hold-go-buttons" class:hidden=move || dismissed.get()>
+                            // stop_propagation so these buttons don't also toggle the panel
+                            <button class="btn btn-secondary" on:click=move |ev: leptos::web_sys::MouseEvent| {
+                                ev.stop_propagation();
+                                dismissed.set(true);
+                            }>
+                                {t!(i18n, hold)}
+                            </button>
+                            <button class="btn btn-primary" on:click=move |ev: leptos::web_sys::MouseEvent| {
+                                ev.stop_propagation();
+                                cmd_tx.unbounded_send(NetCommand::Action(PlayerAction::Go)).ok();
+                            }>
+                                {t!(i18n, go)}
+                            </button>
+                        </div>
+                    }
+                })}
+            </div>
         </div>
     }
 }

@@ -167,6 +167,8 @@ impl BackEndArchitecture<PlayerAction, GameDelta, ViewState> for TrictracBackend
                     moves: (m1, m2),
                 };
                 if self.game.validate(&event) {
+                    let message = format!("Event {:?} validated on {:?}", event, self.game);
+                    console_log(message);
                     let _ = self.game.consume(&event);
                     self.drive_automatic_stages();
                 }
@@ -330,3 +332,20 @@ mod tests {
             .any(|c| matches!(c, BackendCommand::TerminateRoom)));
     }
 }
+
+// ── Public API: WASM delegates to `inner`, other targets are no-ops ───────────
+
+#[cfg(target_arch = "wasm32")]
+mod inner {
+    use web_sys::console;
+
+    pub fn console_log(message: String) {
+        console::log_1(&message.into());
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+pub use inner::console_log;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn console_log(message: String) {}

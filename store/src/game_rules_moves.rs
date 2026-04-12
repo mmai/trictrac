@@ -955,15 +955,15 @@ mod tests {
         );
 
         state.board.set_positions(
-            &Color::White,
+            &Color::Black,
             [
-                6, 0, 0, 0, 0, 0, 2, 2, 1, 2, 0, 2, 0, -5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                10, 0, 0, 0, -1, 0, 2, 0, 0, 0, 1, 2, 0, -1, -1, 0, 2, 0, 0, 0, 0, 0, 0, -10,
             ],
         );
-        state.dice.values = (3, 3);
+        state.dice.values = (4, 1);
         let moves = (
-            CheckerMove::new(14, 11).unwrap(),
-            CheckerMove::new(14, 11).unwrap(),
+            CheckerMove::new(15, 14).unwrap().mirror(),
+            CheckerMove::new(14, 10).unwrap().mirror(),
         );
         assert_eq!(
             Err(MoveError::OpponentCanFillQuarter),
@@ -1277,6 +1277,7 @@ mod tests {
         );
         assert!(!state.moves_possible(&moves));
 
+        // Chaned  moves: can't rest on a field occupied by one opponent's checker
         state.board.set_positions(
             &Color::White,
             [
@@ -1288,7 +1289,7 @@ mod tests {
             CheckerMove::new(10, 15).unwrap(),
             CheckerMove::new(15, 20).unwrap(),
         );
-        assert!(state.moves_possible(&moves));
+        assert!(!state.moves_possible(&moves));
 
         // black moves
         let state = MoveRules::new(&Color::Black, &Board::default(), Dice::default());

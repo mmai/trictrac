@@ -18,6 +18,7 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
     let i18n = use_i18n();
 
     let vs = state.view_state.clone();
+    let message = format!("{}", vs.message);
     let player_id = state.player_id;
     let is_my_turn = vs.active_mp_player == Some(player_id);
     let is_move_stage = is_my_turn
@@ -351,6 +352,9 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
 
             // ── Player score (below board) ────────────────────────────────────
             <PlayerScorePanel score=my_score is_you=true />
+                    <div>
+            {format!("{message}")}
+                    </div>
 
             // ── Game-over overlay ─────────────────────────────────────────────
             {stage_is_ended.then(|| {

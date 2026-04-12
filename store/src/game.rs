@@ -80,6 +80,7 @@ pub struct GameState {
     roll_first: bool,
     // NOTE: add to a Setting struct if other fields needed
     pub schools_enabled: bool,
+    pub debug_message: String,
 }
 
 // implement Display trait
@@ -119,6 +120,7 @@ impl Default for GameState {
             dice_jans: PossibleJans::default(),
             roll_first: true,
             schools_enabled: false,
+            debug_message: "".into(),
         }
     }
 }
@@ -147,6 +149,11 @@ impl GameState {
         game
     }
 
+    pub fn get_debug_message(&self) -> String {
+        // format!("{:?}", self.history.last())
+        format!("{:?}", self.debug_message)
+    }
+
     pub fn mirror(&self) -> GameState {
         let mirrored_active_player = if self.active_player_id == 1 { 2 } else { 1 };
         let mut mirrored_players = HashMap::new();
@@ -171,6 +178,7 @@ impl GameState {
             dice_jans: self.dice_jans.mirror(),
             roll_first: self.roll_first,
             schools_enabled: self.schools_enabled,
+            debug_message: self.debug_message.clone(),
         }
     }
 
@@ -594,8 +602,9 @@ impl GameState {
             dice_points: (0, 0),
             dice_moves: (CheckerMove::default(), CheckerMove::default()),
             dice_jans: PossibleJans::default(),
-            roll_first: false,      // Assume not first roll
-            schools_enabled: false, // Assume disabled
+            roll_first: false,        // Assume not first roll
+            schools_enabled: false,   // Assume disabled
+            debug_message: "".into(), // Assume disabled
         })
     }
 

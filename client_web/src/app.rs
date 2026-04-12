@@ -12,7 +12,9 @@ use crate::components::{ConnectingScreen, GameScreen, LoginScreen};
 use crate::i18n::I18nContextProvider;
 use crate::trictrac::backend::TrictracBackend;
 use crate::trictrac::bot_local::bot_decide;
-use crate::trictrac::types::{GameDelta, JanEntry, PlayerAction, ScoredEvent, SerTurnStage, ViewState};
+use crate::trictrac::types::{
+    GameDelta, JanEntry, PlayerAction, ScoredEvent, SerTurnStage, ViewState,
+};
 use trictrac_store::CheckerMove;
 
 use std::collections::VecDeque;
@@ -194,7 +196,9 @@ pub fn App() -> impl IntoView {
             if remote_config.is_none() {
                 loop {
                     let restart = run_local_bot_game(screen, &mut cmd_rx, pending).await;
-                    if !restart { break; }
+                    if !restart {
+                        break;
+                    }
                 }
                 pending.update(|q| q.clear());
                 screen.set(Screen::Login { error: None });
@@ -328,8 +332,12 @@ async fn run_local_bot_game(
     let mut vs = ViewState::default_with_names("You", "Bot");
     for cmd in backend.drain_commands() {
         match cmd {
-            BackendCommand::ResetViewState => { vs = backend.get_view_state().clone(); }
-            BackendCommand::Delta(delta) => { vs.apply_delta(&delta); }
+            BackendCommand::ResetViewState => {
+                vs = backend.get_view_state().clone();
+            }
+            BackendCommand::Delta(delta) => {
+                vs.apply_delta(&delta);
+            }
             _ => {}
         }
     }
@@ -440,15 +448,21 @@ fn compute_scored_event(prev: &ViewState, next: &ViewState, player_id: u16) -> O
         && prev.active_mp_player == Some(player_id)
     {
         // My own roll: positive totals are mine.
-        next.dice_jans.iter().filter(|e| e.total > 0).cloned().collect()
-    } else if next.active_mp_player == Some(player_id)
-        && prev.active_mp_player != Some(player_id)
-    {
+        next.dice_jans
+            .iter()
+            .filter(|e| e.total > 0)
+            .cloned()
+            .collect()
+    } else if next.active_mp_player == Some(player_id) && prev.active_mp_player != Some(player_id) {
         // Opponent just moved: negative totals (their penalty) are scored for me.
         next.dice_jans
             .iter()
             .filter(|e| e.total < 0)
-            .map(|e| JanEntry { total: -e.total, points_per: -e.points_per, ..e.clone() })
+            .map(|e| JanEntry {
+                total: -e.total,
+                points_per: -e.points_per,
+                ..e.clone()
+            })
             .collect()
     } else {
         return None;
@@ -496,7 +510,10 @@ fn push_or_show(
         });
         // Animation belongs to the buffered confirmation step; clear it on the
         // fallback live state so it doesn't fire again after the queue drains.
-        screen.set(Screen::Playing(GameUiState { last_moves: None, ..new_state }));
+        screen.set(Screen::Playing(GameUiState {
+            last_moves: None,
+            ..new_state
+        }));
     } else {
         // No pause: show scoring directly on the live state.
         screen.set(Screen::Playing(GameUiState {
@@ -519,8 +536,7 @@ fn infer_pause_reason(prev: &ViewState, next: &ViewState, player_id: u16) -> Opt
             return Some(PauseReason::AfterOpponentRoll);
         }
         // Was at HoldOrGoChoice, now Move, opponent still active → opponent went.
-        if prev.turn_stage == SerTurnStage::HoldOrGoChoice
-            && next.turn_stage == SerTurnStage::Move
+        if prev.turn_stage == SerTurnStage::HoldOrGoChoice && next.turn_stage == SerTurnStage::Move
         {
             return Some(PauseReason::AfterOpponentGo);
         }
@@ -534,14 +550,18 @@ fn infer_pause_reason(prev: &ViewState, next: &ViewState, player_id: u16) -> Opt
     None
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::trictrac::types::{PlayerScore, SerStage, SerTurnStage};
 
     fn score() -> PlayerScore {
-        PlayerScore { name: String::new(), points: 0, holes: 0, can_bredouille: false }
+        PlayerScore {
+            name: String::new(),
+            points: 0,
+            holes: 0,
+            can_bredouille: false,
+        }
     }
 
     fn vs(dice: (u8, u8), turn_stage: SerTurnStage, active: Option<u16>) -> ViewState {
@@ -554,6 +574,7 @@ mod tests {
             dice,
             dice_jans: Vec::new(),
             dice_moves: (CheckerMove::default(), CheckerMove::default()),
+            message: "".into(),
         }
     }
 
@@ -561,21 +582,30 @@ mod tests {
     fn dice_change_is_after_roll() {
         let prev = vs((0, 0), SerTurnStage::RollDice, Some(1));
         let next = vs((3, 5), SerTurnStage::Move, Some(1));
-        assert_eq!(infer_pause_reason(&prev, &next, 0), Some(PauseReason::AfterOpponentRoll));
+        assert_eq!(
+            infer_pause_reason(&prev, &next, 0),
+            Some(PauseReason::AfterOpponentRoll)
+        );
     }
 
     #[test]
     fn hold_to_move_is_after_go() {
         let prev = vs((3, 5), SerTurnStage::HoldOrGoChoice, Some(1));
         let next = vs((3, 5), SerTurnStage::Move, Some(1));
-        assert_eq!(infer_pause_reason(&prev, &next, 0), Some(PauseReason::AfterOpponentGo));
+        assert_eq!(
+            infer_pause_reason(&prev, &next, 0),
+            Some(PauseReason::AfterOpponentGo)
+        );
     }
 
     #[test]
     fn turn_switch_is_after_move() {
         let prev = vs((3, 5), SerTurnStage::Move, Some(1));
         let next = vs((3, 5), SerTurnStage::RollDice, Some(0));
-        assert_eq!(infer_pause_reason(&prev, &next, 0), Some(PauseReason::AfterOpponentMove));
+        assert_eq!(
+            infer_pause_reason(&prev, &next, 0),
+            Some(PauseReason::AfterOpponentMove)
+        );
     }
 
     #[test]

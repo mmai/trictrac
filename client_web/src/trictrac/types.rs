@@ -43,6 +43,7 @@ pub struct ViewState {
     pub dice_jans: Vec<JanEntry>,
     /// Last two checker moves played; default when no move has occurred yet.
     pub dice_moves: (CheckerMove, CheckerMove),
+    pub message: String,
 }
 
 /// One scoring event from a dice roll.
@@ -70,12 +71,23 @@ impl ViewState {
             turn_stage: SerTurnStage::RollDice,
             active_mp_player: None,
             scores: [
-                PlayerScore { name: host_name.to_string(), points: 0, holes: 0, can_bredouille: false },
-                PlayerScore { name: guest_name.to_string(), points: 0, holes: 0, can_bredouille: false },
+                PlayerScore {
+                    name: host_name.to_string(),
+                    points: 0,
+                    holes: 0,
+                    can_bredouille: false,
+                },
+                PlayerScore {
+                    name: guest_name.to_string(),
+                    points: 0,
+                    holes: 0,
+                    can_bredouille: false,
+                },
             ],
             dice: (0, 0),
             dice_jans: Vec::new(),
             dice_moves: (CheckerMove::default(), CheckerMove::default()),
+            message: "".into(),
         }
     }
 
@@ -86,25 +98,21 @@ impl ViewState {
     /// Convert a store `GameState` to a `ViewState`.
     /// `host_store_id` and `guest_store_id` are the trictrac `PlayerId`s assigned
     /// to the host (mp player 0) and guest (mp player 1) respectively.
-    pub fn from_game_state(
-        gs: &GameState,
-        host_store_id: u64,
-        guest_store_id: u64,
-    ) -> Self {
+    pub fn from_game_state(gs: &GameState, host_store_id: u64, guest_store_id: u64) -> Self {
         let board_vec = gs.board.to_vec();
         let board: [i8; 24] = board_vec.try_into().expect("board is always 24 fields");
 
         let stage = match gs.stage {
             Stage::PreGame => SerStage::PreGame,
-            Stage::InGame  => SerStage::InGame,
-            Stage::Ended   => SerStage::Ended,
+            Stage::InGame => SerStage::InGame,
+            Stage::Ended => SerStage::Ended,
         };
         let turn_stage = match gs.turn_stage {
-            TurnStage::RollDice     => SerTurnStage::RollDice,
-            TurnStage::RollWaiting  => SerTurnStage::RollWaiting,
-            TurnStage::MarkPoints   => SerTurnStage::MarkPoints,
+            TurnStage::RollDice => SerTurnStage::RollDice,
+            TurnStage::RollWaiting => SerTurnStage::RollWaiting,
+            TurnStage::MarkPoints => SerTurnStage::MarkPoints,
             TurnStage::HoldOrGoChoice => SerTurnStage::HoldOrGoChoice,
-            TurnStage::Move         => SerTurnStage::Move,
+            TurnStage::Move => SerTurnStage::Move,
             TurnStage::MarkAdvPoints => SerTurnStage::MarkAdvPoints,
         };
 
@@ -125,7 +133,12 @@ impl ViewState {
                     holes: p.holes,
                     can_bredouille: p.can_bredouille,
                 })
-                .unwrap_or_else(|| PlayerScore { name: String::new(), points: 0, holes: 0, can_bredouille: false })
+                .unwrap_or_else(|| PlayerScore {
+                    name: String::new(),
+                    points: 0,
+                    holes: 0,
+                    can_bredouille: false,
+                })
         };
 
         // is_double for scoring: dice show the same value (both dice identical).
@@ -134,13 +147,16 @@ impl ViewState {
 
         // Build JanEntry list from the PossibleJans map.
         let empty_move = CheckerMove::new(0, 0).unwrap_or_default();
-        let mut dice_jans: Vec<JanEntry> = gs.dice_jans
+        let mut dice_jans: Vec<JanEntry> = gs
+            .dice_jans
             .iter()
             .map(|(jan, moves)| {
                 // HelplessMan: is_double = true only when *both* dice are unplayable
                 // (the moves list contains a single (empty, empty) sentinel).
                 let is_double = if *jan == Jan::HelplessMan {
-                    moves.first().map(|&(m1, m2)| m1 == empty_move && m2 == empty_move)
+                    moves
+                        .first()
+                        .map(|&(m1, m2)| m1 == empty_move && m2 == empty_move)
                         .unwrap_or(false)
                 } else {
                     dice_are_double
@@ -170,6 +186,7 @@ impl ViewState {
             dice: (gs.dice.values.0, gs.dice.values.1),
             dice_jans,
             dice_moves: gs.dice_moves,
+            message: gs.get_debug_message(),
         }
     }
 }

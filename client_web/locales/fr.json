@@ -7,7 +7,7 @@
   "waiting_for_opponent": "En attente de l'adversaire…",
   "your_turn_roll": "À votre tour — lancez les dés",
   "hold_or_go": "Tenir ou s'en aller ?",
-  "select_move": "Sélectionner le coup {{ n }} sur 2",
+  "select_move": "Déplacez une dame ({{ n }} sur 2)",
   "your_turn": "Votre tour",
   "opponent_turn": "Tour de l'adversaire",
   "room_label": "Salle : {{ id }}",

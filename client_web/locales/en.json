@@ -7,7 +7,7 @@
   "waiting_for_opponent": "Waiting for opponent…",
   "your_turn_roll": "Your turn — roll the dice",
   "hold_or_go": "Hold or Go?",
-  "select_move": "Select move {{ n }} of 2",
+  "select_move": "Move a checker ({{ n }} of 2)",
   "your_turn": "Your turn",
   "opponent_turn": "Opponent's turn",
   "room_label": "Room: {{ id }}",

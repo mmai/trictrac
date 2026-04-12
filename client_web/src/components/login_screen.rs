@@ -40,9 +40,7 @@ pub fn LoginScreen(error: Option<String>) -> impl IntoView {
 
                 <h1 class="login-title">"Trictrac"</h1>
                 <p class="login-subtitle">
-                    <em>"Jeu de trictrac"</em>
-                    " — "
-                    <em>"XVIII" <sup>"e"</sup> " siècle"</em>
+                    <em>"Une interprétation numérique"</em>
                 </p>
 
                 <div class="login-ornament">"✦"</div>

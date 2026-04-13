@@ -35,7 +35,11 @@ pub fn PlayerScorePanel(score: PlayerScore, is_you: bool) -> impl IntoView {
     // 12 peg holes; filled up to `holes`
     let pegs: Vec<AnyView> = (1u8..=12)
         .map(|i| {
-            let cls = if i <= holes { "peg-hole filled" } else { "peg-hole" };
+            let cls = if i <= holes {
+                "peg-hole filled"
+            } else {
+                "peg-hole"
+            };
             view! { <div class=cls></div> }.into_any()
         })
         .collect();
@@ -50,14 +54,14 @@ pub fn PlayerScorePanel(score: PlayerScore, is_you: bool) -> impl IntoView {
             </div>
             <div class="score-bars">
                 <div class="score-bar-row">
+                    {can_bredouille.then(|| view! {
+                        <span class="bredouille-badge" title=move || t_string!(i18n, bredouille_title).to_owned()>"B"</span>
+                    })}
                     <span class="score-bar-label">{t!(i18n, points_label)}</span>
                     <div class="score-bar">
                         <div class="score-bar-fill score-bar-points" style=format!("width:{points_pct}")></div>
                     </div>
                     <span class="score-bar-value">{points_val}</span>
-                    {can_bredouille.then(|| view! {
-                        <span class="bredouille-badge" title=move || t_string!(i18n, bredouille_title).to_owned()>"B"</span>
-                    })}
                 </div>
                 <div class="score-bar-row">
                     <span class="score-bar-label">{t!(i18n, holes_label)}</span>

@@ -236,9 +236,6 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
                 }>{t!(i18n, quit)}</a>
             </div>
 
-            // ── Opponent score (above board) ─────────────────────────────────
-            <PlayerScorePanel score=opp_score is_you=false />
-
             // ── Status bar — full width, above board (§10b) ──────────────────
             <div class="game-status">
                 {move || {
@@ -279,6 +276,9 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
                 (!hint.is_empty()).then(|| view! { <p class="game-sub-prompt">{hint}</p> })
             }}
 
+            // ── Opponent score (above board) ─────────────────────────────────
+            <PlayerScorePanel score=opp_score is_you=false />
+
             // ── Board + side panel ───────────────────────────────────────────
             <div class="board-and-panel">
                 <Board
@@ -306,7 +306,10 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
                 </div>
             </div>
 
-            // ── Action buttons below board (§10c) ────────────────────────────
+            // ── Player score (below board) ────────────────────────────────────
+            <PlayerScorePanel score=my_score is_you=true />
+
+            // ── Action buttons below board ────────────────────────────
             <div class="board-actions">
                 {waiting_for_confirm.then(|| view! {
                     <button class="btn btn-primary" on:click=move |_| {
@@ -350,8 +353,7 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
                 }}
             </div>
 
-            // ── Player score (below board) ────────────────────────────────────
-            <PlayerScorePanel score=my_score is_you=true />
+
                     <div>
             {format!("{message}")}
                     </div>

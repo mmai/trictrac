@@ -574,7 +574,6 @@ mod tests {
             dice,
             dice_jans: Vec::new(),
             dice_moves: (CheckerMove::default(), CheckerMove::default()),
-            message: "".into(),
         }
     }
 

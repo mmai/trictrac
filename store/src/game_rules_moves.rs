@@ -257,11 +257,24 @@ impl MoveRules {
         &self,
         moves: &(CheckerMove, CheckerMove),
     ) -> Result<(), MoveError> {
-        let farthest = cmp::max(moves.0.get_to(), moves.1.get_to());
-        let in_opponent_side = farthest > 12;
-        if in_opponent_side && self.board.is_quarter_fillable(Color::Black, farthest) {
+        // A chained move (tout d'une): the first destination is a resting field.
+        // Exception: a resting field in the opponent's big jan (13-18) is allowed
+        // during a chained move to pass into the return jan.
+        let is_chained =
+            moves.1.get_from() != 0 && moves.0.get_to() == moves.1.get_from();
+
+        if !is_chained {
+            let to0 = moves.0.get_to();
+            if to0 > 12 && self.board.is_quarter_fillable(Color::Black, to0) {
+                return Err(MoveError::OpponentCanFillQuarter);
+            }
+        }
+
+        let to1 = moves.1.get_to();
+        if to1 > 12 && self.board.is_quarter_fillable(Color::Black, to1) {
             return Err(MoveError::OpponentCanFillQuarter);
         }
+
         Ok(())
     }
 
@@ -964,6 +977,22 @@ mod tests {
         let moves = (
             CheckerMove::new(15, 14).unwrap().mirror(),
             CheckerMove::new(14, 10).unwrap().mirror(),
+        );
+        assert_eq!(
+            Err(MoveError::OpponentCanFillQuarter),
+            state.moves_allowed(&moves)
+        );
+
+        state.board.set_positions(
+            &Color::Black,
+            [
+                0, 0, 0, 0, -1, 1, 3, 0, 3, 4, 1, 3, 0, -2, -5, -2, -1, -4, 0, 0, 0, 0, 0, 0,
+            ],
+        );
+        state.dice.values = (6, 2);
+        let moves = (
+            CheckerMove::new(14, 8).unwrap().mirror(),
+            CheckerMove::new(5, 3).unwrap().mirror(),
         );
         assert_eq!(
             Err(MoveError::OpponentCanFillQuarter),

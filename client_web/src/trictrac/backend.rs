@@ -167,8 +167,8 @@ impl BackEndArchitecture<PlayerAction, GameDelta, ViewState> for TrictracBackend
                     moves: (m1, m2),
                 };
                 if self.game.validate(&event) {
-                    let message = format!("Event {:?} validated on {:?}", event, self.game);
-                    console_log(message);
+                    // let message = format!("Event {:?} validated on {:?}", event, self.game);
+                    // console_log(message);
                     let _ = self.game.consume(&event);
                     self.drive_automatic_stages();
                 }

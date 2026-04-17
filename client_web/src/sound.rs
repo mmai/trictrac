@@ -128,6 +128,13 @@ mod inner {
         });
     }
 
+    /// Play the pre-recorded dice-roll MP3 asset.
+    pub fn play_dice_roll() {
+        if let Ok(audio) = web_sys::HtmlAudioElement::new_with_src("/diceroll.mp3") {
+            let _ = audio.play();
+        }
+    }
+
     /// Ascending three-note chime (C5 – E5 – G5).
     pub fn play_points_scored() {
         with_ctx(|ctx| {
@@ -158,11 +165,14 @@ mod inner {
 
 #[cfg(target_arch = "wasm32")]
 pub use inner::{
-    play_checker_move, play_dice_roll_cinematic, play_hole_scored, play_points_scored,
+    play_checker_move, play_dice_roll, play_dice_roll_cinematic, play_hole_scored,
+    play_points_scored,
 };
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn play_checker_move() {}
+#[cfg(not(target_arch = "wasm32"))]
+pub fn play_dice_roll() {}
 #[cfg(not(target_arch = "wasm32"))]
 pub fn play_dice_roll_cinematic() {}
 #[cfg(not(target_arch = "wasm32"))]

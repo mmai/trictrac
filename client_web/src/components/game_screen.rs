@@ -179,7 +179,7 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
     // ── Sound effects (fire once on mount = once per state snapshot) ──────────
     // Dice roll: dice just appeared (no preceding moves in this snapshot).
     if show_dice && last_moves.is_none() {
-        crate::sound::play_dice_roll_cinematic();
+        crate::sound::play_dice_roll();
     }
     // Checker move: moves were committed in the preceding action.
     if last_moves.is_some() {

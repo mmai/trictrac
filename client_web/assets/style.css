@@ -1131,3 +1131,63 @@ body {
     flex-wrap: wrap;
     min-height: 2rem; /* reserve height so layout doesn't shift when buttons appear */
 }
+
+/* ── Pre-game ceremony overlay ──────────────────────────────────────────── */
+.ceremony-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.65);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+}
+
+.ceremony-box {
+    background: var(--ui-parchment);
+    border-radius: 8px;
+    padding: 2.5rem 3rem;
+    text-align: center;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.5), 0 0 0 2px var(--ui-gold-dark);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.4rem;
+    min-width: 300px;
+    animation: game-over-appear 0.4s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.ceremony-box h2 {
+    font-family: var(--font-display);
+    font-size: 1.8rem;
+    font-weight: 600;
+    color: var(--ui-ink);
+    letter-spacing: 0.06em;
+}
+
+.ceremony-dice {
+    display: flex;
+    gap: 3rem;
+    align-items: flex-end;
+}
+
+.ceremony-die-slot {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.ceremony-die-label {
+    font-family: var(--font-ui);
+    font-size: 0.85rem;
+    color: var(--ui-ink);
+    font-weight: 500;
+}
+
+.ceremony-tie {
+    font-family: var(--font-display);
+    font-size: 1rem;
+    color: var(--ui-red-accent);
+    font-style: italic;
+}

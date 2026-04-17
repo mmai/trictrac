@@ -14,6 +14,8 @@ pub enum PlayerAction {
     Go,
     /// Acknowledge point marking (hold / advance points).
     Mark,
+    /// Roll a single die during the pre-game ceremony to decide who goes first.
+    PreGameRoll,
 }
 
 // ── Incremental state update broadcast to all clients ────────────────────────
@@ -26,6 +28,18 @@ pub struct GameDelta {
 }
 
 // ── Full game snapshot ────────────────────────────────────────────────────────
+
+/// State of the pre-game ceremony where each player rolls one die to decide
+/// who goes first. Present only when `stage == SerStage::PreGameRoll`.
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
+pub struct PreGameRollState {
+    /// Die value (1–6) rolled by the host; `None` = not yet rolled this round.
+    pub host_die: Option<u8>,
+    /// Die value (1–6) rolled by the guest; `None` = not yet rolled this round.
+    pub guest_die: Option<u8>,
+    /// Number of tied rounds so far (0 on the first round).
+    pub tie_count: u8,
+}
 
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
 pub struct ViewState {
@@ -43,6 +57,9 @@ pub struct ViewState {
     pub dice_jans: Vec<JanEntry>,
     /// Last two checker moves played; default when no move has occurred yet.
     pub dice_moves: (CheckerMove, CheckerMove),
+    /// Present while the pre-game ceremony is in progress.
+    #[serde(default)]
+    pub pre_game_roll: Option<PreGameRollState>,
 }
 
 /// One scoring event from a dice roll.
@@ -86,6 +103,7 @@ impl ViewState {
             dice: (0, 0),
             dice_jans: Vec::new(),
             dice_moves: (CheckerMove::default(), CheckerMove::default()),
+            pre_game_roll: None,
         }
     }
 
@@ -184,6 +202,7 @@ impl ViewState {
             dice: (gs.dice.values.0, gs.dice.values.1),
             dice_jans,
             dice_moves: gs.dice_moves,
+            pre_game_roll: None,
         }
     }
 }
@@ -220,6 +239,8 @@ pub struct PlayerScore {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum SerStage {
     PreGame,
+    /// Both players have arrived; ceremony in progress to decide who goes first.
+    PreGameRoll,
     InGame,
     Ended,
 }

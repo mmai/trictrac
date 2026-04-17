@@ -13,7 +13,7 @@ use crate::i18n::I18nContextProvider;
 use crate::trictrac::backend::TrictracBackend;
 use crate::trictrac::bot_local::bot_decide;
 use crate::trictrac::types::{
-    GameDelta, JanEntry, PlayerAction, ScoredEvent, SerTurnStage, ViewState,
+    GameDelta, JanEntry, PlayerAction, ScoredEvent, SerStage, SerTurnStage, ViewState,
 };
 use trictrac_store::CheckerMove;
 
@@ -48,6 +48,8 @@ pub enum PauseReason {
     AfterOpponentRoll,
     AfterOpponentGo,
     AfterOpponentMove,
+    /// Opponent rolled their die in the pre-game ceremony.
+    AfterOpponentPreGameRoll,
 }
 
 /// Which screen is currently shown.
@@ -382,32 +384,35 @@ async fn run_local_bot_game(
         }
 
         loop {
-            match bot_decide(backend.get_game()) {
+            let pgr = backend.get_view_state().pre_game_roll.clone();
+            match bot_decide(backend.get_game(), pgr.as_ref()) {
                 None => break,
                 Some(action) => {
-                    let prev_vs = vs.clone();
                     backend.inform_rpc(1, action);
+                    // Process each delta individually so intermediate ceremony
+                    // states (both dice shown) can trigger a pause via push_or_show.
                     for cmd in backend.drain_commands() {
                         if let BackendCommand::Delta(delta) = cmd {
+                            let delta_prev_vs = vs.clone();
                             vs.apply_delta(&delta);
+                            push_or_show(
+                                &delta_prev_vs,
+                                GameUiState {
+                                    view_state: vs.clone(),
+                                    player_id: 0,
+                                    room_id: String::new(),
+                                    is_bot_game: true,
+                                    waiting_for_confirm: false,
+                                    pause_reason: None,
+                                    my_scored_event: None,
+                                    opp_scored_event: None,
+                                    last_moves: compute_last_moves(&delta_prev_vs, &vs),
+                                },
+                                pending,
+                                screen,
+                            );
                         }
                     }
-                    push_or_show(
-                        &prev_vs,
-                        GameUiState {
-                            view_state: vs.clone(),
-                            player_id: 0,
-                            room_id: String::new(),
-                            is_bot_game: true,
-                            waiting_for_confirm: false,
-                            pause_reason: None,
-                            my_scored_event: None,
-                            opp_scored_event: None,
-                            last_moves: compute_last_moves(&prev_vs, &vs),
-                        },
-                        pending,
-                        screen,
-                    );
                 }
             }
         }
@@ -530,6 +535,24 @@ fn push_or_show(
 fn infer_pause_reason(prev: &ViewState, next: &ViewState, player_id: u16) -> Option<PauseReason> {
     let opponent_id = 1 - player_id;
 
+    // Pre-game ceremony: pause when both dice are revealed simultaneously
+    // (i.e. the second die was just rolled). Both players see this pause.
+    if next.stage == SerStage::PreGameRoll {
+        if let (Some(prev_pgr), Some(next_pgr)) = (&prev.pre_game_roll, &next.pre_game_roll) {
+            let both_now = next_pgr.host_die.is_some() && next_pgr.guest_die.is_some();
+            let both_before = prev_pgr.host_die.is_some() && prev_pgr.guest_die.is_some();
+            if both_now && !both_before {
+                return Some(PauseReason::AfterOpponentPreGameRoll);
+            }
+        }
+        return None;
+    }
+
+    // Don't fire normal pause rules on the PreGameRoll → InGame transition.
+    if prev.stage == SerStage::PreGameRoll {
+        return None;
+    }
+
     if next.active_mp_player == Some(opponent_id) {
         // Dice changed → opponent just rolled.
         if next.dice != prev.dice {
@@ -574,6 +597,7 @@ mod tests {
             dice,
             dice_jans: Vec::new(),
             dice_moves: (CheckerMove::default(), CheckerMove::default()),
+            pre_game_roll: None,
         }
     }
 

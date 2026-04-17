@@ -1,7 +1,7 @@
 use backbone_lib::traits::{BackEndArchitecture, BackendCommand};
 use trictrac_store::{DiceRoller, GameEvent, GameState, TurnStage};
 
-use crate::trictrac::types::{GameDelta, PlayerAction, ViewState};
+use crate::trictrac::types::{GameDelta, PlayerAction, PreGameRollState, SerStage, ViewState};
 
 // Store PlayerId (u64) values used for the two players.
 const HOST_PLAYER_ID: u64 = 1;
@@ -14,11 +14,32 @@ pub struct TrictracBackend {
     view_state: ViewState,
     /// Arrival flags: have host (index 0) and guest (index 1) joined?
     arrived: [bool; 2],
+    /// Die rolled by each player during the ceremony ([host, guest]).
+    pre_game_dice: [Option<u8>; 2],
+    /// Number of tied rounds so far.
+    tie_count: u8,
+    /// True while the first-player ceremony is running.
+    ceremony_started: bool,
 }
 
 impl TrictracBackend {
     fn sync_view_state(&mut self) {
-        self.view_state = ViewState::from_game_state(&self.game, HOST_PLAYER_ID, GUEST_PLAYER_ID);
+        let mut vs = ViewState::from_game_state(&self.game, HOST_PLAYER_ID, GUEST_PLAYER_ID);
+        if self.ceremony_started {
+            vs.stage = SerStage::PreGameRoll;
+            vs.pre_game_roll = Some(PreGameRollState {
+                host_die: self.pre_game_dice[0],
+                guest_die: self.pre_game_dice[1],
+                tie_count: self.tie_count,
+            });
+            // The active mp player is whoever hasn't rolled yet (host rolls first).
+            vs.active_mp_player = match self.pre_game_dice {
+                [None, _] => Some(0),
+                [Some(_), None] => Some(1),
+                _ => None,
+            };
+        }
+        self.view_state = vs;
     }
 
     fn broadcast_state(&mut self) {
@@ -27,6 +48,42 @@ impl TrictracBackend {
             state: self.view_state.clone(),
         };
         self.commands.push(BackendCommand::Delta(delta));
+    }
+
+    /// Process one ceremony die-roll for `mp_player` (0 = host, 1 = guest).
+    fn handle_pre_game_roll(&mut self, mp_player: u16) {
+        // Enforce turn order: host rolls first, then guest.
+        let expected: u16 = match self.pre_game_dice {
+            [None, _] => 0,
+            [Some(_), None] => 1,
+            _ => return, // both already rolled (shouldn't happen)
+        };
+        if mp_player != expected {
+            return;
+        }
+        let idx = mp_player as usize;
+        let single = self.dice_roller.roll().values.0;
+        self.pre_game_dice[idx] = Some(single);
+
+        if let [Some(h), Some(g)] = self.pre_game_dice {
+            // Both have rolled — broadcast both dice before resolving.
+            self.broadcast_state();
+            if h == g {
+                // Tie: reset for another round.
+                self.tie_count += 1;
+                self.pre_game_dice = [None; 2];
+                self.broadcast_state();
+            } else {
+                // Highest die goes first.
+                let goes_first = if h > g { HOST_PLAYER_ID } else { GUEST_PLAYER_ID };
+                self.ceremony_started = false;
+                let _ = self.game.consume(&GameEvent::BeginGame { goes_first });
+                self.broadcast_state();
+            }
+        } else {
+            // Only one die rolled so far — broadcast the partial result.
+            self.broadcast_state();
+        }
     }
 
     /// Roll dice using the store's DiceRoller and fire Roll + RollResult events.
@@ -86,6 +143,9 @@ impl BackEndArchitecture<PlayerAction, GameDelta, ViewState> for TrictracBackend
             commands: Vec::new(),
             view_state,
             arrived: [false; 2],
+            pre_game_dice: [None; 2],
+            tie_count: 0,
+            ceremony_started: false,
         }
     }
 
@@ -110,11 +170,13 @@ impl BackEndArchitecture<PlayerAction, GameDelta, ViewState> for TrictracBackend
             timer_id: mp_player,
         });
 
-        // Start the game once both players have arrived.
-        if self.arrived[0] && self.arrived[1] && self.game.stage == trictrac_store::Stage::PreGame {
-            let _ = self.game.consume(&GameEvent::BeginGame {
-                goes_first: HOST_PLAYER_ID,
-            });
+        // Start the ceremony once both players have arrived.
+        if self.arrived[0] && self.arrived[1] && self.game.stage == trictrac_store::Stage::PreGame
+            && !self.ceremony_started
+        {
+            self.ceremony_started = true;
+            self.pre_game_dice = [None; 2];
+            self.tie_count = 0;
             self.sync_view_state();
             self.commands.push(BackendCommand::ResetViewState);
         } else {
@@ -135,6 +197,14 @@ impl BackEndArchitecture<PlayerAction, GameDelta, ViewState> for TrictracBackend
     }
 
     fn inform_rpc(&mut self, mp_player: u16, action: PlayerAction) {
+        // During the first-player ceremony only PreGameRoll actions are accepted.
+        if self.ceremony_started {
+            if matches!(action, PlayerAction::PreGameRoll) {
+                self.handle_pre_game_roll(mp_player);
+            }
+            return;
+        }
+
         if self.game.stage == trictrac_store::Stage::Ended {
             return;
         }
@@ -167,8 +237,6 @@ impl BackEndArchitecture<PlayerAction, GameDelta, ViewState> for TrictracBackend
                     moves: (m1, m2),
                 };
                 if self.game.validate(&event) {
-                    // let message = format!("Event {:?} validated on {:?}", event, self.game);
-                    // console_log(message);
                     let _ = self.game.consume(&event);
                     self.drive_automatic_stages();
                 }
@@ -188,6 +256,7 @@ impl BackEndArchitecture<PlayerAction, GameDelta, ViewState> for TrictracBackend
                     self.drive_automatic_stages();
                 }
             }
+            PlayerAction::PreGameRoll => {} // ignored outside ceremony
         }
 
         self.broadcast_state();
@@ -216,6 +285,7 @@ impl BackEndArchitecture<PlayerAction, GameDelta, ViewState> for TrictracBackend
 mod tests {
     use super::*;
     use backbone_lib::traits::BackEndArchitecture;
+    use crate::trictrac::types::{SerStage, SerTurnStage};
 
     fn make_backend() -> TrictracBackend {
         TrictracBackend::new(0)
@@ -233,26 +303,65 @@ mod tests {
             .collect()
     }
 
+    /// Drive the ceremony to completion (both players roll until one wins).
+    fn complete_ceremony(b: &mut TrictracBackend) {
+        loop {
+            if b.get_view_state().stage != SerStage::PreGameRoll {
+                break;
+            }
+            match b.get_view_state().active_mp_player {
+                Some(0) => b.inform_rpc(0, PlayerAction::PreGameRoll),
+                Some(1) => b.inform_rpc(1, PlayerAction::PreGameRoll),
+                _ => break,
+            }
+            b.drain_commands();
+        }
+    }
+
     #[test]
-    fn both_players_arrive_starts_game() {
+    fn both_players_arrive_starts_ceremony() {
         let mut b = make_backend();
         b.player_arrival(0); // host
         b.drain_commands();
         b.player_arrival(1); // guest
         let cmds = b.drain_commands();
 
-        // ResetViewState should have been issued after BeginGame.
+        // ResetViewState should have been issued to start the ceremony.
         let has_reset = cmds
             .iter()
             .any(|c| matches!(c, BackendCommand::ResetViewState));
-        assert!(
-            has_reset,
-            "expected ResetViewState after both players arrive"
-        );
+        assert!(has_reset, "expected ResetViewState after both players arrive");
 
-        // Game should now be InGame.
-        use crate::trictrac::types::SerStage;
+        // Stage should now be PreGameRoll, not InGame.
+        assert_eq!(b.get_view_state().stage, SerStage::PreGameRoll);
+    }
+
+    #[test]
+    fn ceremony_resolves_to_in_game() {
+        let mut b = make_backend();
+        b.player_arrival(0);
+        b.player_arrival(1);
+        b.drain_commands();
+
+        complete_ceremony(&mut b);
+
         assert_eq!(b.get_view_state().stage, SerStage::InGame);
+    }
+
+    #[test]
+    fn ceremony_wrong_order_ignored() {
+        let mut b = make_backend();
+        b.player_arrival(0);
+        b.player_arrival(1);
+        b.drain_commands();
+
+        // Guest tries to roll before host (host goes first in ceremony).
+        b.inform_rpc(1, PlayerAction::PreGameRoll);
+        let cmds = b.drain_commands();
+        assert!(
+            cmds.is_empty(),
+            "guest PreGameRoll should be ignored when it is host's turn"
+        );
     }
 
     #[test]
@@ -272,12 +381,15 @@ mod tests {
         b.player_arrival(1);
         b.drain_commands();
 
-        // Host rolls (player_id 0, whose store id == HOST_PLAYER_ID == active after BeginGame).
-        b.inform_rpc(0, PlayerAction::Roll);
+        // Complete ceremony before rolling.
+        complete_ceremony(&mut b);
+
+        // Roll for whoever won the ceremony (either player could go first).
+        let first_player = b.get_view_state().active_mp_player.expect("someone should be active");
+        b.inform_rpc(first_player, PlayerAction::Roll);
         let states = drain_deltas(&mut b);
         assert!(!states.is_empty(), "expected a state broadcast after roll");
 
-        use crate::trictrac::types::SerTurnStage;
         let last = states.last().unwrap();
         assert!(
             matches!(
@@ -298,13 +410,16 @@ mod tests {
         b.player_arrival(0);
         b.player_arrival(1);
         b.drain_commands();
+        complete_ceremony(&mut b);
 
-        // Guest tries to roll when it's the host's turn.
-        b.inform_rpc(1, PlayerAction::Roll);
+        // Identify who goes first and have the OTHER player try to roll.
+        let active = b.get_view_state().active_mp_player;
+        let wrong_player = if active == Some(0) { 1u16 } else { 0u16 };
+        b.inform_rpc(wrong_player, PlayerAction::Roll);
         let cmds = b.drain_commands();
         assert!(
             cmds.is_empty(),
-            "guest roll should be ignored when it's host's turn"
+            "wrong player roll should be ignored"
         );
     }
 

@@ -7,7 +7,8 @@ use trictrac_store::{Board as StoreBoard, CheckerMove, Color, Dice as StoreDice,
 
 use crate::app::{GameUiState, NetCommand, PauseReason};
 use crate::i18n::*;
-use crate::trictrac::types::{PlayerAction, SerStage, SerTurnStage};
+use crate::trictrac::types::{PlayerAction, PreGameRollState, SerStage, SerTurnStage};
+use super::die::Die;
 
 use super::board::Board;
 use super::score_panel::PlayerScorePanel;
@@ -78,7 +79,11 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
     // Guard: suppressed while waiting_for_confirm — the AfterOpponentMove
     // buffered state shows the human's RollDice turn but the auto-roll must
     // wait until the buffer is drained and the live screen state is shown.
-    let show_roll = is_my_turn && vs.turn_stage == SerTurnStage::RollDice;
+    // Guard: never auto-roll during the pre-game ceremony (the ceremony overlay
+    // has its own Roll button for PlayerAction::PreGameRoll).
+    let show_roll = is_my_turn
+        && vs.turn_stage == SerTurnStage::RollDice
+        && vs.stage != SerStage::PreGameRoll;
     if show_roll && !waiting_for_confirm {
         let cmd_tx_auto = cmd_tx.clone();
         Effect::new(move |_| {
@@ -131,6 +136,13 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
     // ── Scores ─────────────────────────────────────────────────────────────────
     let my_score = vs.scores[player_id as usize].clone();
     let opp_score = vs.scores[1 - player_id as usize].clone();
+
+    // ── Ceremony state (extracted before vs is moved into Board) ────────────────
+    let is_ceremony = vs.stage == SerStage::PreGameRoll;
+    let pre_game_roll_data: Option<PreGameRollState> = vs.pre_game_roll.clone();
+    let my_name_ceremony = my_score.name.clone();
+    let opp_name_ceremony = opp_score.name.clone();
+    let cmd_tx_ceremony = cmd_tx.clone();
 
     // ── Scoring notifications ──────────────────────────────────────────────────
     let my_scored_event = state.my_scored_event.clone();
@@ -246,6 +258,7 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
                             PauseReason::AfterOpponentRoll => t_string!(i18n, after_opponent_roll),
                             PauseReason::AfterOpponentGo   => t_string!(i18n, after_opponent_go),
                             PauseReason::AfterOpponentMove => t_string!(i18n, after_opponent_move),
+                            PauseReason::AfterOpponentPreGameRoll => t_string!(i18n, after_opponent_pre_game_roll),
                         });
                     }
                     let n = staged_moves.get().len();
@@ -254,7 +267,7 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
                     } else {
                         String::from(match (&stage, is_my_turn, &turn_stage) {
                             (SerStage::Ended, _, _) => t_string!(i18n, game_over),
-                            (SerStage::PreGame, _, _) => t_string!(i18n, waiting_for_opponent),
+                            (SerStage::PreGame, _, _) | (SerStage::PreGameRoll, _, _) => t_string!(i18n, waiting_for_opponent),
                             (SerStage::InGame, true, SerTurnStage::RollDice) => t_string!(i18n, your_turn_roll),
                             (SerStage::InGame, true, SerTurnStage::HoldOrGoChoice) => t_string!(i18n, hold_or_go),
                             (SerStage::InGame, true, _) => t_string!(i18n, your_turn),
@@ -351,6 +364,55 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
 
             // ── Player score (below board) ────────────────────────────────────
             <PlayerScorePanel score=my_score is_you=true />
+
+            // ── Pre-game ceremony overlay ─────────────────────────────────────
+            {is_ceremony.then(|| {
+                let pgr = pre_game_roll_data.unwrap_or(PreGameRollState {
+                    host_die: None,
+                    guest_die: None,
+                    tie_count: 0,
+                });
+                let my_die = if player_id == 0 { pgr.host_die } else { pgr.guest_die };
+                let opp_die = if player_id == 0 { pgr.guest_die } else { pgr.host_die };
+                let can_roll = is_my_turn && !waiting_for_confirm;
+                let show_tie = pgr.tie_count > 0;
+                view! {
+                    <div class="ceremony-overlay">
+                        <div class="ceremony-box">
+                            <h2>{t!(i18n, pre_game_roll_title)}</h2>
+                            {show_tie.then(|| view! {
+                                <p class="ceremony-tie">{t!(i18n, pre_game_roll_tie)}</p>
+                            })}
+                            <div class="ceremony-dice">
+                                <div class="ceremony-die-slot">
+                                    <span class="ceremony-die-label">{my_name_ceremony}</span>
+                                    <Die value=my_die.unwrap_or(0) used=false />
+                                </div>
+                                <div class="ceremony-die-slot">
+                                    <span class="ceremony-die-label">{opp_name_ceremony}</span>
+                                    <Die value=opp_die.unwrap_or(0) used=false />
+                                </div>
+                            </div>
+                            {waiting_for_confirm.then(|| {
+                                let pending_c = pending;
+                                view! {
+                                    <button class="btn btn-primary" on:click=move |_| {
+                                        pending_c.update(|q| { q.pop_front(); });
+                                    }>{t!(i18n, continue_btn)}</button>
+                                }
+                            })}
+                            {can_roll.then(|| {
+                                let cmd_tx_c = cmd_tx_ceremony.clone();
+                                view! {
+                                    <button class="btn btn-primary" on:click=move |_| {
+                                        cmd_tx_c.unbounded_send(NetCommand::Action(PlayerAction::PreGameRoll)).ok();
+                                    }>{t!(i18n, pre_game_roll_btn)}</button>
+                                }
+                            })}
+                        </div>
+                    </div>
+                }
+            })}
 
             // ── Game-over overlay ─────────────────────────────────────────────
             {stage_is_ended.then(|| {

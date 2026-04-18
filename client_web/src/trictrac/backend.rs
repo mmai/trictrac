@@ -1,5 +1,5 @@
 use backbone_lib::traits::{BackEndArchitecture, BackendCommand};
-use trictrac_store::{DiceRoller, GameEvent, GameState, TurnStage};
+use trictrac_store::{Dice, DiceRoller, GameEvent, GameState, TurnStage};
 
 use crate::trictrac::types::{GameDelta, PlayerAction, PreGameRollState, SerStage, ViewState};
 
@@ -66,9 +66,21 @@ impl TrictracBackend {
                 self.broadcast_state();
             } else {
                 // Highest die goes first.
-                let goes_first = if h > g { HOST_PLAYER_ID } else { GUEST_PLAYER_ID };
+                let goes_first = if h > g {
+                    HOST_PLAYER_ID
+                } else {
+                    GUEST_PLAYER_ID
+                };
                 self.ceremony_started = false;
                 let _ = self.game.consume(&GameEvent::BeginGame { goes_first });
+                // Use pre-game dice roll for the first move
+                let _ = self.game.consume(&GameEvent::Roll {
+                    player_id: goes_first,
+                });
+                let _ = self.game.consume(&GameEvent::RollResult {
+                    player_id: goes_first,
+                    dice: Dice { values: (g, h) },
+                });
                 self.broadcast_state();
             }
         } else {
@@ -162,7 +174,9 @@ impl BackEndArchitecture<PlayerAction, GameDelta, ViewState> for TrictracBackend
         });
 
         // Start the ceremony once both players have arrived.
-        if self.arrived[0] && self.arrived[1] && self.game.stage == trictrac_store::Stage::PreGame
+        if self.arrived[0]
+            && self.arrived[1]
+            && self.game.stage == trictrac_store::Stage::PreGame
             && !self.ceremony_started
         {
             self.ceremony_started = true;
@@ -275,8 +289,8 @@ impl BackEndArchitecture<PlayerAction, GameDelta, ViewState> for TrictracBackend
 #[cfg(test)]
 mod tests {
     use super::*;
-    use backbone_lib::traits::BackEndArchitecture;
     use crate::trictrac::types::{SerStage, SerTurnStage};
+    use backbone_lib::traits::BackEndArchitecture;
 
     fn make_backend() -> TrictracBackend {
         TrictracBackend::new(0)
@@ -306,8 +320,12 @@ mod tests {
             if !host_needs && !guest_needs {
                 break; // both rolled but stage not yet resolved — shouldn't happen
             }
-            if host_needs { b.inform_rpc(0, PlayerAction::PreGameRoll); }
-            if guest_needs { b.inform_rpc(1, PlayerAction::PreGameRoll); }
+            if host_needs {
+                b.inform_rpc(0, PlayerAction::PreGameRoll);
+            }
+            if guest_needs {
+                b.inform_rpc(1, PlayerAction::PreGameRoll);
+            }
             b.drain_commands();
         }
     }
@@ -324,7 +342,10 @@ mod tests {
         let has_reset = cmds
             .iter()
             .any(|c| matches!(c, BackendCommand::ResetViewState));
-        assert!(has_reset, "expected ResetViewState after both players arrive");
+        assert!(
+            has_reset,
+            "expected ResetViewState after both players arrive"
+        );
 
         // Stage should now be PreGameRoll, not InGame.
         assert_eq!(b.get_view_state().stage, SerStage::PreGameRoll);
@@ -352,9 +373,15 @@ mod tests {
         // Guest may roll before host.
         b.inform_rpc(1, PlayerAction::PreGameRoll);
         let states = drain_deltas(&mut b);
-        assert!(!states.is_empty(), "guest PreGameRoll should broadcast a state");
+        assert!(
+            !states.is_empty(),
+            "guest PreGameRoll should broadcast a state"
+        );
         let pgr = states.last().unwrap().pre_game_roll.as_ref().unwrap();
-        assert!(pgr.guest_die.is_some(), "guest die should be set after guest rolls");
+        assert!(
+            pgr.guest_die.is_some(),
+            "guest die should be set after guest rolls"
+        );
         assert!(pgr.host_die.is_none(), "host die should still be blank");
     }
 
@@ -379,7 +406,10 @@ mod tests {
         complete_ceremony(&mut b);
 
         // Roll for whoever won the ceremony (either player could go first).
-        let first_player = b.get_view_state().active_mp_player.expect("someone should be active");
+        let first_player = b
+            .get_view_state()
+            .active_mp_player
+            .expect("someone should be active");
         b.inform_rpc(first_player, PlayerAction::Roll);
         let states = drain_deltas(&mut b);
         assert!(!states.is_empty(), "expected a state broadcast after roll");
@@ -411,10 +441,7 @@ mod tests {
         let wrong_player = if active == Some(0) { 1u16 } else { 0u16 };
         b.inform_rpc(wrong_player, PlayerAction::Roll);
         let cmds = b.drain_commands();
-        assert!(
-            cmds.is_empty(),
-            "wrong player roll should be ignored"
-        );
+        assert!(cmds.is_empty(), "wrong player roll should be ignored");
     }
 
     #[test]

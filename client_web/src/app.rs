@@ -270,6 +270,7 @@ pub fn App() -> impl IntoView {
                                     view_state: Some(vs.clone()),
                                 });
                             }
+                            let is_own_move = prev_vs.active_mp_player == Some(player_id);
                             push_or_show(
                                 &prev_vs,
                                 GameUiState {
@@ -281,7 +282,7 @@ pub fn App() -> impl IntoView {
                                     pause_reason: None,
                                     my_scored_event: None,
                                     opp_scored_event: None,
-                                    last_moves: compute_last_moves(&prev_vs, &vs),
+                                    last_moves: compute_last_moves(&prev_vs, &vs, is_own_move),
                                 },
                                 pending,
                                 screen,
@@ -376,7 +377,7 @@ async fn run_local_bot_game(
                     pause_reason: None,
                     my_scored_event: scored,
                     opp_scored_event: opp_scored,
-                    last_moves: compute_last_moves(&prev_vs, &vs),
+                    last_moves: compute_last_moves(&prev_vs, &vs, true),
                 }));
             }
             Some(NetCommand::PlayVsBot) => return true,
@@ -406,7 +407,7 @@ async fn run_local_bot_game(
                                     pause_reason: None,
                                     my_scored_event: None,
                                     opp_scored_event: None,
-                                    last_moves: compute_last_moves(&delta_prev_vs, &vs),
+                                    last_moves: compute_last_moves(&delta_prev_vs, &vs, false),
                                 },
                                 pending,
                                 screen,
@@ -421,7 +422,8 @@ async fn run_local_bot_game(
 
 /// Returns the checker moves to animate when the board changed between two ViewStates.
 /// Returns `None` when the board is unchanged or no real moves were recorded.
-fn compute_last_moves(prev: &ViewState, next: &ViewState) -> Option<(CheckerMove, CheckerMove)> {
+/// `own_move`: when true, m1 was already shown via staged-moves UI, so only animate m2.
+fn compute_last_moves(prev: &ViewState, next: &ViewState, own_move: bool) -> Option<(CheckerMove, CheckerMove)> {
     if prev.board == next.board {
         return None;
     }
@@ -431,6 +433,11 @@ fn compute_last_moves(prev: &ViewState, next: &ViewState) -> Option<(CheckerMove
         // change in the Move event handler. Any future engine path that mutates the board
         // without setting dice_moves would bypass this guard and replay stale animation.
         return None;
+    }
+    if own_move {
+        // m1 was already shown via the staged-moves overlay; only animate m2.
+        if m2 == CheckerMove::default() { return None; }
+        return Some((m2, CheckerMove::default()));
     }
     Some((m1, m2))
 }

@@ -5,10 +5,10 @@ use futures::channel::mpsc::UnboundedSender;
 use leptos::prelude::*;
 use trictrac_store::{Board as StoreBoard, CheckerMove, Color, Dice as StoreDice, Jan, MoveRules};
 
+use super::die::Die;
 use crate::app::{GameUiState, NetCommand, PauseReason};
 use crate::i18n::*;
 use crate::trictrac::types::{PlayerAction, PreGameRollState, SerStage, SerTurnStage};
-use super::die::Die;
 
 use super::board::Board;
 use super::score_panel::PlayerScorePanel;
@@ -81,9 +81,8 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
     // wait until the buffer is drained and the live screen state is shown.
     // Guard: never auto-roll during the pre-game ceremony (the ceremony overlay
     // has its own Roll button for PlayerAction::PreGameRoll).
-    let show_roll = is_my_turn
-        && vs.turn_stage == SerTurnStage::RollDice
-        && vs.stage != SerStage::PreGameRoll;
+    let show_roll =
+        is_my_turn && vs.turn_stage == SerTurnStage::RollDice && vs.stage != SerStage::PreGameRoll;
     if show_roll && !waiting_for_confirm {
         let cmd_tx_auto = cmd_tx.clone();
         Effect::new(move |_| {
@@ -374,7 +373,7 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
                 });
                 let my_die = if player_id == 0 { pgr.host_die } else { pgr.guest_die };
                 let opp_die = if player_id == 0 { pgr.guest_die } else { pgr.host_die };
-                let can_roll = is_my_turn && !waiting_for_confirm;
+                let can_roll = my_die.is_none() && !waiting_for_confirm;
                 let show_tie = pgr.tie_count > 0;
                 view! {
                     <div class="ceremony-overlay">
@@ -385,7 +384,7 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
                             })}
                             <div class="ceremony-dice">
                                 <div class="ceremony-die-slot">
-                                    <span class="ceremony-die-label">{my_name_ceremony}</span>
+                                    <span class="ceremony-die-label">{my_name_ceremony}{t!(i18n, you_suffix)}</span>
                                     <Die value=my_die.unwrap_or(0) used=false />
                                 </div>
                                 <div class="ceremony-die-slot">

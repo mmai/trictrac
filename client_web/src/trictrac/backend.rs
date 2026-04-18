@@ -32,12 +32,8 @@ impl TrictracBackend {
                 guest_die: self.pre_game_dice[1],
                 tie_count: self.tie_count,
             });
-            // The active mp player is whoever hasn't rolled yet (host rolls first).
-            vs.active_mp_player = match self.pre_game_dice {
-                [None, _] => Some(0),
-                [Some(_), None] => Some(1),
-                _ => None,
-            };
+            // Both players roll independently; no single "active" player.
+            vs.active_mp_player = None;
         }
         self.view_state = vs;
     }
@@ -52,16 +48,11 @@ impl TrictracBackend {
 
     /// Process one ceremony die-roll for `mp_player` (0 = host, 1 = guest).
     fn handle_pre_game_roll(&mut self, mp_player: u16) {
-        // Enforce turn order: host rolls first, then guest.
-        let expected: u16 = match self.pre_game_dice {
-            [None, _] => 0,
-            [Some(_), None] => 1,
-            _ => return, // both already rolled (shouldn't happen)
-        };
-        if mp_player != expected {
+        let idx = mp_player as usize;
+        // Ignore if this player already rolled.
+        if self.pre_game_dice[idx].is_some() {
             return;
         }
-        let idx = mp_player as usize;
         let single = self.dice_roller.roll().values.0;
         self.pre_game_dice[idx] = Some(single);
 
@@ -132,8 +123,8 @@ impl TrictracBackend {
 impl BackEndArchitecture<PlayerAction, GameDelta, ViewState> for TrictracBackend {
     fn new(_rule_variation: u16) -> Self {
         let mut game = GameState::new(false);
-        game.init_player("Host");
-        game.init_player("Guest");
+        game.init_player("Blancs");
+        game.init_player("Noirs");
 
         let view_state = ViewState::from_game_state(&game, HOST_PLAYER_ID, GUEST_PLAYER_ID);
 
@@ -309,11 +300,14 @@ mod tests {
             if b.get_view_state().stage != SerStage::PreGameRoll {
                 break;
             }
-            match b.get_view_state().active_mp_player {
-                Some(0) => b.inform_rpc(0, PlayerAction::PreGameRoll),
-                Some(1) => b.inform_rpc(1, PlayerAction::PreGameRoll),
-                _ => break,
+            let pgr = b.get_view_state().pre_game_roll.clone().unwrap_or_default();
+            let host_needs = pgr.host_die.is_none();
+            let guest_needs = pgr.guest_die.is_none();
+            if !host_needs && !guest_needs {
+                break; // both rolled but stage not yet resolved — shouldn't happen
             }
+            if host_needs { b.inform_rpc(0, PlayerAction::PreGameRoll); }
+            if guest_needs { b.inform_rpc(1, PlayerAction::PreGameRoll); }
             b.drain_commands();
         }
     }
@@ -349,19 +343,19 @@ mod tests {
     }
 
     #[test]
-    fn ceremony_wrong_order_ignored() {
+    fn ceremony_any_order_allowed() {
         let mut b = make_backend();
         b.player_arrival(0);
         b.player_arrival(1);
         b.drain_commands();
 
-        // Guest tries to roll before host (host goes first in ceremony).
+        // Guest may roll before host.
         b.inform_rpc(1, PlayerAction::PreGameRoll);
-        let cmds = b.drain_commands();
-        assert!(
-            cmds.is_empty(),
-            "guest PreGameRoll should be ignored when it is host's turn"
-        );
+        let states = drain_deltas(&mut b);
+        assert!(!states.is_empty(), "guest PreGameRoll should broadcast a state");
+        let pgr = states.last().unwrap().pre_game_roll.as_ref().unwrap();
+        assert!(pgr.guest_die.is_some(), "guest die should be set after guest rolls");
+        assert!(pgr.host_die.is_none(), "host die should still be blank");
     }
 
     #[test]

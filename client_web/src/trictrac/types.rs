@@ -31,7 +31,7 @@ pub struct GameDelta {
 
 /// State of the pre-game ceremony where each player rolls one die to decide
 /// who goes first. Present only when `stage == SerStage::PreGameRoll`.
-#[derive(Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct PreGameRollState {
     /// Die value (1–6) rolled by the host; `None` = not yet rolled this round.
     pub host_die: Option<u8>,

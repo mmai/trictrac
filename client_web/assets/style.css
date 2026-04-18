@@ -520,6 +520,9 @@ body {
 .die-face.die-used rect { fill: #d4d0c4; stroke: #9a8a70; }
 .die-face.die-used circle { fill: #9a8a70; }
 
+.die-face .die-question { fill: #1a0a00; font-family: sans-serif; }
+.die-face.die-used .die-question { fill: #9a8a70; }
+
 /* ── Jan panel ──────────────────────────────────────────────────────── */
 .jan-panel {
     display: flex;

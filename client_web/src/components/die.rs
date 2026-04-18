@@ -22,7 +22,7 @@ pub fn Die(
     value: u8,
     used: bool,
     #[prop(default = false)] is_double: bool,
-) -> impl IntoView {
+) -> AnyView {
     let mut cls = if used {
         "die-face die-used".to_string()
     } else {
@@ -30,6 +30,15 @@ pub fn Die(
     };
     if is_double && !used {
         cls.push_str(" die-double");
+    }
+    if value == 0 {
+        return view! {
+            <svg class=cls width="48" height="48" viewBox="0 0 48 48">
+                <rect x="1.5" y="1.5" width="45" height="45" rx="7" ry="7" />
+                <text x="24" y="32" text-anchor="middle" font-size="24" font-weight="bold"
+                    class="die-question">{"?"}</text>
+            </svg>
+        }.into_any();
     }
     let dots: Vec<AnyView> = dot_positions(value)
         .iter()
@@ -40,5 +49,5 @@ pub fn Die(
             <rect x="1.5" y="1.5" width="45" height="45" rx="7" ry="7" />
             {dots}
         </svg>
-    }
+    }.into_any()
 }

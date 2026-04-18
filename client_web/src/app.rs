@@ -237,7 +237,7 @@ pub fn App() -> impl IntoView {
             let is_host = session.is_host;
             let player_id = session.player_id;
             let reconnect_token = session.reconnect_token;
-            let mut vs = ViewState::default_with_names("Host", "Guest");
+            let mut vs = ViewState::default_with_names("Blancs", "Noirs");
 
             loop {
                 futures::select! {

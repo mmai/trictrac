@@ -25,8 +25,8 @@ pub fn bot_decide(game: &GameState, pgr: Option<&PreGameRollState>) -> Option<Pl
     }
     match game.turn_stage {
         TurnStage::RollDice => Some(PlayerAction::Roll),
-        TurnStage::HoldOrGoChoice => Some(PlayerAction::Go),
-        TurnStage::Move => {
+        // TurnStage::HoldOrGoChoice => Some(PlayerAction::Go),
+        TurnStage::Move | TurnStage::HoldOrGoChoice => {
             let rules = MoveRules::new(&Color::Black, &game.board, game.dice);
             let sequences = rules.get_possible_moves_sequences(true, vec![]);
             let mut rng = rand::rng();

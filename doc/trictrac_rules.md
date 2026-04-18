@@ -9,7 +9,7 @@ French terms follow the mapping in [vocabulary.md](refs/vocabulary.md).
 ## 1. Board and Starting Position
 
 - 24 triangular fields (_flèches_ / _cases_), numbered 1–24 from each player's perspective.
-- 4 quarters of 6 fields: **small jan** (1–6), **big jan** (7–12), **return jan** (13–18), **last jan** (19–24, exit zone).
+- 4 quarters of 6 fields: **small jan** (1–6), **big jan** (7–12), **opponent's big jan** (13–18), **return jan** (19–24, exit zone).
 - Field 12 (White) / 13 (Black) is the **rest corner** (_coin de repos_).
 - Each player starts with all 15 checkers in a stack (_talon_) on field 1.
 - Checkers always move in the same direction (White: 1→24; Black: mirror of that).
@@ -98,7 +98,7 @@ Ways to hit:
 
 ### 5d. Exit
 
-- When all 15 checkers are in the last jan (fields 19–24), the player may exit.
+- When all 15 checkers are in the return jan (fields 19–24), the player may exit.
 - The exit rail counts as one additional field value.
 - **Exact exit**: die value brings the checker directly to the exit rail — allowed.
 - **Overflow** (_nombre excédant_): die value would carry the farthest checker past the rail — must exit.

@@ -8,7 +8,9 @@ in
     # for Leptos
     pkgs.trunk
     pkgs.lld
-    # pkgs.wasm-bindgen-cli_0_2_114
+
+    # for backbone-lib
+    pkgs.wasm-bindgen-cli_0_2_114
     pkgs.binaryen # for wasm-opt
 
     # pour burn-rs
@@ -24,6 +26,13 @@ in
     pkgs.feedgnuplot # to visualize bots training results
 
   ];
+
+  services.postgres = {
+    enable = true;
+    listen_addresses = "*";
+    # port = 5432;
+    initialDatabases = [{ name = "trictrac"; user = "trictrac"; pass = "trictrac"; }];
+  };
 
   # https://devenv.sh/languages/
   languages.rust.enable = true;

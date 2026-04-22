@@ -13,6 +13,16 @@ members = [
   "spiel_bot",
 ]
 
+default-members = [
+  "store",
+  "clients/cli",
+  "clients/backbone-lib",
+  "server/protocol",
+  "server/relay-server",
+  "bot",
+  "spiel_bot",
+]
+
 # For the server we will need opt-level='3'
 [profile.release]
 opt-level = 'z'   # Minimum space

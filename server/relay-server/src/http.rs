@@ -43,7 +43,7 @@ pub fn router() -> Router<Arc<AppState>> {
 // ── Error type ────────────────────────────────────────────────────────────────
 
 enum AppError {
-    Database(sqlx::Error),
+    Database(db::DbError),
     NotFound,
     Conflict(&'static str),
     BadRequest(&'static str),
@@ -67,14 +67,10 @@ impl IntoResponse for AppError {
     }
 }
 
-impl From<sqlx::Error> for AppError {
-    fn from(e: sqlx::Error) -> Self {
+impl From<db::DbError> for AppError {
+    fn from(e: db::DbError) -> Self {
         AppError::Database(e)
     }
-}
-
-fn is_unique_violation(e: &sqlx::Error) -> bool {
-    matches!(e, sqlx::Error::Database(db_err) if db_err.message().contains("UNIQUE constraint failed"))
 }
 
 // ── Request / response bodies ─────────────────────────────────────────────────
@@ -173,7 +169,7 @@ async fn register(
     let user_id = db::create_user(&state.db, &body.username, &body.email, &hash)
         .await
         .map_err(|e| {
-            if is_unique_violation(&e) {
+            if e.is_unique_violation() {
                 AppError::Conflict("username or email already taken")
             } else {
                 AppError::Database(e)
@@ -276,17 +272,7 @@ async fn user_games(
 
 // ── Game detail (Phase 5) ─────────────────────────────────────────────────────
 
-#[derive(sqlx::FromRow, Serialize)]
-struct GameRecordRow {
-    id: i64,
-    game_id: String,
-    room_code: String,
-    started_at: i64,
-    ended_at: Option<i64>,
-    result: Option<String>,
-}
-
-#[derive(sqlx::FromRow, Serialize)]
+#[derive(Serialize)]
 struct ParticipantWithUsername {
     player_id: i64,
     outcome: Option<String>,
@@ -308,33 +294,46 @@ async fn game_detail(
     Path(id): Path<i64>,
     State(state): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, AppError> {
-    let record = sqlx::query_as::<_, GameRecordRow>(
-        "SELECT id, game_id, room_code, started_at, ended_at, result
-         FROM game_records WHERE id = ?",
-    )
-    .bind(id)
-    .fetch_optional(&state.db)
-    .await?
-    .ok_or(AppError::NotFound)?;
+    let client = state.db.get().await.map_err(db::DbError::from)?;
 
-    let participants = sqlx::query_as::<_, ParticipantWithUsername>(
-        "SELECT gp.player_id, gp.outcome, u.username
-         FROM game_participants gp
-         LEFT JOIN users u ON u.id = gp.user_id
-         WHERE gp.game_record_id = ?
-         ORDER BY gp.player_id",
-    )
-    .bind(id)
-    .fetch_all(&state.db)
-    .await?;
+    let record = client
+        .query_opt(
+            "SELECT id, game_id, room_code, started_at, ended_at, result
+             FROM game_records WHERE id = $1",
+            &[&id],
+        )
+        .await
+        .map_err(db::DbError::from)?
+        .ok_or(AppError::NotFound)?;
+
+    let rows = client
+        .query(
+            "SELECT gp.player_id, gp.outcome, u.username
+             FROM game_participants gp
+             LEFT JOIN users u ON u.id = gp.user_id
+             WHERE gp.game_record_id = $1
+             ORDER BY gp.player_id",
+            &[&id],
+        )
+        .await
+        .map_err(db::DbError::from)?;
+
+    let participants = rows
+        .into_iter()
+        .map(|r| ParticipantWithUsername {
+            player_id: r.get("player_id"),
+            outcome: r.get("outcome"),
+            username: r.get("username"),
+        })
+        .collect();
 
     Ok(Json(GameDetailResponse {
-        id: record.id,
-        game_id: record.game_id,
-        room_code: record.room_code,
-        started_at: record.started_at,
-        ended_at: record.ended_at,
-        result: record.result,
+        id: record.get("id"),
+        game_id: record.get("game_id"),
+        room_code: record.get("room_code"),
+        started_at: record.get("started_at"),
+        ended_at: record.get("ended_at"),
+        result: record.get("result"),
         participants,
     }))
 }
@@ -362,7 +361,7 @@ struct GameResultResponse {
 ///
 /// The room code + game ID act as the shared secret (same trust level as WS join).
 /// `close_game_record` is idempotent (no-op if already closed), and participant
-/// inserts use `INSERT OR IGNORE`, so safe retries are supported.
+/// inserts use `ON CONFLICT DO NOTHING`, so safe retries are supported.
 async fn game_result(
     State(state): State<Arc<AppState>>,
     Json(body): Json<GameResultBody>,

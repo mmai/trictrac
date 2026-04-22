@@ -1,10 +1,6 @@
 [
   {
-    "name" : "tic-tac-toe",
-    "max_players" : 10
-  },
-  {
-    "name" : "Ternio",
-    "max_players" : 3
+    "name": "trictrac",
+    "max_players": 10
   }
 ]

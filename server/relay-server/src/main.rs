@@ -29,7 +29,7 @@ use axum::http::{HeaderName, Method};
 use tower_http::cors::{AllowOrigin, CorsLayer};
 use tower_http::services::{ServeDir, ServeFile};
 use tower_sessions::{Expiry, SessionManagerLayer};
-use tower_sessions_sqlx_store::SqliteStore;
+use tower_sessions::MemoryStore;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
@@ -51,15 +51,11 @@ async fn main() {
         )
         .init();
 
-    let db_path = std::env::var("DATABASE_PATH").unwrap_or_else(|_| "data/relay.db".to_string());
-    let pool = db::init_db(&db_path).await;
+    let database_url = std::env::var("DATABASE_URL")
+        .unwrap_or_else(|_| "postgresql://trictrac:trictrac@127.0.0.1:5432/trictrac".to_string());
+    let pool = db::init_db(&database_url).await;
 
-    let session_store = SqliteStore::new(pool.clone());
-    session_store
-        .migrate()
-        .await
-        .expect("Failed to initialize session store");
-
+    let session_store = MemoryStore::default();
     let session_layer = SessionManagerLayer::new(session_store)
         .with_secure(false)
         .with_expiry(Expiry::OnInactivity(TimeDuration::days(30)));

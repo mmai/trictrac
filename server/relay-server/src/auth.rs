@@ -7,7 +7,7 @@ use argon2::password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, Salt
 use argon2::password_hash::rand_core::OsRng;
 use argon2::Argon2;
 use axum_login::{AuthUser, AuthnBackend, UserId};
-use sqlx::SqlitePool;
+use deadpool_postgres::Pool;
 
 use crate::db;
 
@@ -39,7 +39,7 @@ pub struct Credentials {
 #[derive(Debug, thiserror::Error)]
 pub enum AuthError {
     #[error("database error: {0}")]
-    Database(#[from] sqlx::Error),
+    Database(#[from] db::DbError),
     #[error("password hashing error")]
     PasswordHash,
 }
@@ -48,11 +48,11 @@ pub enum AuthError {
 
 #[derive(Clone)]
 pub struct AuthBackend {
-    pool: SqlitePool,
+    pool: Pool,
 }
 
 impl AuthBackend {
-    pub fn new(pool: SqlitePool) -> Self {
+    pub fn new(pool: Pool) -> Self {
         Self { pool }
     }
 }

@@ -9,17 +9,38 @@ shell:
 runcli:
 	RUST_LOG=info cargo run --bin=client_cli
 
-[working-directory: 'client_web/']
-dev-leptos:
+[working-directory: 'clients/web-game']
+dev-game:
   trunk serve
 
-[working-directory: 'client_web']
-build-leptos:
+[working-directory: 'clients/web-game']
+build-game:
   trunk build --release
-  cp dist/index.html /home/henri/travaux/programmes/forks/multiplayer/deploy/trictrac.html
-  cp dist/*.wasm /home/henri/travaux/programmes/forks/multiplayer/deploy/
-  cp dist/*.js /home/henri/travaux/programmes/forks/multiplayer/deploy/
-  cp dist/*.css /home/henri/travaux/programmes/forks/multiplayer/deploy/
+  cp dist/index.html deploy/trictrac.html
+  cp dist/*.wasm deploy/
+  cp dist/*.js deploy/
+  cp dist/*.css deploy/
+
+[working-directory: 'deploy']
+run-relay:
+  ./relay-server
+
+[working-directory: 'clients/web-user-portal']
+dev-portal:
+  trunk serve
+
+[working-directory: 'clients/web-user-portal']
+build-portal:
+  trunk build --release
+  cp dist/index.html ../../deploy/portal.html
+  cp dist/*.wasm ../../deploy/
+  cp dist/*.js ../../deploy/
+  cp dist/*.css ../../deploy/
+
+build-relay:
+  CARGO_PROFILE_RELEASE_OPT_LEVEL=3 cargo build -p relay-server --release
+  mkdir -p deploy
+  cp target/release/relay-server deploy
 
 runclibots:
 	cargo run --bin=client_cli -- --bot random,dqnburn:./bot/models/burnrl_dqn_40.mpk
@@ -45,3 +66,4 @@ profiletrainbot:
   echo '1' | sudo tee /proc/sys/kernel/perf_event_paranoid
   cargo build --profile profiling --bin=train_dqn_burn
   LD_LIBRARY_PATH=./target/profiling  samply record ./target/profiling/train_dqn_burn
+

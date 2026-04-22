@@ -1,4 +1,20 @@
 [workspace]
 resolver = "2"
 
-members = ["client_cli", "bot", "store", "spiel_bot", "client_web"]
+members = [
+  "store",
+  "clients/cli",
+  "clients/backbone-lib",
+  "clients/web-game",
+  "clients/web-user-portal",
+  "server/protocol",
+  "server/relay-server",
+  "bot",
+  "spiel_bot",
+]
+
+# For the server we will need opt-level='3'
+[profile.release]
+opt-level = 'z'   # Minimum space
+lto = "fat"       # Aggressive Link Time Optimization
+codegen-units = 1

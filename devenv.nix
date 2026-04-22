@@ -9,6 +9,7 @@ in
     pkgs.trunk
     pkgs.lld
     # pkgs.wasm-bindgen-cli_0_2_114
+    pkgs.binaryen # for wasm-opt
 
     # pour burn-rs
     pkgs.SDL2_gfx

@@ -16,10 +16,10 @@ dev-game:
 [working-directory: 'clients/web-game']
 build-game:
   trunk build --release
-  cp dist/index.html deploy/trictrac.html
-  cp dist/*.wasm deploy/
-  cp dist/*.js deploy/
-  cp dist/*.css deploy/
+  cp dist/index.html ../../deploy/trictrac.html
+  cp dist/*.wasm ../../deploy/
+  cp dist/*.js ../../deploy/
+  cp dist/*.css ../../deploy/
 
 [working-directory: 'deploy']
 run-relay:
@@ -41,6 +41,7 @@ build-relay:
   CARGO_PROFILE_RELEASE_OPT_LEVEL=3 cargo build -p relay-server --release
   mkdir -p deploy
   cp target/release/relay-server deploy
+  cp -u service/relay-server/GameConfig.json deploy/
 
 runclibots:
 	cargo run --bin=client_cli -- --bot random,dqnburn:./bot/models/burnrl_dqn_40.mpk

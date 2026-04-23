@@ -15,6 +15,7 @@ use crate::message_relay::{handle_client_logic, handle_server_logic};
 use axum::Router;
 use axum::extract::ws::{Message, WebSocket};
 use axum::extract::{State, WebSocketUpgrade};
+use axum::http::{HeaderName, Method};
 use axum::response::IntoResponse;
 use axum::routing::get;
 use axum_login::{AuthManagerLayerBuilder, AuthSession};
@@ -25,11 +26,10 @@ use std::sync::Arc;
 use std::time::Duration;
 use time::Duration as TimeDuration;
 use tokio::sync::Mutex;
-use axum::http::{HeaderName, Method};
 use tower_http::cors::{AllowOrigin, CorsLayer};
 use tower_http::services::{ServeDir, ServeFile};
-use tower_sessions::{Expiry, SessionManagerLayer};
 use tower_sessions::MemoryStore;
+use tower_sessions::{Expiry, SessionManagerLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
@@ -81,7 +81,7 @@ async fn main() {
 
     let cors = CorsLayer::new()
         .allow_origin(AllowOrigin::list([
-            "http://localhost:9091".parse().unwrap(), // tic-tac-toe dev server
+            "http://localhost:9091".parse().unwrap(), // game dev server
             "http://localhost:9092".parse().unwrap(), // portal dev server
         ]))
         .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
@@ -96,7 +96,10 @@ async fn main() {
         .route("/enlist", get(enlist_handler))
         .route("/ws", get(websocket_handler))
         .merge(http::router())
-        .nest_service("/portal", ServeDir::new("portal").not_found_service(ServeFile::new("portal/index.html")))
+        .nest_service(
+            "/portal",
+            ServeDir::new("portal").not_found_service(ServeFile::new("portal/index.html")),
+        )
         .with_state(app_state)
         .layer(auth_layer)
         .layer(cors)
@@ -180,7 +183,8 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>, user_id: Option<i64>
     // By splitting, we can send and receive at the same time.
     let (mut sender, mut receiver) = stream.split();
 
-    let handshake_result = init_and_connect(&mut sender, &mut receiver, state.clone(), user_id).await;
+    let handshake_result =
+        init_and_connect(&mut sender, &mut receiver, state.clone(), user_id).await;
     if handshake_result.is_none() {
         // We quit here, as the handshake did not work out.
         return;

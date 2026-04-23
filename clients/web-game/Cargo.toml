@@ -20,11 +20,13 @@ gloo-storage = "0.3"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen-futures = "0.4"
+gloo-net = { version = "0.5", features = ["http"] }
 gloo-timers = { version = "0.3", features = ["futures"] }
 # getrandom 0.3 requires an explicit WASM backend; "wasm_js" uses window.crypto.getRandomValues.
 # Must be a direct dependency (not just transitive) for the feature to take effect.
 getrandom = { version = "0.3", features = ["wasm_js"] }
 web-sys = { version = "0.3", features = [
+  "RequestCredentials",
   "AudioContext",
   "AudioParam",
   "AudioNode",

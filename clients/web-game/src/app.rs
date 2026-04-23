@@ -23,6 +23,13 @@ const RELAY_URL: &str = "ws://127.0.0.1:8080/ws";
 const GAME_ID: &str = "trictrac";
 const STORAGE_KEY: &str = "trictrac_session";
 
+// In debug builds trunk serves on 9091, relay is on 8080.
+// In release the game is served by the relay itself — use relative paths.
+#[cfg(debug_assertions)]
+const HTTP_BASE: &str = "http://localhost:8080";
+#[cfg(not(debug_assertions))]
+const HTTP_BASE: &str = "";
+
 /// The state the UI needs to render the game screen.
 #[derive(Clone, PartialEq)]
 pub struct GameUiState {
@@ -93,6 +100,11 @@ struct StoredSession {
     view_state: Option<ViewState>,
 }
 
+#[derive(Deserialize)]
+struct MeResponse {
+    username: String,
+}
+
 fn save_session(session: &StoredSession) {
     LocalStorage::set(STORAGE_KEY, session).ok();
 }
@@ -103,6 +115,31 @@ fn load_session() -> Option<StoredSession> {
 
 fn clear_session() {
     LocalStorage::delete(STORAGE_KEY);
+}
+
+/// Fire-and-forget: tell the relay server who won. Only called by the host.
+async fn submit_game_result(room_code: String, game_state: ViewState) {
+    let [score_pl1, score_pl2] = game_state.scores;
+    let result_str = format!("{:?} - {:?}", score_pl1.holes, score_pl2.holes);
+    let outcomes = if score_pl1.holes < score_pl2.holes {
+        [("0", "loss"), ("1", "win")]
+    } else if score_pl2.holes < score_pl1.holes {
+        [("0", "win"), ("1", "loss")]
+    } else {
+        [("0", "draw"), ("1", "draw")]
+    };
+    let body = serde_json::json!({
+        "room_code": room_code,
+        "game_id":   GAME_ID,
+        "result":    result_str,
+        "outcomes":  std::collections::HashMap::from(outcomes),
+    });
+    let _ = gloo_net::http::Request::post(&format!("{HTTP_BASE}/games/result"))
+        .credentials(web_sys::RequestCredentials::Include)
+        .json(&body)
+        .unwrap()
+        .send()
+        .await;
 }
 
 #[component]
@@ -423,7 +460,11 @@ async fn run_local_bot_game(
 /// Returns the checker moves to animate when the board changed between two ViewStates.
 /// Returns `None` when the board is unchanged or no real moves were recorded.
 /// `own_move`: when true, m1 was already shown via staged-moves UI, so only animate m2.
-fn compute_last_moves(prev: &ViewState, next: &ViewState, own_move: bool) -> Option<(CheckerMove, CheckerMove)> {
+fn compute_last_moves(
+    prev: &ViewState,
+    next: &ViewState,
+    own_move: bool,
+) -> Option<(CheckerMove, CheckerMove)> {
     if prev.board == next.board {
         return None;
     }
@@ -436,7 +477,9 @@ fn compute_last_moves(prev: &ViewState, next: &ViewState, own_move: bool) -> Opt
     }
     if own_move {
         // m1 was already shown via the staged-moves overlay; only animate m2.
-        if m2 == CheckerMove::default() { return None; }
+        if m2 == CheckerMove::default() {
+            return None;
+        }
         return Some((m2, CheckerMove::default()));
     }
     Some((m1, m2))

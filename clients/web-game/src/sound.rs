@@ -131,6 +131,7 @@ mod inner {
     /// Play the pre-recorded dice-roll MP3 asset.
     pub fn play_dice_roll() {
         if let Ok(audio) = web_sys::HtmlAudioElement::new_with_src("/diceroll.mp3") {
+            audio.set_volume(0.2);
             let _ = audio.play();
         }
     }

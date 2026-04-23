@@ -1194,3 +1194,20 @@ body {
     color: var(--ui-red-accent);
     font-style: italic;
 }
+
+
+.auth-badge {
+    font-size: 0.8rem;
+    text-align: center;
+    padding: 0.35rem 0.6rem;
+    border-radius: 5px;
+}
+.auth-badge--in  { background: rgba(96,165,250,0.15); color: #93c5fd; }
+.auth-badge--out { background: rgba(148,163,184,0.1); color: #64748b; }
+.auth-badge a    { color: #60a5fa; }
+
+.playing-as {
+    font-size: 0.8rem;
+    color: #64748b;
+    text-align: center;
+}

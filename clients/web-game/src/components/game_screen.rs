@@ -18,6 +18,8 @@ use super::scoring::ScoringPanel;
 pub fn GameScreen(state: GameUiState) -> impl IntoView {
     let i18n = use_i18n();
 
+    let auth_username =
+        use_context::<RwSignal<Option<String>>>().expect("auth_username not found in context");
     let vs = state.view_state.clone();
     let player_id = state.player_id;
     let is_my_turn = vs.active_mp_player == Some(player_id);
@@ -240,6 +242,11 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
                         on:click=move |_| i18n.set_locale(Locale::fr)
                     >"FR"</button>
                 </div>
+
+            {move || auth_username.get().map(|u| view! {
+                <p class="playing-as">"Playing as " <strong>{u}</strong></p>
+            })}
+
                 <a class="quit-link" href="#" on:click=move |e| {
                     e.prevent_default();
                     cmd_tx_quit.unbounded_send(NetCommand::Disconnect).ok();

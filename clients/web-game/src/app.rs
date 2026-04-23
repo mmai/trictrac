@@ -19,7 +19,7 @@ use trictrac_store::CheckerMove;
 
 use std::collections::VecDeque;
 
-const RELAY_URL: &str = "ws://127.0.0.1:8080/ws";
+const RELAY_URL: &str = "ws://localhost:8080/ws";
 const GAME_ID: &str = "trictrac";
 const STORAGE_KEY: &str = "trictrac_session";
 
@@ -152,6 +152,23 @@ pub fn App() -> impl IntoView {
     };
     let screen = RwSignal::new(initial_screen);
 
+    // Auth: fetch once and expose to all child components via context.
+    let auth_username: RwSignal<Option<String>> = RwSignal::new(None);
+    provide_context(auth_username);
+    spawn_local(async move {
+        if let Ok(resp) = gloo_net::http::Request::get(&format!("{HTTP_BASE}/auth/me"))
+            .credentials(web_sys::RequestCredentials::Include)
+            .send()
+            .await
+        {
+            if resp.status() == 200 {
+                if let Ok(me) = resp.json::<MeResponse>().await {
+                    auth_username.set(Some(me.username));
+                }
+            }
+        }
+    });
+
     let (cmd_tx, mut cmd_rx) = mpsc::unbounded::<NetCommand>();
     let pending: RwSignal<VecDeque<GameUiState>> = RwSignal::new(VecDeque::new());
     provide_context(pending);
@@ -275,6 +292,7 @@ pub fn App() -> impl IntoView {
             let player_id = session.player_id;
             let reconnect_token = session.reconnect_token;
             let mut vs = ViewState::default_with_names("Blancs", "Noirs");
+            let mut result_submitted = false;
 
             loop {
                 futures::select! {
@@ -297,6 +315,15 @@ pub fn App() -> impl IntoView {
                                 ViewStateUpdate::Full(state) => vs = state,
                                 ViewStateUpdate::Incremental(delta) => vs.apply_delta(&delta),
                             }
+
+                            // Host reports outcomes once per terminal game state.
+                            if is_host && !result_submitted && vs.stage == SerStage::Ended {
+                                result_submitted = true;
+                                let room = room_id_for_storage.clone();
+                                let gs = vs.clone();
+                                spawn_local(submit_game_result(room, gs));
+                            }
+
                             if is_host {
                                 save_session(&StoredSession {
                                     relay_url: RELAY_URL.to_string(),

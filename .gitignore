@@ -17,3 +17,4 @@ client_web/dist
 var
 
 deploy
+clients/**/dist

@@ -2,10 +2,7 @@
 
 This is a game of [Trictrac](https://en.wikipedia.org/wiki/Trictrac) rust implementation.
 
-The project is on its early stages.
-Rules (without "schools") are implemented, as well as a rudimentary terminal interface which allow you to play against a bot which plays randomly.
-
-Training of AI bots is the work in progress.
+The project is still on its early stages.
 
 ## Usage
 
@@ -29,9 +26,9 @@ Playing with the cli against the 'random' bot: `cargo run --bin=client_cli -- --
 - [x] rules
 - [x] command line interface
 - [x] basic bot (random play)
+- [ ] web client (in progress)
+- [ ] network game (in progress)
 - [ ] AI bot
-- [ ] network game
-- [ ] web client
 
 ## Code structure
 

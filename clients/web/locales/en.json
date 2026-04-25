@@ -58,6 +58,7 @@
   "hint_move": "Click a highlighted field to move a checker",
   "hint_hold_or_go": "Hold to keep points — Go to reset the setting",
   "hint_continue": "Click Continue when ready",
+  "anonymous_name": "Anonymous",
   "login_failed": "Invalid username or password.",
   "sign_in": "Sign in",
   "sign_out": "Sign out",

@@ -18,12 +18,13 @@ pub async fn run_local_bot_game(
     screen: RwSignal<Screen>,
     cmd_rx: &mut mpsc::UnboundedReceiver<NetCommand>,
     pending: RwSignal<VecDeque<GameUiState>>,
+    player_name: String,
 ) -> bool {
     let mut backend = TrictracBackend::new(0);
     backend.player_arrival(0);
     backend.player_arrival(1);
 
-    let mut vs = ViewState::default_with_names("You", "Bot");
+    let mut vs = ViewState::default_with_names(&player_name, "Bot");
     for cmd in backend.drain_commands() {
         match cmd {
             BackendCommand::ResetViewState => {
@@ -35,6 +36,7 @@ pub async fn run_local_bot_game(
             _ => {}
         }
     }
+    patch_bot_names(&mut vs, &player_name);
     screen.set(Screen::Playing(GameUiState {
         view_state: vs.clone(),
         player_id: 0,
@@ -58,6 +60,7 @@ pub async fn run_local_bot_game(
                         vs.apply_delta(&delta);
                     }
                 }
+                patch_bot_names(&mut vs, &player_name);
                 let scored = compute_scored_event(&prev_vs, &vs, 0);
                 let opp_scored = compute_scored_event(&prev_vs, &vs, 1);
                 screen.set(Screen::Playing(GameUiState {
@@ -86,6 +89,7 @@ pub async fn run_local_bot_game(
                         if let BackendCommand::Delta(delta) = cmd {
                             let delta_prev_vs = vs.clone();
                             vs.apply_delta(&delta);
+                            patch_bot_names(&mut vs, &player_name);
                             push_or_show(
                                 &delta_prev_vs,
                                 GameUiState {
@@ -108,6 +112,17 @@ pub async fn run_local_bot_game(
             }
         }
     }
+}
+
+/// Patches the player names in a ViewState after a backend delta (bot game: slot 0 = human, 1 = Bot).
+pub fn patch_bot_names(vs: &mut ViewState, player_name: &str) {
+    vs.scores[0].name = player_name.to_string();
+    vs.scores[1].name = "Bot".to_string();
+}
+
+/// Patches the local player's name in a ViewState after a backend delta (multiplayer).
+pub fn patch_player_name(vs: &mut ViewState, player_id: u16, name: &str) {
+    vs.scores[player_id as usize].name = name.to_string();
 }
 
 /// Returns the checker moves to animate when the board changed between two ViewStates.

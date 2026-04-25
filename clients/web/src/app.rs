@@ -4,6 +4,7 @@ use gloo_storage::{LocalStorage, Storage};
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_router::components::{Route, Router, Routes};
+use leptos_router::hooks::use_location;
 use leptos_router::path;
 use serde::{Deserialize, Serialize};
 
@@ -11,15 +12,15 @@ use backbone_lib::session::{ConnectError, GameSession, RoomConfig, RoomRole, Ses
 use backbone_lib::traits::ViewStateUpdate;
 
 use crate::api;
+use crate::i18n::*;
 use crate::game::components::{ConnectingScreen, GameScreen};
 use crate::game::session::{
-    compute_last_moves, push_or_show, run_local_bot_game,
+    compute_last_moves, patch_player_name, push_or_show, run_local_bot_game,
 };
 use crate::game::trictrac::backend::TrictracBackend;
 use crate::game::trictrac::types::{
     GameDelta, PlayerAction, ScoredEvent, SerStage, ViewState,
 };
-use crate::i18n::I18nContextProvider;
 use crate::nav::SiteNav;
 use crate::portal::{account::AccountPage, game_detail::GameDetailPage, lobby::LobbyPage, profile::ProfilePage};
 use trictrac_store::CheckerMove;
@@ -128,6 +129,7 @@ async fn submit_game_result(room_code: String, game_state: ViewState) {
 
 #[component]
 pub fn App() -> impl IntoView {
+    let i18n = use_i18n();
     let stored = load_session();
     let initial_screen = if stored.is_some() {
         Screen::Connecting
@@ -225,8 +227,10 @@ pub fn App() -> impl IntoView {
             };
 
             if remote_config.is_none() {
+                let player_name = auth_username.get_untracked()
+                    .unwrap_or_else(|| t_string!(i18n, anonymous_name).to_string());
                 loop {
-                    let restart = run_local_bot_game(screen, &mut cmd_rx, pending).await;
+                    let restart = run_local_bot_game(screen, &mut cmd_rx, pending, player_name.clone()).await;
                     if !restart {
                         break;
                     }
@@ -266,7 +270,9 @@ pub fn App() -> impl IntoView {
             let is_host = session.is_host;
             let player_id = session.player_id;
             let reconnect_token = session.reconnect_token;
-            let mut vs = ViewState::default_with_names("Blancs", "Noirs");
+            let my_name = auth_username.get_untracked()
+                .unwrap_or_else(|| t_string!(i18n, anonymous_name).to_string());
+            let mut vs = ViewState::default_with_names("", "");
             let mut result_submitted = false;
 
             loop {
@@ -290,6 +296,7 @@ pub fn App() -> impl IntoView {
                                 ViewStateUpdate::Full(state) => vs = state,
                                 ViewStateUpdate::Incremental(delta) => vs.apply_delta(&delta),
                             }
+                            patch_player_name(&mut vs, player_id, &my_name);
 
                             if is_host && !result_submitted && vs.stage == SerStage::Ended {
                                 result_submitted = true;
@@ -343,42 +350,52 @@ pub fn App() -> impl IntoView {
     });
 
     view! {
-        <I18nContextProvider>
-            <Router>
-                // Nav: hidden while game overlay is active
-                <SiteNav />
+        <Router>
+            <SiteNav />
 
-                // Portal pages — always mounted for router stability
-                <main>
-                    <Routes fallback=|| view! { <p class="portal-empty" style="padding:3rem;text-align:center">"Page not found."</p> }>
-                        <Route path=path!("/") view=LobbyPage />
-                        <Route path=path!("/account") view=AccountPage />
-                        <Route path=path!("/profile/:username") view=ProfilePage />
-                        <Route path=path!("/games/:id") view=GameDetailPage />
-                    </Routes>
-                </main>
+            <main>
+                <Routes fallback=|| view! { <p class="portal-empty" style="padding:3rem;text-align:center">"Page not found."</p> }>
+                    <Route path=path!("/") view=LobbyPage />
+                    <Route path=path!("/account") view=AccountPage />
+                    <Route path=path!("/profile/:username") view=ProfilePage />
+                    <Route path=path!("/games/:id") view=GameDetailPage />
+                </Routes>
+            </main>
 
-                // Game overlay: fixed, covers portal during play
-                {move || {
-                    let q = pending.get();
-                    let front = q.front().cloned();
-                    if let Some(state) = front {
-                        return view! {
-                            <div class="game-overlay"><GameScreen state /></div>
-                        }.into_any();
-                    }
-                    match screen.get() {
-                        Screen::Playing(state) => view! {
-                            <div class="game-overlay"><GameScreen state /></div>
-                        }.into_any(),
-                        Screen::Connecting => view! {
-                            <div class="game-overlay"><ConnectingScreen /></div>
-                        }.into_any(),
-                        _ => view! { }.into_any(),
-                    }
-                }}
-            </Router>
-        </I18nContextProvider>
+            <GameOverlay pending=pending screen=screen />
+        </Router>
+    }
+}
+
+/// Renders the full-screen game overlay, but only when the current route is "/".
+/// This lets the user navigate to profile/account pages while a game is running.
+#[component]
+fn GameOverlay(
+    pending: RwSignal<VecDeque<GameUiState>>,
+    screen: RwSignal<Screen>,
+) -> impl IntoView {
+    let location = use_location();
+
+    move || {
+        if location.pathname.get() != "/" {
+            return view! { }.into_any();
+        }
+        let q = pending.get();
+        let front = q.front().cloned();
+        if let Some(state) = front {
+            return view! {
+                <div class="game-overlay"><GameScreen state /></div>
+            }.into_any();
+        }
+        match screen.get() {
+            Screen::Playing(state) => view! {
+                <div class="game-overlay"><GameScreen state /></div>
+            }.into_any(),
+            Screen::Connecting => view! {
+                <div class="game-overlay"><ConnectingScreen /></div>
+            }.into_any(),
+            _ => view! { }.into_any(),
+        }
     }
 }
 

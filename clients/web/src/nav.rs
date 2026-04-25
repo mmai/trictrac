@@ -3,18 +3,13 @@ use leptos::task::spawn_local;
 use leptos_router::components::A;
 
 use crate::api;
-use crate::app::Screen;
 use crate::i18n::*;
 
 #[component]
 pub fn SiteNav() -> impl IntoView {
     let i18n = use_i18n();
-    let screen = use_context::<RwSignal<Screen>>().expect("Screen context not found");
     let auth_username =
         use_context::<RwSignal<Option<String>>>().expect("auth_username context not found");
-
-    let is_game_active =
-        move || !matches!(screen.get(), Screen::Login { .. });
 
     let logout = move |_| {
         spawn_local(async move {
@@ -24,7 +19,7 @@ pub fn SiteNav() -> impl IntoView {
     };
 
     view! {
-        <nav class="site-nav" class:hidden=is_game_active>
+        <nav class="site-nav">
             <A href="/" attr:class="site-nav-brand">"Trictrac"</A>
             <div class="site-nav-spacer" />
             <div class="lang-switcher">

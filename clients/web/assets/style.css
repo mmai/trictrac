@@ -290,7 +290,7 @@ a:hover { text-decoration: underline; }
 /* ── Game overlay (full-screen, covers portal during play) ───────── */
 .game-overlay {
     position: fixed;
-    inset: 0;
+    inset: 54px 0 0 0;
     background: #8a7050;
     background-image:
         radial-gradient(ellipse at 20% 10%, rgba(80,48,16,0.35) 0%, transparent 60%),

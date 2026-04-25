@@ -58,6 +58,7 @@
   "hint_move": "Cliquez un champ surligné pour déplacer",
   "hint_hold_or_go": "Tenir pour garder les points — S'en aller pour repartir",
   "hint_continue": "Cliquez Continuer quand vous êtes prêt",
+  "anonymous_name": "Anonyme",
   "login_failed": "Identifiant ou mot de passe incorrect.",
   "sign_in": "Se connecter",
   "sign_out": "Se déconnecter",

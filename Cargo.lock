@@ -8701,6 +8701,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "trictrac-web"
+version = "0.1.0"
+dependencies = [
+ "backbone-lib",
+ "futures",
+ "getrandom 0.3.4",
+ "gloo-net 0.5.0",
+ "gloo-storage",
+ "gloo-timers",
+ "js-sys",
+ "leptos",
+ "leptos_i18n",
+ "leptos_router",
+ "rand 0.9.3",
+ "serde",
+ "serde_json",
+ "trictrac-store",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+]
+
+[[package]]
 name = "try-lock"
 version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -9,6 +9,23 @@ shell:
 runcli:
 	RUST_LOG=info cargo run --bin=client_cli
 
+[working-directory: 'clients/web']
+dev:
+  trunk serve
+
+[working-directory: 'clients/web']
+build:
+  trunk build --release
+  cp dist/index.html ../../deploy/index.html
+  cp dist/*.wasm ../../deploy/
+  cp dist/*.js ../../deploy/
+  cp dist/*.css ../../deploy/
+
+[working-directory: 'deploy']
+run-relay:
+  ./relay-server
+
+# Legacy targets kept for reference during transition
 [working-directory: 'clients/web-game']
 dev-game:
   trunk serve
@@ -20,10 +37,6 @@ build-game:
   cp dist/*.wasm ../../deploy/
   cp dist/*.js ../../deploy/
   cp dist/*.css ../../deploy/
-
-[working-directory: 'deploy']
-run-relay:
-  ./relay-server
 
 [working-directory: 'clients/web-user-portal']
 dev-portal:

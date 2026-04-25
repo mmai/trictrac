@@ -81,8 +81,7 @@ async fn main() {
 
     let cors = CorsLayer::new()
         .allow_origin(AllowOrigin::list([
-            "http://localhost:9091".parse().unwrap(), // game dev server
-            "http://localhost:9092".parse().unwrap(), // portal dev server
+            "http://localhost:9091".parse().unwrap(), // unified web dev server
         ]))
         .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
         .allow_headers([
@@ -96,10 +95,6 @@ async fn main() {
         .route("/enlist", get(enlist_handler))
         .route("/ws", get(websocket_handler))
         .merge(http::router())
-        .nest_service(
-            "/portal",
-            ServeDir::new("portal").not_found_service(ServeFile::new("portal/index.html")),
-        )
         .with_state(app_state)
         .layer(auth_layer)
         .layer(cors)

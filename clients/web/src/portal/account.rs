@@ -73,7 +73,12 @@ fn LoginForm() -> impl IntoView {
                     navigate(&dest, Default::default());
                 }
                 Err(e) => {
-                    error.set(e);
+                    let msg = if e.is_empty() {
+                        t_string!(i18n, login_failed).to_string()
+                    } else {
+                        e
+                    };
+                    error.set(msg);
                     pending.set(false);
                 }
             }

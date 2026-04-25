@@ -6348,6 +6348,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "qrcodegen"
+version = "1.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4339fc7a1021c9c1621d87f5e3505f2805c8c105420ba2f2a4df86814590c142"
+
+[[package]]
 name = "quick-error"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8714,6 +8720,7 @@ dependencies = [
  "leptos",
  "leptos_i18n",
  "leptos_router",
+ "qrcodegen",
  "rand 0.9.3",
  "serde",
  "serde_json",

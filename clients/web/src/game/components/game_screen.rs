@@ -8,6 +8,7 @@ use trictrac_store::{Board as StoreBoard, CheckerMove, Color, Dice as StoreDice,
 use super::die::Die;
 use crate::app::{GameUiState, NetCommand, PauseReason};
 use crate::i18n::*;
+use crate::portal::lobby::{qr_svg, room_url};
 use crate::game::trictrac::types::{PlayerAction, PreGameRollState, SerStage, SerTurnStage};
 
 use super::board::Board;
@@ -223,6 +224,10 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
     let opp_name_end = opp_score.name.clone();
     let opp_holes_end = opp_score.holes;
 
+    let share_open = RwSignal::new(false);
+    let share_url = if !is_bot_game { room_url(&room_id) } else { String::new() };
+    let share_svg = if !is_bot_game { qr_svg(&share_url) } else { String::new() };
+
     view! {
         <div class="game-container">
             // ── Top bar ──────────────────────────────────────────────────────
@@ -232,6 +237,18 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
                 } else {
                     t_string!(i18n, room_label, id = room_id.as_str())
                 }}</span>
+
+                {move || (!is_bot_game).then(|| view! {
+                    <button
+                        class="quit-link"
+                        style="border:none;background:transparent;cursor:pointer"
+                        on:click=move |_| share_open.update(|v| *v = !*v)
+                    >
+                        {move || if share_open.get() { "✕ " } else { "" }}
+                        {t!(i18n, share_btn)}
+                    </button>
+                })}
+
                 <div class="lang-switcher">
                     <button
                         class:lang-active=move || i18n.get_locale() == Locale::en
@@ -243,15 +260,29 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
                     >"FR"</button>
                 </div>
 
-            {move || auth_username.get().map(|u| view! {
-                <span class="playing-as">"▶ " <strong>{u}</strong></span>
-            })}
+                {move || auth_username.get().map(|u| view! {
+                    <span class="playing-as">"▶ " <strong>{u}</strong></span>
+                })}
 
                 <a class="quit-link" href="#" on:click=move |e| {
                     e.prevent_default();
                     cmd_tx_quit.unbounded_send(NetCommand::Disconnect).ok();
                 }>{t!(i18n, quit)}</a>
             </div>
+
+            // ── Share popover ─────────────────────────────────────────────────
+            {move || share_open.get().then(|| view! {
+                <div class="share-popover">
+                    <p class="share-popover-label">{t!(i18n, share_link)}</p>
+                    <div class="share-url-row">
+                        <span class="share-url-text">{ share_url.clone() }</span>
+                    </div>
+                    <p class="share-popover-label" style="margin-top:0.75rem">
+                        {t!(i18n, scan_qr)}
+                    </p>
+                    <div class="qr-container" inner_html=share_svg.clone() />
+                </div>
+            })}
 
             // ── Opponent score (above board) ─────────────────────────────────
             <PlayerScorePanel score=opp_score is_you=false />

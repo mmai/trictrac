@@ -94,5 +94,12 @@
   "anonymous_player": "anonymous",
   "started_label": "Started",
   "ended_label": "Ended",
-  "room_detail_title": "Room"
+  "room_detail_title": "Room",
+  "share_link": "Share this link to invite an opponent",
+  "copy_link": "Copy link",
+  "link_copied": "Copied!",
+  "scan_qr": "or scan the QR code",
+  "join_code_label": "Join by code",
+  "join_code_placeholder": "Room code",
+  "share_btn": "Share"
 }

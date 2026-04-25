@@ -94,5 +94,12 @@
   "anonymous_player": "anonyme",
   "started_label": "Début",
   "ended_label": "Fin",
-  "room_detail_title": "Salle"
+  "room_detail_title": "Salle",
+  "share_link": "Partagez ce lien pour inviter un adversaire",
+  "copy_link": "Copier le lien",
+  "link_copied": "Copié !",
+  "scan_qr": "ou scannez le QR code",
+  "join_code_label": "Rejoindre par code",
+  "join_code_placeholder": "Code de salle",
+  "share_btn": "Partager"
 }

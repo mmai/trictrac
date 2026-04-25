@@ -15,3 +15,6 @@ profile.json
 bot/models
 client_web/dist
 var
+
+deploy
+clients/**/dist

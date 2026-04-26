@@ -12,17 +12,17 @@ use backbone_lib::session::{ConnectError, GameSession, RoomConfig, RoomRole, Ses
 use backbone_lib::traits::ViewStateUpdate;
 
 use crate::api;
-use crate::i18n::*;
 use crate::game::components::{ConnectingScreen, GameScreen};
 use crate::game::session::{
     compute_last_moves, patch_player_name, push_or_show, run_local_bot_game,
 };
 use crate::game::trictrac::backend::TrictracBackend;
-use crate::game::trictrac::types::{
-    GameDelta, PlayerAction, ScoredEvent, SerStage, ViewState,
-};
+use crate::game::trictrac::types::{GameDelta, PlayerAction, ScoredEvent, SerStage, ViewState};
+use crate::i18n::*;
 use crate::nav::SiteNav;
-use crate::portal::{account::AccountPage, game_detail::GameDetailPage, lobby::LobbyPage, profile::ProfilePage};
+use crate::portal::{
+    account::AccountPage, game_detail::GameDetailPage, lobby::LobbyPage, profile::ProfilePage,
+};
 use trictrac_store::CheckerMove;
 
 use std::collections::VecDeque;
@@ -65,8 +65,12 @@ pub enum Screen {
 
 /// Commands sent from UI event handlers into the network task.
 pub enum NetCommand {
-    CreateRoom { room: String },
-    JoinRoom { room: String },
+    CreateRoom {
+        room: String,
+    },
+    JoinRoom {
+        room: String,
+    },
     Reconnect {
         relay_url: String,
         game_id: String,
@@ -227,10 +231,12 @@ pub fn App() -> impl IntoView {
             };
 
             if remote_config.is_none() {
-                let player_name = auth_username.get_untracked()
-                    .unwrap_or_else(|| t_string!(i18n, anonymous_name).to_string());
+                let player_name = auth_username
+                    .get_untracked()
+                    .unwrap_or_else(|| untrack(|| t_string!(i18n, anonymous_name).to_string()));
                 loop {
-                    let restart = run_local_bot_game(screen, &mut cmd_rx, pending, player_name.clone()).await;
+                    let restart =
+                        run_local_bot_game(screen, &mut cmd_rx, pending, player_name.clone()).await;
                     if !restart {
                         break;
                     }
@@ -270,7 +276,8 @@ pub fn App() -> impl IntoView {
             let is_host = session.is_host;
             let player_id = session.player_id;
             let reconnect_token = session.reconnect_token;
-            let my_name = auth_username.get_untracked()
+            let my_name = auth_username
+                .get_untracked()
                 .unwrap_or_else(|| t_string!(i18n, anonymous_name).to_string());
             let mut vs = ViewState::default_with_names("", "");
             let mut result_submitted = false;
@@ -378,23 +385,26 @@ fn GameOverlay(
 
     move || {
         if location.pathname.get() != "/" {
-            return view! { }.into_any();
+            return view! {}.into_any();
         }
         let q = pending.get();
         let front = q.front().cloned();
         if let Some(state) = front {
             return view! {
                 <div class="game-overlay"><GameScreen state /></div>
-            }.into_any();
+            }
+            .into_any();
         }
         match screen.get() {
             Screen::Playing(state) => view! {
                 <div class="game-overlay"><GameScreen state /></div>
-            }.into_any(),
+            }
+            .into_any(),
             Screen::Connecting => view! {
                 <div class="game-overlay"><ConnectingScreen /></div>
-            }.into_any(),
-            _ => view! { }.into_any(),
+            }
+            .into_any(),
+            _ => view! {}.into_any(),
         }
     }
 }

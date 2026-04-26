@@ -181,7 +181,7 @@ fn IdleCard(
                     <div style="margin-top:0.75rem;display:flex;gap:0.5rem">
                         <input
                             class="login-input"
-                            style="flex:1;margin:0"
+                            style="margin:0"
                             type="text"
                             placeholder=move || t_string!(i18n, join_code_placeholder)
                             prop:value=move || join_code.get()

@@ -7,9 +7,9 @@ use trictrac_store::{Board as StoreBoard, CheckerMove, Color, Dice as StoreDice,
 
 use super::die::Die;
 use crate::app::{GameUiState, NetCommand, PauseReason};
+use crate::game::trictrac::types::{PlayerAction, PreGameRollState, SerStage, SerTurnStage};
 use crate::i18n::*;
 use crate::portal::lobby::{qr_svg, room_url};
-use crate::game::trictrac::types::{PlayerAction, PreGameRollState, SerStage, SerTurnStage};
 
 use super::board::Board;
 use super::score_panel::PlayerScorePanel;
@@ -225,8 +225,16 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
     let opp_holes_end = opp_score.holes;
 
     let share_open = RwSignal::new(false);
-    let share_url = if !is_bot_game { room_url(&room_id) } else { String::new() };
-    let share_svg = if !is_bot_game { qr_svg(&share_url) } else { String::new() };
+    let share_url = if !is_bot_game {
+        room_url(&room_id)
+    } else {
+        String::new()
+    };
+    let share_svg = if !is_bot_game {
+        qr_svg(&share_url)
+    } else {
+        String::new()
+    };
 
     view! {
         <div class="game-container">
@@ -248,17 +256,6 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
                         {t!(i18n, share_btn)}
                     </button>
                 })}
-
-                <div class="lang-switcher">
-                    <button
-                        class:lang-active=move || i18n.get_locale() == Locale::en
-                        on:click=move |_| i18n.set_locale(Locale::en)
-                    >"EN"</button>
-                    <button
-                        class:lang-active=move || i18n.get_locale() == Locale::fr
-                        on:click=move |_| i18n.set_locale(Locale::fr)
-                    >"FR"</button>
-                </div>
 
                 {move || auth_username.get().map(|u| view! {
                     <span class="playing-as">"▶ " <strong>{u}</strong></span>

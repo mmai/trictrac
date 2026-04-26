@@ -1,8 +1,8 @@
 use leptos::prelude::*;
 use trictrac_store::Jan;
 
-use crate::i18n::*;
 use crate::game::trictrac::types::PlayerScore;
+use crate::i18n::*;
 
 pub fn jan_label(jan: &Jan) -> String {
     let i18n = use_i18n();
@@ -35,7 +35,11 @@ pub fn PlayerScorePanel(score: PlayerScore, is_you: bool) -> impl IntoView {
     // 12 peg holes; filled up to `holes`
     let pegs: Vec<AnyView> = (1u8..=12)
         .map(|i| {
-            let cls = if i <= holes { "peg-hole filled" } else { "peg-hole" };
+            let cls = if i <= holes {
+                "peg-hole filled"
+            } else {
+                "peg-hole"
+            };
             view! { <div class=cls></div> }.into_any()
         })
         .collect();
@@ -50,6 +54,11 @@ pub fn PlayerScorePanel(score: PlayerScore, is_you: bool) -> impl IntoView {
             </div>
             <div class="score-bars">
                 <div class="score-bar-row">
+                    <span class="score-bar-label">{t!(i18n, holes_label)}</span>
+                    <div class="peg-track">{pegs}</div>
+                    <span class="score-bar-value">{format!("{holes}/12")}</span>
+                </div>
+                <div class="score-bar-row">
                     <span class="score-bar-label">{t!(i18n, points_label)}</span>
                     <div class="score-bar">
                         <div class="score-bar-fill score-bar-points" style=format!("width:{points_pct}")></div>
@@ -58,11 +67,6 @@ pub fn PlayerScorePanel(score: PlayerScore, is_you: bool) -> impl IntoView {
                     {can_bredouille.then(|| view! {
                         <span class="bredouille-badge" title=move || t_string!(i18n, bredouille_title).to_owned()>"B"</span>
                     })}
-                </div>
-                <div class="score-bar-row">
-                    <span class="score-bar-label">{t!(i18n, holes_label)}</span>
-                    <div class="peg-track">{pegs}</div>
-                    <span class="score-bar-value">{format!("{holes}/12")}</span>
                 </div>
             </div>
         </div>

@@ -257,10 +257,6 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
                     </button>
                 })}
 
-                {move || auth_username.get().map(|u| view! {
-                    <span class="playing-as">"▶ " <strong>{u}</strong></span>
-                })}
-
                 <a class="quit-link" href="#" on:click=move |e| {
                     e.prevent_default();
                     cmd_tx_quit.unbounded_send(NetCommand::Disconnect).ok();
@@ -281,10 +277,39 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
                 </div>
             })}
 
-            // ── Opponent score (above board) ─────────────────────────────────
+            // ── Opponent score ─────────────────────────────────
             <PlayerScorePanel score=opp_score is_you=false />
+            // ── Player score ────────────────────────────────────
+            <PlayerScorePanel score=my_score is_you=true />
 
-            // ── Status bar — full width, above board (§10b) ──────────────────
+            // ── Board + side panel ───────────────────────────────────────────
+            <div class="board-and-panel">
+                <Board
+                    view_state=vs
+                    player_id=player_id
+                    selected_origin=selected_origin
+                    staged_moves=staged_moves
+                    valid_sequences=valid_sequences
+                    bar_dice=show_dice.then_some(dice)
+                    bar_is_move=is_move_stage
+                    is_my_turn=is_my_turn
+                    bar_is_double=is_double_dice
+                    last_moves=last_moves
+                    hit_fields=hit_fields
+                />
+
+                // ── Side panel (scoring panels only) ─────────────────────────
+                <div class="side-panel">
+                    {my_scored_event.map(|event| view! {
+                        <ScoringPanel event=event turn_stage=turn_stage_for_panel />
+                    })}
+                    {opp_scored_event.map(|event| view! {
+                        <ScoringPanel event=event turn_stage=SerTurnStage::RollDice is_opponent=true />
+                    })}
+                </div>
+            </div>
+
+            // ── Status bar — full width ──────────────────
             <div class="game-status">
                 {move || {
                     if let Some(ref reason) = pause_reason {
@@ -324,33 +349,6 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
                 };
                 (!hint.is_empty()).then(|| view! { <p class="game-sub-prompt">{hint}</p> })
             }}
-
-            // ── Board + side panel ───────────────────────────────────────────
-            <div class="board-and-panel">
-                <Board
-                    view_state=vs
-                    player_id=player_id
-                    selected_origin=selected_origin
-                    staged_moves=staged_moves
-                    valid_sequences=valid_sequences
-                    bar_dice=show_dice.then_some(dice)
-                    bar_is_move=is_move_stage
-                    is_my_turn=is_my_turn
-                    bar_is_double=is_double_dice
-                    last_moves=last_moves
-                    hit_fields=hit_fields
-                />
-
-                // ── Side panel (scoring panels only) ─────────────────────────
-                <div class="side-panel">
-                    {my_scored_event.map(|event| view! {
-                        <ScoringPanel event=event turn_stage=turn_stage_for_panel />
-                    })}
-                    {opp_scored_event.map(|event| view! {
-                        <ScoringPanel event=event turn_stage=SerTurnStage::RollDice is_opponent=true />
-                    })}
-                </div>
-            </div>
 
             // ── Action buttons below board (§10c) ────────────────────────────
             <div class="board-actions">
@@ -395,9 +393,6 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
                     })
                 }}
             </div>
-
-            // ── Player score (below board) ────────────────────────────────────
-            <PlayerScorePanel score=my_score is_you=true />
 
             // ── Pre-game ceremony overlay ─────────────────────────────────────
             {is_ceremony.then(|| {

@@ -53,6 +53,9 @@ pub fn ScoringPanel(
     event: ScoredEvent,
     turn_stage: SerTurnStage,
     #[prop(default = false)] is_opponent: bool,
+    /// When true the panel renders inline in the bottom strip instead of as
+    /// a right-side overlay: no slide-in animation, no peek/reveal behaviour.
+    #[prop(default = false)] inline: bool,
 ) -> impl IntoView {
     let i18n = use_i18n();
     let cmd_tx = use_context::<UnboundedSender<NetCommand>>()
@@ -120,31 +123,35 @@ pub fn ScoringPanel(
                 return;
             }
             hm.set(vec![]);
-            peeked.set(true);
+            // Inline panels are always visible; only the overlay variant peeks.
+            if !inline {
+                peeked.set(true);
+            }
         });
     }
 
     let jan_rows: Vec<_> = event.jans.into_iter().map(scoring_jan_row).collect();
 
     view! {
-        // ── Outer wrapper: owns the slide / peek / reveal animation ───────
-        // pointer-events are on by default (parent .side-panel sets none,
-        // and .scoring-panel-wrapper overrides back to auto in CSS).
+        // ── Outer wrapper: overlay mode has slide/peek/reveal animation;
+        // inline mode suppresses all of that via scoring-panel-inline-wrap.
         <div
             class="scoring-panel-wrapper"
+            class:scoring-panel-inline-wrap=inline
             class:peeked=move || peeked.get()
             class:revealed=move || revealed.get()
-            // Click toggles revealed↔peeked when the panel is in its peeked state.
             on:click=move |_| {
-                if peeked.get_untracked() {
-                    revealed.update(|r| *r = !*r);
-                }
-                // Show arrows when clicking to open, clear when clicking to close.
-                if let Some(hm) = hovered_ctx {
-                    if !revealed.get_untracked() {
-                        hm.set(all_moves_click.clone());
-                    } else {
-                        hm.set(vec![]);
+                // Inline panels don't have the peek/reveal toggle.
+                if !inline {
+                    if peeked.get_untracked() {
+                        revealed.update(|r| *r = !*r);
+                    }
+                    if let Some(hm) = hovered_ctx {
+                        if !revealed.get_untracked() {
+                            hm.set(all_moves_click.clone());
+                        } else {
+                            hm.set(vec![]);
+                        }
                     }
                 }
             }

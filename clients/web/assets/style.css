@@ -763,6 +763,202 @@ a:hover { text-decoration: underline; }
     box-shadow: 0 1px 3px rgba(0,0,0,0.25);
 }
 
+/* ── Merged scoreboard (both players, above board) ──────────────────── */
+.merged-score-panel {
+    background: var(--ui-parchment);
+    border-radius: 5px;
+    padding: 0.5rem 1.25rem 0.45rem;
+    font-size: 0.88rem;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+    width: 100%;
+    border-top: 2px solid var(--ui-gold-dark);
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.score-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.score-row-name {
+    min-width: 120px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: baseline;
+    gap: 0.35rem;
+    overflow: hidden;
+}
+
+.you-tag {
+    font-family: var(--font-ui);
+    font-size: 0.7rem;
+    color: #887766;
+    font-style: italic;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* ── Jackpot points counter ─────────────────────────────────────────── */
+.pts-counter-wrap {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 72px;
+    flex-shrink: 0;
+    padding-bottom: 4px;
+}
+
+.pts-ghost-bar-track {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: rgba(0,0,0,0.07);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.pts-ghost-bar-fill {
+    height: 100%;
+    background: rgba(58,107,42,0.45);
+    border-radius: 2px;
+}
+
+.pts-ghost-bar-opp {
+    background: rgba(122,30,42,0.4);
+}
+
+.pts-counter-row {
+    display: flex;
+    align-items: baseline;
+    gap: 0.1rem;
+}
+
+.pts-counter {
+    font-family: var(--font-display);
+    font-size: 1.9rem;
+    font-weight: 600;
+    color: var(--ui-ink);
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    min-width: 1.4em;
+    text-align: right;
+}
+
+.pts-max {
+    font-family: var(--font-ui);
+    font-size: 0.7rem;
+    color: #998877;
+    line-height: 1;
+    padding-bottom: 2px;
+}
+
+/* ── Hole pegs — larger and coloured (me = green, opp = red) ─────────── */
+.merged-score-panel .peg-track {
+    gap: 4px;
+}
+
+.merged-score-panel .peg-hole {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(138,106,40,0.3);
+    background: rgba(0,0,0,0.06);
+    flex-shrink: 0;
+    transition: background 0.3s ease-out, border-color 0.3s, box-shadow 0.3s;
+}
+
+.merged-score-panel .peg-hole.filled {
+    background: #5aab38;
+    border-color: #3a7828;
+    box-shadow: 0 0 5px rgba(90,171,56,0.55);
+}
+
+.merged-score-panel .peg-hole.peg-opp.filled {
+    background: #c05030;
+    border-color: #8a3018;
+    box-shadow: 0 0 5px rgba(192,80,48,0.55);
+}
+
+/* Peg pop-in animation when a new hole is scored */
+@keyframes peg-pop {
+    0%   { transform: scale(0.15); opacity: 0; }
+    45%  { transform: scale(1.55); }
+    70%  { transform: scale(0.88); }
+    100% { transform: scale(1.0);  opacity: 1; }
+}
+
+.merged-score-panel .peg-hole.peg-new {
+    animation: peg-pop 0.52s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+}
+
+/* Thin separator between the two player rows */
+.score-row-sep {
+    height: 1px;
+    background: rgba(0,0,0,0.07);
+    margin: 0.05rem 0;
+}
+
+/* ── Non-blocking hole flash (replaces old toast) ───────────────────── */
+@keyframes hole-flash-in-out {
+    0%   { opacity: 0; transform: translateY(-3px); }
+    14%  { opacity: 1; transform: translateY(0); }
+    65%  { opacity: 1; }
+    100% { opacity: 0; transform: translateY(2px); }
+}
+
+.hole-flash {
+    margin-left: auto;
+    flex-shrink: 0;
+    white-space: nowrap;
+    font-family: var(--font-display);
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--ui-green-accent);
+    letter-spacing: 0.05em;
+    animation: hole-flash-in-out 2.5s ease-out forwards;
+    pointer-events: none;
+}
+
+.hole-flash.hole-flash-bredouille {
+    color: var(--ui-gold-dark);
+}
+
+/* ── Game bottom strip — status, hints, buttons on cream ────────────── */
+.game-bottom-strip {
+    background: var(--ui-parchment);
+    border-radius: 5px;
+    padding: 0.55rem 1.25rem 0.65rem;
+    width: 100%;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    border-top: 2px solid var(--ui-gold-dark);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.35rem;
+    min-height: 3.2rem;
+}
+
+/* Override text colours for the parchment background context */
+.game-bottom-strip .game-status {
+    color: var(--ui-ink);
+    text-shadow: none;
+    padding: 0;
+    font-size: 1.05rem;
+    width: auto;
+}
+
+.game-bottom-strip .game-sub-prompt {
+    color: #887766;
+    padding: 0;
+    width: auto;
+}
+
 /* ── Board + side panel ─────────────────────────────────────────────── */
 .board-and-panel {
     position: relative;
@@ -981,6 +1177,30 @@ a:hover { text-decoration: underline; }
 
 .scoring-panel-wrapper.peeked:not(.revealed) {
     cursor: pointer;
+}
+
+/* ── Inline scoring panel (in bottom strip, expands downward) ───────── */
+@keyframes scoring-expand-in {
+    from { opacity: 0; transform: translateY(-5px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.scoring-panel-wrapper.scoring-panel-inline-wrap {
+    animation: none;
+    filter: none;
+    transform: none !important;
+    pointer-events: auto;
+    cursor: default;
+    width: 100%;
+}
+
+.scoring-panel-wrapper.scoring-panel-inline-wrap .scoring-panel {
+    animation: scoring-expand-in 0.28s ease-out;
+    background: transparent;
+    box-shadow: none;
+    border-radius: 0;
+    border-top: 1px solid rgba(0,0,0,0.07);
+    padding: 0.4rem 0;
 }
 
 .scoring-panel {

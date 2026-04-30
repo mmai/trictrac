@@ -757,7 +757,7 @@ impl GameState {
                     error!("Player not active : {}", self.active_player_id);
                     return false;
                 }
-                // Check the player can leave (ie the game is in the KeepOrLeaveChoice stage)
+                // Check the player can leave (ie the game is in the HoldOrGoChoice stage)
                 if self.turn_stage != TurnStage::HoldOrGoChoice {
                     error!("bad stage {:?}", self.turn_stage);
                     error!(
@@ -934,7 +934,7 @@ impl GameState {
                     }
                 }
             }
-            Go { player_id: _ } => self.new_pick_up(),
+            Go { player_id: _ } => self.new_pick_up(true),
             Move { player_id, moves } => {
                 let Some(player) = self.players.get(player_id) else {
                     return Err("unknown player {player_id}".into());
@@ -946,20 +946,37 @@ impl GameState {
                     .move_checker(&player.color, moves.1)
                     .map_err(|e| e.to_string())?;
                 self.dice_moves = *moves;
-                let Some(active_player_id) = self.players.keys().find(|id| *id != player_id) else {
-                    return Err("Can't find player id {id}".into());
-                };
-                self.active_player_id = *active_player_id;
-                self.turn_stage = if self.schools_enabled {
-                    TurnStage::MarkAdvPoints
+                // Check if all current player's checkers have exited
+                let checkers = self.board.get_color_fields(player.color);
+                let checkers_count = checkers.iter().fold(0, |acc, (_f, count)| acc + count);
+                if checkers_count == 0 {
+                    // all checkers have exited, we reset the board
+                    // mark opp. points
+                    let Some(opponent_player_id) = self.players.keys().find(|id| *id != player_id)
+                    else {
+                        return Err("Can't find player id {id}".into());
+                    };
+                    let _ = self.mark_points(*opponent_player_id, self.dice_points.1);
+                    // reset checkers, keep points
+                    self.new_pick_up(false);
                 } else {
-                    // The player has moved, we can mark its opponent's points (which is now the current player)
-                    let new_hole = self.mark_points(self.active_player_id, self.dice_points.1);
-                    if new_hole && self.get_active_player().map(|p| p.holes).unwrap_or(0) >= 12 {
-                        self.stage = Stage::Ended;
-                    }
-                    TurnStage::RollDice
-                };
+                    let Some(active_player_id) = self.players.keys().find(|id| *id != player_id)
+                    else {
+                        return Err("Can't find player id {id}".into());
+                    };
+                    self.active_player_id = *active_player_id;
+                    self.turn_stage = if self.schools_enabled {
+                        TurnStage::MarkAdvPoints
+                    } else {
+                        // The player has moved, we can mark its opponent's points (which is now the current player)
+                        let new_hole = self.mark_points(self.active_player_id, self.dice_points.1);
+                        if new_hole && self.get_active_player().map(|p| p.holes).unwrap_or(0) >= 12
+                        {
+                            self.stage = Stage::Ended;
+                        }
+                        TurnStage::RollDice
+                    };
+                }
             }
             PlayError => {}
         }
@@ -969,10 +986,13 @@ impl GameState {
 
     /// Set a new pick up ('relevé') after a player won a hole and choose to 'go',
     /// or after a player has bore off (took of his men off the board)
-    fn new_pick_up(&mut self) {
+    fn new_pick_up(&mut self, reset_points: bool) {
         self.players.iter_mut().for_each(|(_id, p)| {
-            // reset points
-            p.points = 0;
+            // reset points only after "go", not after checkers exit
+            if reset_points {
+                // reset points
+                p.points = 0;
+            }
             // reset dice_roll_count
             p.dice_roll_count = 0;
             // reset bredouille
@@ -1289,5 +1309,35 @@ mod tests {
         assert_eq!(game_state.players.get(&pid).unwrap().points, 1);
         assert_eq!(game_state.get_active_player().unwrap().points, 0);
         assert_eq!(game_state.turn_stage, TurnStage::MarkAdvPoints);
+    }
+
+    #[test]
+    fn last_checker_exit() {
+        let mut game_state = init_test_gamestate(TurnStage::Move);
+        game_state.board.set_positions(
+            &crate::Color::White,
+            [
+                -5, -2, -2, -4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+            ],
+        );
+        game_state.schools_enabled = true;
+        let _ = game_state.consume(&GameEvent::Mark {
+            player_id: game_state.active_player_id,
+            points: 4,
+        });
+        let player = game_state.get_active_player().unwrap();
+        assert_eq!(player.points, 4);
+        game_state.dice.values = (4, 5);
+        let _ = game_state.consume(&GameEvent::Move {
+            player_id: game_state.active_player_id,
+            moves: (
+                CheckerMove::new(24, 0).unwrap(),
+                CheckerMove::new(0, 0).unwrap(),
+            ),
+        });
+        let player = game_state.get_active_player().unwrap();
+        assert_eq!(game_state.turn_stage, TurnStage::RollDice);
+        assert_eq!(game_state.board, Board::default());
+        assert_eq!(player.points, 4);
     }
 }

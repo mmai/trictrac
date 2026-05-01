@@ -154,6 +154,14 @@ mod inner {
         });
     }
 
+    /// Brief low tick for the jackpot-style points counter (one call per increment).
+    pub fn play_opp_points_tick() {
+        with_ctx(|ctx| {
+            play_tone(ctx, 680.0, 0.18, 0.055, 0.000, OscillatorType::Sine);
+            play_tone(ctx, 1020.0, 0.07, 0.035, 0.000, OscillatorType::Sine);
+        });
+    }
+
     /// Triumphant four-note fanfare (C5 – E5 – G5 – C6).
     pub fn play_hole_scored() {
         with_ctx(|ctx| {
@@ -175,7 +183,7 @@ mod inner {
 #[cfg(target_arch = "wasm32")]
 pub use inner::{
     play_checker_move, play_dice_roll, play_dice_roll_cinematic, play_hole_scored,
-    play_points_scored, play_points_tick,
+    play_opp_points_tick, play_points_scored, play_points_tick,
 };
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -188,5 +196,7 @@ pub fn play_dice_roll_cinematic() {}
 pub fn play_points_scored() {}
 #[cfg(not(target_arch = "wasm32"))]
 pub fn play_points_tick() {}
+#[cfg(not(target_arch = "wasm32"))]
+pub fn play_opp_points_tick() {}
 #[cfg(not(target_arch = "wasm32"))]
 pub fn play_hole_scored() {}

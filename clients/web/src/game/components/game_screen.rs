@@ -152,13 +152,24 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
 
     // Values for MergedScorePanel — extracted before events are consumed.
     // Don't animate points when a hole was gained (points wrap around 12).
-    let my_pts_earned: u8 = my_scored_event.as_ref()
-        .map_or(0, |e| if e.holes_gained == 0 { e.points_earned } else { 0 });
-    let opp_pts_earned: u8 = opp_scored_event.as_ref()
-        .map_or(0, |e| if e.holes_gained == 0 { e.points_earned } else { 0 });
+    let my_pts_earned: u8 = my_scored_event.as_ref().map_or(0, |e| {
+        if e.holes_gained == 0 {
+            e.points_earned
+        } else {
+            0
+        }
+    });
+    let opp_pts_earned: u8 = opp_scored_event.as_ref().map_or(0, |e| {
+        if e.holes_gained == 0 {
+            e.points_earned
+        } else {
+            0
+        }
+    });
     let my_holes_gained_score: u8 = my_scored_event.as_ref().map_or(0, |e| e.holes_gained);
     let opp_holes_gained_score: u8 = opp_scored_event.as_ref().map_or(0, |e| e.holes_gained);
-    let my_bredouille_flash: bool = my_scored_event.as_ref()
+    let my_bredouille_flash: bool = my_scored_event
+        .as_ref()
         .map_or(false, |e| e.bredouille && e.holes_gained > 0);
 
     let is_double_dice = dice.0 == dice.1 && dice.0 != 0;
@@ -414,6 +425,10 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
                     guest_die: None,
                     tie_count: 0,
                 });
+                if pgr.host_die != None {
+                    crate::game::sound::play_dice_roll();
+                }
+
                 let my_die = if player_id == 0 { pgr.host_die } else { pgr.guest_die };
                 let opp_die = if player_id == 0 { pgr.guest_die } else { pgr.host_die };
                 let can_roll = my_die.is_none() && !waiting_for_confirm;

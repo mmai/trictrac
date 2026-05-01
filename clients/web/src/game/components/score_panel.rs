@@ -1,14 +1,17 @@
-use leptos::prelude::*;
-use trictrac_store::Jan;
 #[cfg(target_arch = "wasm32")]
 use gloo_timers::future::TimeoutFuture;
+use leptos::prelude::*;
+#[cfg(target_arch = "wasm32")]
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
+use trictrac_store::Jan;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen_futures::spawn_local;
-#[cfg(target_arch = "wasm32")]
-use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
 
-use crate::i18n::*;
 use crate::game::trictrac::types::PlayerScore;
+use crate::i18n::*;
 
 pub fn jan_label(jan: &Jan) -> String {
     let i18n = use_i18n();
@@ -42,13 +45,16 @@ pub fn MergedScorePanel(
     opp_score: PlayerScore,
     /// Points just earned this turn; 0 = no animation. Set to 0 when a hole
     /// was gained (points wrap around 12, counter stays at end value).
-    #[prop(default = 0)] my_points_earned: u8,
+    #[prop(default = 0)]
+    my_points_earned: u8,
     #[prop(default = 0)] opp_points_earned: u8,
     /// Non-zero when a new hole was just scored (triggers peg-pop animation).
-    #[prop(default = 0)] my_holes_gained: u8,
+    #[prop(default = 0)]
+    my_holes_gained: u8,
     #[prop(default = 0)] opp_holes_gained: u8,
     /// True when my hole was scored under bredouille (shows ×2 in the flash).
-    #[prop(default = false)] my_bredouille: bool,
+    #[prop(default = false)]
+    my_bredouille: bool,
 ) -> impl IntoView {
     let i18n = use_i18n();
 
@@ -89,8 +95,10 @@ pub fn MergedScorePanel(
             on_cleanup(move || alive_c.store(false, Ordering::Relaxed));
             spawn_local(async move {
                 for p in (my_pts_start + 1)..=my_pts_end {
-                    TimeoutFuture::new(200).await;
-                    if !is_alive.load(Ordering::Relaxed) { return; }
+                    TimeoutFuture::new(100).await;
+                    if !is_alive.load(Ordering::Relaxed) {
+                        return;
+                    }
                     my_displayed_pts.set(p);
                     crate::game::sound::play_points_tick();
                 }
@@ -103,20 +111,23 @@ pub fn MergedScorePanel(
             on_cleanup(move || alive_c.store(false, Ordering::Relaxed));
             spawn_local(async move {
                 for p in (opp_pts_start + 1)..=opp_pts_end {
-                    TimeoutFuture::new(200).await;
-                    if !is_alive.load(Ordering::Relaxed) { return; }
+                    TimeoutFuture::new(100).await;
+                    if !is_alive.load(Ordering::Relaxed) {
+                        return;
+                    }
                     opp_displayed_pts.set(p);
+                    crate::game::sound::play_opp_points_tick();
                 }
             });
         }
     }
 
     // ── Ghost bar widths (show the end value immediately — static reference) ─
-    let my_bar_style  = format!("width:{}%", (my_score.points  as u32 * 100 / 12).min(100));
+    let my_bar_style = format!("width:{}%", (my_score.points as u32 * 100 / 12).min(100));
     let opp_bar_style = format!("width:{}%", (opp_score.points as u32 * 100 / 12).min(100));
 
     // ── Hole peg tracks ─────────────────────────────────────────────────────
-    let my_holes  = my_score.holes;
+    let my_holes = my_score.holes;
     let opp_holes = opp_score.holes;
 
     let my_pegs: Vec<AnyView> = (1u8..=12)
@@ -128,7 +139,8 @@ pub fn MergedScorePanel(
                      class:filled=filled
                      class:peg-new=is_new>
                 </div>
-            }.into_any()
+            }
+            .into_any()
         })
         .collect();
 
@@ -141,13 +153,14 @@ pub fn MergedScorePanel(
                      class:filled=filled
                      class:peg-new=is_new>
                 </div>
-            }.into_any()
+            }
+            .into_any()
         })
         .collect();
 
-    let my_name  = my_score.name.clone();
+    let my_name = my_score.name.clone();
     let opp_name = opp_score.name.clone();
-    let my_can_bredouille  = my_score.can_bredouille;
+    let my_can_bredouille = my_score.can_bredouille;
     let opp_can_bredouille = opp_score.can_bredouille;
 
     view! {

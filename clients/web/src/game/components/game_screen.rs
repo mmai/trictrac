@@ -287,16 +287,29 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
                 </div>
             })}
 
-            // ── Merged scoreboard (both players, above board) ────────────────
-            <MergedScorePanel
-                my_score=my_score
-                opp_score=opp_score
-                my_points_earned=my_pts_earned
-                opp_points_earned=opp_pts_earned
-                my_holes_gained=my_holes_gained_score
-                opp_holes_gained=opp_holes_gained_score
-                my_bredouille=my_bredouille_flash
-            />
+            // ── Merged scoreboard + scoring panels (above board) ─────────────
+            // score-area is position:relative so the scoring-panels-container
+            // can be absolute-positioned at the right of the hole counter.
+            <div class="score-area">
+                <MergedScorePanel
+                    my_score=my_score
+                    opp_score=opp_score
+                    my_points_earned=my_pts_earned
+                    opp_points_earned=opp_pts_earned
+                    my_holes_gained=my_holes_gained_score
+                    opp_holes_gained=opp_holes_gained_score
+                    my_bredouille=my_bredouille_flash
+                />
+                // Scoring detail panels — stacked at the right, overlapping if needed.
+                <div class="scoring-panels-container">
+                    {my_scored_event.map(|event| view! {
+                        <ScoringPanel event=event turn_stage=turn_stage_for_panel />
+                    })}
+                    {opp_scored_event.map(|event| view! {
+                        <ScoringPanel event=event turn_stage=SerTurnStage::RollDice is_opponent=true />
+                    })}
+                </div>
+            </div>
 
             // ── Board ────────────────────────────────────────────────────────
             <Board
@@ -392,13 +405,6 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
                         })
                     }}
                 </div>
-                // ── Scoring detail panels — expand downward in the strip ──────
-                {my_scored_event.map(|event| view! {
-                    <ScoringPanel event=event turn_stage=turn_stage_for_panel inline=true />
-                })}
-                {opp_scored_event.map(|event| view! {
-                    <ScoringPanel event=event turn_stage=SerTurnStage::RollDice is_opponent=true inline=true />
-                })}
             </div>
 
             // ── Pre-game ceremony overlay ─────────────────────────────────────

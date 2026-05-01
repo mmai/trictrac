@@ -1154,66 +1154,105 @@ a:hover { text-decoration: underline; }
 
 .game-over-actions { display: flex; gap: 0.75rem; justify-content: center; }
 
+/* ── Score-area: position:relative wrapper for merged panel + scoring ── */
+.score-area {
+    position: relative;
+    width: 100%;
+}
+
+/* ── Scoring panels container — right of the hole counter ───────────── */
+/* Stacked column, right-aligned, covering the free space in each row.  */
+/* overflow:visible lets tall panels float over the board below.         */
+.scoring-panels-container {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    align-items: flex-end;
+    padding: 4px 8px;
+    z-index: 10;
+    pointer-events: none;
+    overflow: visible;
+}
+
 /* ── Scoring notification panel (§6b) ───────────────────────────────── */
 @keyframes scoring-panel-enter {
-    from { transform: translateX(100%); }
-    to   { transform: translateX(0); }
+    from { opacity: 0; transform: translateX(10px); }
+    to   { opacity: 1; transform: translateX(0); }
 }
 
 .scoring-panel-wrapper {
     pointer-events: auto;
-    animation: scoring-panel-enter 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-    transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-    filter: drop-shadow(-4px 0 14px rgba(0,0,0,0.38));
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 3px;
+    animation: scoring-panel-enter 0.3s ease-out;
 }
 
-.scoring-panel-wrapper.peeked {
-    transform: translateX(100%);
+/* "+" expand button: hidden while the panel is expanded */
+.scoring-panel-wrapper:not(.scoring-minimized) .scoring-expand-btn {
+    display: none;
 }
 
-.scoring-panel-wrapper.revealed {
-    transform: translateX(0);
+/* Full panel card: hidden once minimised */
+.scoring-panel-wrapper.scoring-minimized .scoring-panel {
+    display: none;
 }
 
-.scoring-panel-wrapper.peeked:not(.revealed) {
+/* "+" expand button ─────────────────────────────────────────────────── */
+.scoring-expand-btn {
+    font-family: var(--font-display);
+    font-size: 0.9rem;
+    line-height: 1;
+    background: var(--ui-parchment);
+    border: 1.5px solid var(--ui-gold-dark);
+    border-radius: 3px;
+    padding: 2px 7px;
     cursor: pointer;
+    color: var(--ui-ink);
+    opacity: 0.72;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.18);
+    transition: opacity 0.15s;
+}
+.scoring-expand-btn:hover { opacity: 1; }
+
+/* ── Panel head: scoring total + "−" collapse link ──────────────────── */
+.scoring-panel-head {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
 }
 
-/* ── Inline scoring panel (in bottom strip, expands downward) ───────── */
-@keyframes scoring-expand-in {
-    from { opacity: 0; transform: translateY(-5px); }
-    to   { opacity: 1; transform: translateY(0); }
+.scoring-collapse-btn {
+    font-size: 0.78rem;
+    line-height: 1;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: rgba(0,0,0,0.35);
+    padding: 0 1px;
+    margin-left: auto;
+    flex-shrink: 0;
+    transition: color 0.15s;
 }
+.scoring-collapse-btn:hover { color: rgba(0,0,0,0.65); }
 
-.scoring-panel-wrapper.scoring-panel-inline-wrap {
-    animation: none;
-    filter: none;
-    transform: none !important;
-    pointer-events: auto;
-    cursor: default;
-    width: 100%;
-}
-
-.scoring-panel-wrapper.scoring-panel-inline-wrap .scoring-panel {
-    animation: scoring-expand-in 0.28s ease-out;
-    background: transparent;
-    box-shadow: none;
-    border-radius: 0;
-    border-top: 1px solid rgba(0,0,0,0.07);
-    padding: 0.4rem 0;
-}
-
+/* ── Inner scoring card ─────────────────────────────────────────────── */
 .scoring-panel {
     background: var(--ui-parchment);
     border-radius: 5px;
     padding: 0.45rem 0.85rem;
     font-size: 0.84rem;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.22);
     border-left: 3px solid var(--ui-green-accent);
     display: flex;
     flex-direction: column;
     gap: 4px;
-    width: 100%;
+    width: 320px;
 }
 
 .scoring-total {
@@ -1255,11 +1294,6 @@ a:hover { text-decoration: underline; }
     .side-panel {
         right: auto;
         left: calc(100% + 1rem);
-    }
-    .scoring-panel-wrapper.peeked,
-    .scoring-panel-wrapper.revealed {
-        transform: none;
-        cursor: default;
     }
 }
 

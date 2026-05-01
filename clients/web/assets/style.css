@@ -1401,6 +1401,26 @@ a:hover { text-decoration: underline; }
     animation: exit-glow 2s ease-in-out infinite;
 }
 
+/* ── Exit sign (§8c) — circle+arrow outside the board ──────────────── */
+.exit-btn {
+    pointer-events: none;
+    opacity: 0.3;
+    transition: opacity 0.2s, transform 0.15s;
+}
+.exit-btn.exit-active {
+    pointer-events: auto;
+    cursor: pointer;
+    opacity: 1;
+    animation: exit-btn-pulse 1.4s ease-in-out infinite;
+}
+.exit-btn.exit-active:hover {
+    transform: scale(1.1);
+}
+@keyframes exit-btn-pulse {
+    0%, 100% { filter: drop-shadow(0 0 3px rgba(200,160,20,0.3)); }
+    50%       { filter: drop-shadow(0 0 9px rgba(200,160,20,0.85)); }
+}
+
 .field.jan-hovered {
     --fc: rgba(190, 140, 35, 0.8) !important;
 }

@@ -294,6 +294,14 @@ pub fn Board(
         exit_field_test = |f| matches!(f, 1..=6);
     }
 
+    // Show a clickable exit sign outside the board when bearing off is possible.
+    let has_exit_move = valid_sequences
+        .iter()
+        .any(|(m1, m2)| m1.get_to() == 0 || m2.get_to() == 0);
+    let show_exit_btn = all_in_exit && is_move_stage && has_exit_move;
+    let seqs_exit_cls = valid_sequences.clone();
+    let seqs_exit_click = valid_sequences.clone();
+
     // `valid_sequences` is cloned per field (the Vec is small; Send-safe unlike Rc).
     let fields_from = |nums: &[u8], is_top_row: bool| -> Vec<AnyView> {
         nums.iter()
@@ -583,6 +591,72 @@ pub fn Board(
                             .collect()
                     }}
                 </svg>
+                // Exit sign: circle+arrow outside the board, next to the last exit field.
+                // White exits to the right (top-right quarter); Black exits to the left (top-left).
+                {show_exit_btn.then(|| {
+                    let (pos_style, line_x1, line_x2, head_pts): (&str, &str, &str, &str) =
+                        if is_white {
+                            (
+                                "position:absolute;right:-60px;top:15px;width:50px;height:50px",
+                                "10", "31", "23,17 32,25 23,33",
+                            )
+                        } else {
+                            (
+                                "position:absolute;left:-60px;top:15px;width:50px;height:50px",
+                                "40", "19", "27,17 18,25 27,33",
+                            )
+                        };
+                    view! {
+                        <div
+                            title="Exit"
+                            style=pos_style
+                            class=move || {
+                                let staged = staged_moves.get();
+                                let sel = selected_origin.get();
+                                let active = match sel {
+                                    Some(origin) => seqs_exit_cls.is_empty()
+                                        || valid_dests_for(&seqs_exit_cls, &staged, origin)
+                                            .iter()
+                                            .any(|&d| d == 0),
+                                    None => false,
+                                };
+                                if active { "exit-btn exit-active" } else { "exit-btn" }
+                            }
+                            on:click=move |_| {
+                                if !is_move_stage { return; }
+                                let staged = staged_moves.get_untracked();
+                                if staged.len() >= 2 { return; }
+                                let Some(origin) = selected_origin.get_untracked() else {
+                                    return;
+                                };
+                                let valid = seqs_exit_click.is_empty()
+                                    || valid_dests_for(&seqs_exit_click, &staged, origin)
+                                        .iter()
+                                        .any(|&d| d == 0);
+                                if valid {
+                                    staged_moves.update(|v| v.push((origin, 0)));
+                                    selected_origin.set(None);
+                                }
+                            }
+                        >
+                            <svg width="50" height="50" viewBox="0 0 50 50">
+                                <circle
+                                    cx="25" cy="25" r="20"
+                                    style="fill:rgba(10,20,10,0.75);stroke:rgba(210,170,30,0.75);stroke-width:2.5"
+                                />
+                                <line
+                                    x1=line_x1 y1="25" x2=line_x2 y2="25"
+                                    style="stroke:rgba(210,170,30,0.85);stroke-width:2.5;stroke-linecap:round"
+                                />
+                                <polyline
+                                    points=head_pts
+                                    style="fill:none;stroke:rgba(210,170,30,0.85);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round"
+                                />
+                            </svg>
+                        </div>
+                    }
+                    .into_any()
+                })}
             </div>
             <div class="zone-labels-row">
                 <div class="zone-label zone-label-quarter">{label_bl}</div>

@@ -268,6 +268,10 @@ pub fn Board(
     hit_fields: Vec<u8>,
 ) -> impl IntoView {
     let board = view_state.board;
+    let white_points = view_state.scores[0].points;
+    let white_can_bredouille = view_state.scores[0].can_bredouille;
+    let black_points = view_state.scores[1].points;
+    let black_can_bredouille = view_state.scores[1].can_bredouille;
     let is_move_stage = view_state.active_mp_player == Some(player_id)
         && matches!(
             view_state.turn_stage,
@@ -343,6 +347,13 @@ pub fn Board(
                             let sel = selected_origin.get();
 
                             let mut cls = format!("field {}", field_zone_class(field_num));
+                            let is_white_pt = field_num >= 1 && field_num <= white_points;
+                            let is_black_pt = black_points > 0 && field_num >= 25 - black_points;
+                            if is_white_pt {
+                                cls.push_str(if white_can_bredouille { " point-bredouille" } else { " point-no-bredouille" });
+                            } else if is_black_pt {
+                                cls.push_str(if black_can_bredouille { " point-bredouille" } else { " point-no-bredouille" });
+                            }
                             if is_rest_corner(field_num, is_white) {
                                 cls.push_str(" corner");
                                 // Pulse when the corner can be reached this turn

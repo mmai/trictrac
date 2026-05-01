@@ -1395,17 +1395,37 @@ a:hover { text-decoration: underline; }
 
 .top-row .field { justify-content: flex-start; }
 
-/* ── Zone alternating colours (§2b) ────────────────────────────────── */
+/* ── Zone alternating colours  ────────────────────────────────── */
 .board-quarter .field.zone-petit:nth-child(odd),
 .board-quarter .field.zone-grand:nth-child(odd)   { --fc: var(--field-burgundy); }
 .board-quarter .field.zone-petit:nth-child(even),
 .board-quarter .field.zone-grand:nth-child(even)  { --fc: var(--field-ivory); }
 
-.board-quarter .field.zone-opponent:nth-child(odd)  { --fc: #1a4f72; }
-.board-quarter .field.zone-opponent:nth-child(even) { --fc: #e5eadc; }
+.board-quarter .field.zone-opponent:nth-child(odd),
+.board-quarter .field.zone-retour:nth-child(odd)   { --fc: var(--field-burgundy); }
+.board-quarter .field.zone-opponent:nth-child(even),
+.board-quarter .field.zone-retour:nth-child(even)  { --fc: var(--field-ivory); }
 
-.board-quarter .field.zone-retour:nth-child(odd)  { --fc: #6a2810; }
-.board-quarter .field.zone-retour:nth-child(even) { --fc: #f2dfa0; }
+/* ── Point indicator: first N fields reflect each player's score & bredouille */
+.board-quarter .field.zone-petit.point-bredouille:nth-child(odd),
+.board-quarter .field.zone-grand.point-bredouille:nth-child(odd)    { --fc: #1a4f72; }
+.board-quarter .field.zone-petit.point-bredouille:nth-child(even),
+.board-quarter .field.zone-grand.point-bredouille:nth-child(even)   { --fc: #e5eadc; }
+
+.board-quarter .field.zone-petit.point-nobredouille:nth-child(odd),
+.board-quarter .field.zone-grand.point-nobredouille:nth-child(odd)    { --fc: #6a2810; }
+.board-quarter .field.zone-petit.point-nobredouille:nth-child(even),
+.board-quarter .field.zone-grand.point-nobredouille:nth-child(even)   { --fc: #f2dfa0; }
+
+.board-quarter .field.zone-opponent.point-bredouille:nth-child(odd),
+.board-quarter .field.zone-retour.point-bredouille:nth-child(odd)    { --fc: #1a4f72; }
+.board-quarter .field.zone-opponent.point-bredouille:nth-child(even),
+.board-quarter .field.zone-retour.point-bredouille:nth-child(even)   { --fc: #e5eadc; }
+
+.board-quarter .field.zone-opponent.point-nobredouille:nth-child(odd),
+.board-quarter .field.zone-retour.point-nobredouille:nth-child(odd)    { --fc: #6a2810; }
+.board-quarter .field.zone-opponent.point-nobredouille:nth-child(even),
+.board-quarter .field.zone-retour.point-nobredouille:nth-child(even)   { --fc: #f2dfa0; }
 
 .field.corner::after {
     content: '♛';

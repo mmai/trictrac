@@ -172,7 +172,7 @@ mod inner {
                 (1046.5, 0.51, 0.55),
             ];
             for (freq, offset, dur) in notes {
-                play_tone(ctx, freq, 0.32, dur, offset, OscillatorType::Sine);
+                play_tone(ctx, freq, 0.12, dur, offset, OscillatorType::Sine);
             }
         });
     }

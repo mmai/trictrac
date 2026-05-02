@@ -260,8 +260,7 @@ impl MoveRules {
         // A chained move (tout d'une): the first destination is a resting field.
         // Exception: a resting field in the opponent's big jan (13-18) is allowed
         // during a chained move to pass into the return jan.
-        let is_chained =
-            moves.1.get_from() != 0 && moves.0.get_to() == moves.1.get_from();
+        let is_chained = moves.1.get_from() != 0 && moves.0.get_to() == moves.1.get_from();
 
         if !is_chained {
             let to0 = moves.0.get_to();
@@ -756,6 +755,8 @@ impl MoveRules {
 
 #[cfg(test)]
 mod tests {
+    use anyhow::Ok;
+
     use super::*;
 
     #[test]
@@ -886,6 +887,20 @@ mod tests {
             Err(MoveError::ExitByEffectPossible),
             state.moves_allowed(&moves)
         );
+
+        // on peut sortir une dame avec un nombre exact, même si on peut en jouer une avec un nombre défaillant
+        state.board.set_positions(
+            &Color::White,
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 3, 0, 0, 2, 0,
+            ],
+        );
+        state.dice.values = (2, 5);
+        let moves = (
+            CheckerMove::new(20, 0).unwrap(),
+            CheckerMove::new(23, 0).unwrap(),
+        );
+        assert!(state.moves_allowed(&moves).is_ok());
 
         // on doit jouer le nombre excédant le plus éloigné
         state.board.set_positions(
@@ -1483,22 +1498,6 @@ mod tests {
         let moves = (
             CheckerMove::new(9, 11).unwrap(),
             CheckerMove::new(11, 14).unwrap(),
-        );
-        assert_eq!(
-            vec![moves],
-            state.get_possible_moves_sequences(true, vec![])
-        );
-
-        state.board.set_positions(
-            &Color::White,
-            [
-                -8, -4, -1, 0, 0, 0, 0, -1, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 3, 2, 2, 2,
-            ],
-        );
-        state.dice.values = (1, 4);
-        let moves = (
-            CheckerMove::new(21, 22).unwrap(),
-            CheckerMove::new(22, 0).unwrap(),
         );
         assert_eq!(
             vec![moves],

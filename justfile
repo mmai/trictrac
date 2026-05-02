@@ -13,6 +13,9 @@ runcli:
 dev:
   trunk serve
 
+test-web:
+  wasm-pack test --node clients/web
+
 [working-directory: 'clients/web']
 build:
   trunk build --release
@@ -24,31 +27,6 @@ build:
 [working-directory: 'deploy']
 run-relay:
   ./relay-server
-
-# Legacy targets kept for reference during transition
-[working-directory: 'clients/web-game']
-dev-game:
-  trunk serve
-
-[working-directory: 'clients/web-game']
-build-game:
-  trunk build --release
-  cp dist/index.html ../../deploy/trictrac.html
-  cp dist/*.wasm ../../deploy/
-  cp dist/*.js ../../deploy/
-  cp dist/*.css ../../deploy/
-
-[working-directory: 'clients/web-user-portal']
-dev-portal:
-  trunk serve
-
-[working-directory: 'clients/web-user-portal']
-build-portal:
-  trunk build --release
-  cp dist/index.html ../../deploy/portal.html
-  cp dist/*.wasm ../../deploy/
-  cp dist/*.js ../../deploy/
-  cp dist/*.css ../../deploy/
 
 build-relay:
   CARGO_PROFILE_RELEASE_OPT_LEVEL=3 cargo build -p relay-server --release

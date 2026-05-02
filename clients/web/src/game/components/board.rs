@@ -43,7 +43,13 @@ fn bar_matched_dice_used(staged: &[(u8, u8)], dice: (u8, u8)) -> (bool, bool) {
     let mut d0 = false;
     let mut d1 = false;
     for &(from, to) in staged {
-        let dist = if from < to {
+        let dist = if to == 0 {
+            if from > 18 {
+                (25 as u8).saturating_sub(from)
+            } else {
+                from.saturating_sub(0)
+            }
+        } else if from < to {
             to.saturating_sub(from)
         } else {
             from.saturating_sub(to)
@@ -52,7 +58,7 @@ fn bar_matched_dice_used(staged: &[(u8, u8)], dice: (u8, u8)) -> (bool, bool) {
             d0 = true;
         } else if !d1 && dist == dice.1 {
             d1 = true;
-        } else if !d0 {
+        } else if !d0 && dist <= dice.0 && dice.0 <= dice.1 {
             d0 = true;
         } else {
             d1 = true;
@@ -280,7 +286,7 @@ pub fn Board(
     let is_white = player_id == 0;
     let hovered_moves = use_context::<RwSignal<Vec<(CheckerMove, CheckerMove)>>>();
 
-    // Exit-eligible (§8c): all the player's checkers are in their last jan.
+    // Exit-eligible: all the player's checkers are in their last jan.
     // White last jan = fields 19-24 (board indices 18-23, positive values).
     // Black last jan = fields 1-6  (board indices 0-5, negative values).
     let board_snapshot = view_state.board;
@@ -447,13 +453,14 @@ pub fn Board(
                                     } else {
                                         let origins = valid_origins_for(&seqs_k, &staged);
                                         if origins.iter().any(|&o| o == field_num) {
-                                            let dests = valid_dests_for(&seqs_k, &staged, field_num);
-                                            if !dests.is_empty() && dests.iter().all(|&d| d == 0) {
-                                                // All destinations are exits: auto-stage
-                                                staged_moves.update(|v| v.push((field_num, 0)));
-                                            } else {
-                                                selected_origin.set(Some(field_num));
-                                            }
+                                            selected_origin.set(Some(field_num));
+                                            // let dests = valid_dests_for(&seqs_k, &staged, field_num);
+                                            // if !dests.is_empty() && dests.iter().all(|&d| d == 0) {
+                                            //     // All destinations are exits: auto-stage
+                                            //     staged_moves.update(|v| v.push((field_num, 0)));
+                                            // } else {
+                                            //     selected_origin.set(Some(field_num));
+                                            // }
                                         }
                                     }
                                 }
@@ -675,5 +682,19 @@ pub fn Board(
                 <div class="zone-label zone-label-quarter">{label_br}</div>
             </div>
         </div>
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use wasm_bindgen_test::wasm_bindgen_test;
+
+    #[wasm_bindgen_test]
+    fn test_bar_matched_dice_used() {
+        assert_eq!((true, false), bar_matched_dice_used(&[(22, 24)], (2, 3)));
+        assert_eq!((false, true), bar_matched_dice_used(&[(22, 0)], (2, 3)));
+        assert_eq!((false, true), bar_matched_dice_used(&[(24, 0)], (5, 1)));
+        assert_eq!((true, false), bar_matched_dice_used(&[(24, 0)], (1, 5)));
     }
 }

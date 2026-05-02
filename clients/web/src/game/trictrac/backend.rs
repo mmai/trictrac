@@ -1,7 +1,7 @@
 use backbone_lib::traits::{BackEndArchitecture, BackendCommand};
 use trictrac_store::{Dice, DiceRoller, GameEvent, GameState, TurnStage};
 
-use super::types::{GameDelta, PlayerAction, PreGameRollState, SerStage, ViewState};
+use super::types::{GameDelta, PlayerAction, PreGameRollState, SerStage, SerTurnStage, ViewState};
 
 // Store PlayerId (u64) values used for the two players.
 const HOST_PLAYER_ID: u64 = 1;
@@ -289,7 +289,7 @@ impl BackEndArchitecture<PlayerAction, GameDelta, ViewState> for TrictracBackend
 #[cfg(test)]
 mod tests {
     use super::*;
-    use super::types::{SerStage, SerTurnStage};
+    use super::{SerStage, SerTurnStage};
     use backbone_lib::traits::BackEndArchitecture;
 
     fn make_backend() -> TrictracBackend {

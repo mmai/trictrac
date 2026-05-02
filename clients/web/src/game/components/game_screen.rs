@@ -224,6 +224,11 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
             crate::game::sound::play_hole_scored();
         }
     }
+    if let Some(ref ev) = opp_scored_event {
+        if ev.holes_gained > 0 {
+            crate::game::sound::play_opp_hole_scored();
+        }
+    }
 
     // ── Capture for closures ───────────────────────────────────────────────────
     let stage = vs.stage.clone();
@@ -473,6 +478,11 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
 
             // ── Game-over overlay ─────────────────────────────────────────────
             {stage_is_ended.then(|| {
+                if winner_is_me {
+                    crate::game::sound::play_victory();
+                } else {
+                    crate::game::sound::play_defeat();
+                }
                 let opp_name_end_clone = opp_name_end.clone();
                 let winner_text = move || if winner_is_me {
                     t_string!(i18n, you_win).to_owned()

@@ -176,14 +176,61 @@ mod inner {
             }
         });
     }
+
+    /// Brief descending minor phrase when the opponent scores a hole.
+    pub fn play_opp_hole_scored() {
+        with_ctx(|ctx| {
+            let notes: [(f32, f64, f64); 3] = [
+                (392.00, 0.00, 0.32), // G4
+                (349.23, 0.20, 0.32), // F4
+                (293.66, 0.40, 0.50), // D4
+            ];
+            for (freq, offset, dur) in notes {
+                play_tone(ctx, freq, 0.10, dur, offset, OscillatorType::Sine);
+            }
+        });
+    }
+
+    /// Victory fanfare: five-note ascending major (C5–E5–G5–C6–E6).
+    pub fn play_victory() {
+        with_ctx(|ctx| {
+            let notes: [(f32, f64, f64, f32); 5] = [
+                (523.25, 0.00, 0.32, 0.18), // C5
+                (659.25, 0.20, 0.32, 0.20), // E5
+                (783.99, 0.40, 0.32, 0.22), // G5
+                (1046.5, 0.60, 0.50, 0.25), // C6
+                (1318.5, 0.88, 0.80, 0.28), // E6
+            ];
+            for (freq, offset, dur, gain) in notes {
+                play_tone(ctx, freq, gain, dur, offset, OscillatorType::Sine);
+                play_tone(ctx, freq * 2.0, gain * 0.12, dur, offset, OscillatorType::Sine);
+            }
+        });
+    }
+
+    /// Defeat phrase: descending minor (E5–Eb5–D5–C5).
+    pub fn play_defeat() {
+        with_ctx(|ctx| {
+            let notes: [(f32, f64, f64); 4] = [
+                (659.25, 0.00, 0.45), // E5
+                (622.25, 0.35, 0.45), // Eb5
+                (587.33, 0.70, 0.45), // D5
+                (523.25, 1.05, 0.80), // C5
+            ];
+            for (freq, offset, dur) in notes {
+                play_tone(ctx, freq, 0.14, dur, offset, OscillatorType::Sine);
+                play_tone(ctx, freq / 2.0, 0.06, dur, offset, OscillatorType::Triangle);
+            }
+        });
+    }
 }
 
 // ── Public API: WASM delegates to `inner`, other targets are no-ops ───────────
 
 #[cfg(target_arch = "wasm32")]
 pub use inner::{
-    play_checker_move, play_dice_roll, play_dice_roll_cinematic, play_hole_scored,
-    play_opp_points_tick, play_points_scored, play_points_tick,
+    play_checker_move, play_defeat, play_dice_roll, play_dice_roll_cinematic, play_hole_scored,
+    play_opp_hole_scored, play_opp_points_tick, play_points_scored, play_points_tick, play_victory,
 };
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -200,3 +247,9 @@ pub fn play_points_tick() {}
 pub fn play_opp_points_tick() {}
 #[cfg(not(target_arch = "wasm32"))]
 pub fn play_hole_scored() {}
+#[cfg(not(target_arch = "wasm32"))]
+pub fn play_opp_hole_scored() {}
+#[cfg(not(target_arch = "wasm32"))]
+pub fn play_victory() {}
+#[cfg(not(target_arch = "wasm32"))]
+pub fn play_defeat() {}

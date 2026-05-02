@@ -1450,26 +1450,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c8d4a3bb8b1e0c1050499d1815f5ab16d04f0959b233085fb31653fbfc9d98f9"
 
 [[package]]
-name = "client_web"
-version = "0.1.0"
-dependencies = [
- "backbone-lib",
- "futures",
- "getrandom 0.3.4",
- "gloo-net 0.5.0",
- "gloo-storage",
- "gloo-timers",
- "leptos",
- "leptos_i18n",
- "rand 0.9.3",
- "serde",
- "serde_json",
- "trictrac-store",
- "wasm-bindgen-futures",
- "web-sys",
-]
-
-[[package]]
 name = "cmake"
 version = "0.1.58"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9243,21 +9223,6 @@ checksum = "5a6580f308b1fad9207618087a65c04e7a10bc77e02c8e84e9b00dd4b12fa0bb"
 dependencies = [
  "js-sys",
  "wasm-bindgen",
-]
-
-[[package]]
-name = "web-user-portal"
-version = "0.1.0"
-dependencies = [
- "gloo-net 0.5.0",
- "js-sys",
- "leptos",
- "leptos_router",
- "serde",
- "serde_json",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "web-sys",
 ]
 
 [[package]]

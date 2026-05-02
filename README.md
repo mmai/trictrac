@@ -14,7 +14,7 @@ just build-relay
 just run-relay  # listens on :8080
 
 # Run the game (separate terminal)
-just dev-game
+just dev
 ```
 
 Open two browser windows at `http://127.0.0.1:9091`. In one, create a room; in the other, join with the same room name.
@@ -52,7 +52,7 @@ The game state is defined by the `GameState` struct in _store/src/game.rs_. The 
 
 ### multiplayer game
 
-Pagckages "clients/backbone-lib", "clients/web-game", "server/protocol", "server/relay-server" are a Leptos-optimized adaptation of the macroquad-based [Carbonfreezer/multiplayer](https://github.com/Carbonfreezer/multiplayer) project. It is a multiplayer game system in Rust targeting browser-based board games compiled as WASM. The original project used Macroquad with a polling-based transport layer; this version replaces that with an async session API built for [Leptos](https://leptos.dev/).
+Packages "clients/backbone-lib", "clients/web/game", "server/protocol", "server/relay-server" are a Leptos-optimized adaptation of the macroquad-based [Carbonfreezer/multiplayer](https://github.com/Carbonfreezer/multiplayer) project. It is a multiplayer game system in Rust targeting browser-based board games compiled as WASM. The original project used Macroquad with a polling-based transport layer; this version replaces that with an async session API built for [Leptos](https://leptos.dev/).
 
 The system consists of:
 

@@ -6,8 +6,6 @@ members = [
   "clients/cli",
   "clients/backbone-lib",
   "clients/web",
-  "clients/web-game",
-  "clients/web-user-portal",
   "server/protocol",
   "server/relay-server",
   "bot",

@@ -205,24 +205,26 @@ impl PointsRules {
             let from0 = adv_corner_field - self.dice.values.0 as usize;
             let from1 = adv_corner_field - self.dice.values.1 as usize;
 
-            let (from0_count, _from0_color) = board_ini.get_field_checkers(from0).unwrap();
-            let (from1_count, _from1_color) = board_ini.get_field_checkers(from1).unwrap();
+            let (from0_count, from0_color) = board_ini.get_field_checkers(from0).unwrap();
+            let (from1_count, from1_color) = board_ini.get_field_checkers(from1).unwrap();
             let hit_moves = vec![(
                 CheckerMove::new(from0, adv_corner_field).unwrap(),
                 CheckerMove::new(from1, adv_corner_field).unwrap(),
             )];
 
-            if from0 == from1 {
-                // doublet
-                if from0_count > if from0 == corner_field { 3 } else { 1 } {
-                    jans.insert(Jan::TrueHitOpponentCorner, hit_moves);
-                }
-            } else {
-                // simple
-                if from0_count > if from0 == corner_field { 2 } else { 0 }
-                    && from1_count > if from1 == corner_field { 2 } else { 0 }
-                {
-                    jans.insert(Jan::TrueHitOpponentCorner, hit_moves);
+            if from0_color == Some(&Color::White) && from1_color == Some(&Color::White) {
+                if from0 == from1 {
+                    // doublet
+                    if from0_count > if from0 == corner_field { 3 } else { 1 } {
+                        jans.insert(Jan::TrueHitOpponentCorner, hit_moves);
+                    }
+                } else {
+                    // simple
+                    if from0_count > if from0 == corner_field { 2 } else { 0 }
+                        && from1_count > if from1 == corner_field { 2 } else { 0 }
+                    {
+                        jans.insert(Jan::TrueHitOpponentCorner, hit_moves);
+                    }
                 }
             }
         }
@@ -697,6 +699,16 @@ mod tests {
             ],
         );
         rules.set_dice(Dice { values: (1, 1) });
+        assert_eq!(0, rules.get_points(5).0);
+
+        //  Battage du coin de repos adverse: check if we do it with our own checkers!
+        rules.update_positions(
+            &Color::White,
+            [
+                -4, 0, 0, -1, 0, 0, 0, 0, -1, 3, 2, 2, 0, -2, -2, 2, 1, 0, 4, -3, 1, 0, 0, 2,
+            ],
+        );
+        rules.set_dice(Dice { values: (3, 4) });
         assert_eq!(0, rules.get_points(5).0);
 
         //  Cas de battage du coin de repos adverse impossible

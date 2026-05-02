@@ -176,7 +176,7 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
 
     let last_moves = state.last_moves;
 
-    // §6e — fields where a battue (hit) was scored; ripple animation shown there.
+    // fields where a battue (hit) was scored; ripple animation shown there.
     let hit_fields: Vec<u8> = {
         let is_hit_jan = |jan: &Jan| {
             matches!(
@@ -337,7 +337,7 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
                 hit_fields=hit_fields
             />
 
-            // ── Status, hints, and actions — cream strip below board (§10b/c) ─
+            // ── Status, hints, and actions — cream strip below board ─
             <div class="game-bottom-strip">
                 <div class="game-status">
                     {move || {

@@ -7,6 +7,10 @@
   --board-rail:        #2a1508;
   --field-ivory:       #f0e6c8;
   --field-burgundy:    #7a1e2a;
+  --field-blue:        #e5eadc;
+  --field-blue-light:  #1a4f72;
+  --field-brown:       #f2dfa0;
+  --field-brown-light: #6a2810;
   --field-corner:      #b8900a;
   --checker-white:     #f5edd8;
   --checker-black:     #1a0f06;
@@ -21,6 +25,7 @@
   --font-display:      'Cormorant Garamond', Georgia, serif;
   --font-ui:           'Jost', system-ui, sans-serif;
 }
+
 
 /* ── Reset & base ──────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -1408,24 +1413,24 @@ a:hover { text-decoration: underline; }
 
 /* ── Point indicator: first N fields reflect each player's score & bredouille */
 .board-quarter .field.zone-petit.point-bredouille:nth-child(odd),
-.board-quarter .field.zone-grand.point-bredouille:nth-child(odd)    { --fc: #1a4f72; }
+.board-quarter .field.zone-grand.point-bredouille:nth-child(odd)    { --fc: var(--field-blue-light); }
 .board-quarter .field.zone-petit.point-bredouille:nth-child(even),
-.board-quarter .field.zone-grand.point-bredouille:nth-child(even)   { --fc: #e5eadc; }
+.board-quarter .field.zone-grand.point-bredouille:nth-child(even)   { --fc: var(--field-blue); }
 
-.board-quarter .field.zone-petit.point-nobredouille:nth-child(odd),
-.board-quarter .field.zone-grand.point-nobredouille:nth-child(odd)    { --fc: #6a2810; }
-.board-quarter .field.zone-petit.point-nobredouille:nth-child(even),
-.board-quarter .field.zone-grand.point-nobredouille:nth-child(even)   { --fc: #f2dfa0; }
+.board-quarter .field.zone-petit.point-no-bredouille:nth-child(odd),
+.board-quarter .field.zone-grand.point-no-bredouille:nth-child(odd)    { --fc: var(--field-blue-light); }
+.board-quarter .field.zone-petit.point-no-bredouille:nth-child(even),
+.board-quarter .field.zone-grand.point-no-bredouille:nth-child(even)   { --fc: var(--field-blue); }
 
 .board-quarter .field.zone-opponent.point-bredouille:nth-child(odd),
-.board-quarter .field.zone-retour.point-bredouille:nth-child(odd)    { --fc: #1a4f72; }
+.board-quarter .field.zone-retour.point-bredouille:nth-child(odd)    { --fc: var(--field-blue-light); }
 .board-quarter .field.zone-opponent.point-bredouille:nth-child(even),
-.board-quarter .field.zone-retour.point-bredouille:nth-child(even)   { --fc: #e5eadc; }
+.board-quarter .field.zone-retour.point-bredouille:nth-child(even)   { --fc: var(--field-blue); }
 
-.board-quarter .field.zone-opponent.point-nobredouille:nth-child(odd),
-.board-quarter .field.zone-retour.point-nobredouille:nth-child(odd)    { --fc: #6a2810; }
-.board-quarter .field.zone-opponent.point-nobredouille:nth-child(even),
-.board-quarter .field.zone-retour.point-nobredouille:nth-child(even)   { --fc: #f2dfa0; }
+.board-quarter .field.zone-opponent.point-no-bredouille:nth-child(odd),
+.board-quarter .field.zone-retour.point-no-bredouille:nth-child(odd)    { --fc: var(--field-blue-light); }
+.board-quarter .field.zone-opponent.point-no-bredouille:nth-child(even),
+.board-quarter .field.zone-retour.point-no-bredouille:nth-child(even)   { --fc: var(--field-blue); }
 
 .field.corner::after {
     content: '♛';

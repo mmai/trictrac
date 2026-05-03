@@ -21,7 +21,13 @@ use crate::game::trictrac::types::{GameDelta, PlayerAction, ScoredEvent, SerStag
 use crate::i18n::*;
 use crate::nav::SiteNav;
 use crate::portal::{
-    account::AccountPage, game_detail::GameDetailPage, lobby::LobbyPage, profile::ProfilePage,
+    account::AccountPage,
+    forgot_password::ForgotPasswordPage,
+    game_detail::GameDetailPage,
+    lobby::LobbyPage,
+    profile::ProfilePage,
+    reset_password::ResetPasswordPage,
+    verify_email::VerifyEmailPage,
 };
 use trictrac_store::CheckerMove;
 
@@ -145,10 +151,13 @@ pub fn App() -> impl IntoView {
 
     // Auth: fetch once on load; shared by nav + game + portal components.
     let auth_username: RwSignal<Option<String>> = RwSignal::new(None);
+    let auth_email_verified: RwSignal<bool> = RwSignal::new(false);
     provide_context(auth_username);
+    provide_context(auth_email_verified);
     spawn_local(async move {
         if let Ok(me) = api::get_me().await {
             auth_username.set(Some(me.username));
+            auth_email_verified.set(me.email_verified);
         }
     });
 
@@ -366,6 +375,9 @@ pub fn App() -> impl IntoView {
                     <Route path=path!("/account") view=AccountPage />
                     <Route path=path!("/profile/:username") view=ProfilePage />
                     <Route path=path!("/games/:id") view=GameDetailPage />
+                    <Route path=path!("/verify-email") view=VerifyEmailPage />
+                    <Route path=path!("/forgot-password") view=ForgotPasswordPage />
+                    <Route path=path!("/reset-password") view=ResetPasswordPage />
                 </Routes>
             </main>
 

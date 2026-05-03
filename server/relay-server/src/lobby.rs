@@ -13,6 +13,8 @@ use tokio::fs;
 use tokio::sync::{Mutex, RwLock};
 use tokio::sync::{broadcast, mpsc};
 
+use crate::smtp::Mailer;
+
 /// The game entry we have for one game.
 #[derive(Serialize, Deserialize)]
 pub struct GameEntry {
@@ -59,14 +61,17 @@ pub struct AppState {
     pub configs: RwLock<HashMap<String, u16>>,
     /// PostgreSQL connection pool — shared across all request handlers.
     pub db: Pool,
+    /// SMTP mailer for email verification and password reset.
+    pub mailer: Mailer,
 }
 
 impl AppState {
-    pub fn new(db: Pool) -> Self {
+    pub fn new(db: Pool, mailer: Mailer) -> Self {
         Self {
             rooms: Mutex::new(HashMap::new()),
             configs: RwLock::new(HashMap::new()),
             db,
+            mailer,
         }
     }
 }

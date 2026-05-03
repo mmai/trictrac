@@ -30,7 +30,8 @@ impl AuthUser for db::User {
 
 #[derive(Clone)]
 pub struct Credentials {
-    pub username: String,
+    /// Accepts either a username or an email address.
+    pub login: String,
     pub password: String,
 }
 
@@ -66,7 +67,7 @@ impl AuthnBackend for AuthBackend {
         &self,
         creds: Self::Credentials,
     ) -> Result<Option<Self::User>, Self::Error> {
-        let Some(user) = db::get_user_by_username(&self.pool, &creds.username).await? else {
+        let Some(user) = db::get_user_by_username_or_email(&self.pool, &creds.login).await? else {
             return Ok(None);
         };
 

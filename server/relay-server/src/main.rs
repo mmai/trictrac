@@ -4,6 +4,7 @@ mod hand_shake;
 mod http;
 mod lobby;
 mod message_relay;
+mod smtp;
 
 use crate::auth::AuthBackend;
 use crate::hand_shake::{
@@ -55,6 +56,8 @@ async fn main() {
         .unwrap_or_else(|_| "postgresql://trictrac:trictrac@127.0.0.1:5432/trictrac".to_string());
     let pool = db::init_db(&database_url).await;
 
+    let mailer = smtp::Mailer::from_env();
+
     let session_store = MemoryStore::default();
     let session_layer = SessionManagerLayer::new(session_store)
         .with_secure(false)
@@ -63,7 +66,7 @@ async fn main() {
     let auth_backend = AuthBackend::new(pool.clone());
     let auth_layer = AuthManagerLayerBuilder::new(auth_backend, session_layer).build();
 
-    let app_state = Arc::new(AppState::new(pool));
+    let app_state = Arc::new(AppState::new(pool, mailer));
     let watchdog_state = app_state.clone();
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(1200)); // 20 Min

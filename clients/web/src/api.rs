@@ -15,6 +15,8 @@ fn url(path: &str) -> String {
 pub struct MeResponse {
     pub id: i64,
     pub username: String,
+    #[serde(default)]
+    pub email_verified: bool,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -177,6 +179,66 @@ pub async fn get_game_detail(id: i64) -> Result<GameDetail, String> {
         resp.json::<GameDetail>().await.map_err(|e| e.to_string())
     } else {
         Err(format!("status {}", resp.status()))
+    }
+}
+
+pub async fn get_verify_email(token: &str) -> Result<(), String> {
+    let resp = gloo_net::http::Request::get(&url(&format!("/auth/verify-email?token={token}")))
+        .credentials(web_sys::RequestCredentials::Include)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    if resp.status() == 200 {
+        Ok(())
+    } else {
+        let text = resp.text().await.unwrap_or_default();
+        Err(text)
+    }
+}
+
+pub async fn post_resend_verification() -> Result<(), String> {
+    let resp = gloo_net::http::Request::post(&url("/auth/resend-verification"))
+        .credentials(web_sys::RequestCredentials::Include)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    if resp.status() == 200 {
+        Ok(())
+    } else {
+        Err(format!("status {}", resp.status()))
+    }
+}
+
+pub async fn post_forgot_password(email: &str) -> Result<(), String> {
+    let body = serde_json::json!({ "email": email });
+    let resp = gloo_net::http::Request::post(&url("/auth/forgot-password"))
+        .credentials(web_sys::RequestCredentials::Include)
+        .json(&body)
+        .map_err(|e| e.to_string())?
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    if resp.status() == 200 {
+        Ok(())
+    } else {
+        Err(format!("status {}", resp.status()))
+    }
+}
+
+pub async fn post_reset_password(token: &str, new_password: &str) -> Result<(), String> {
+    let body = serde_json::json!({ "token": token, "new_password": new_password });
+    let resp = gloo_net::http::Request::post(&url("/auth/reset-password"))
+        .credentials(web_sys::RequestCredentials::Include)
+        .json(&body)
+        .map_err(|e| e.to_string())?
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    if resp.status() == 200 {
+        Ok(())
+    } else {
+        let text = resp.text().await.unwrap_or_default();
+        Err(text)
     }
 }
 

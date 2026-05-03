@@ -1,12 +1,17 @@
-//! HTTP endpoints for user management (Phases 2 & 4).
+//! HTTP endpoints for user management.
 //!
 //! Routes:
 //!   POST /auth/register
 //!   POST /auth/login
 //!   POST /auth/logout
 //!   GET  /auth/me
+//!   GET  /auth/verify-email?token=…
+//!   POST /auth/resend-verification
+//!   POST /auth/forgot-password
+//!   POST /auth/reset-password
 //!   GET  /users/:username
 //!   GET  /users/:username/games?page=0&per_page=20
+//!   GET  /games/:id
 //!   POST /games/result
 
 use axum::{
@@ -17,14 +22,19 @@ use axum::{
     routing::{get, post},
 };
 use axum_login::AuthSession;
+use rand::distributions::Alphanumeric;
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::auth::{AuthBackend, Credentials, hash_password};
-use crate::db;
+use crate::db::{self, now_unix};
 use crate::lobby::AppState;
+
+const VERIFY_TOKEN_EXPIRY: i64 = 86_400; // 24 hours
+const RESET_TOKEN_EXPIRY: i64 = 3_600;   // 1 hour
 
 // ── Router ────────────────────────────────────────────────────────────────────
 
@@ -34,10 +44,24 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/auth/login", post(login))
         .route("/auth/logout", post(logout))
         .route("/auth/me", get(me))
+        .route("/auth/verify-email", get(verify_email))
+        .route("/auth/resend-verification", post(resend_verification))
+        .route("/auth/forgot-password", post(forgot_password))
+        .route("/auth/reset-password", post(reset_password))
         .route("/users/{username}", get(user_profile))
         .route("/users/{username}/games", get(user_games))
         .route("/games/result", post(game_result))
         .route("/games/{id}", get(game_detail))
+}
+
+// ── Token generation ──────────────────────────────────────────────────────────
+
+fn generate_token() -> String {
+    rand::thread_rng()
+        .sample_iter(Alphanumeric)
+        .take(64)
+        .map(char::from)
+        .collect()
 }
 
 // ── Error type ────────────────────────────────────────────────────────────────
@@ -88,10 +112,27 @@ struct LoginBody {
     password: String,
 }
 
+#[derive(Deserialize)]
+struct TokenQuery {
+    token: String,
+}
+
+#[derive(Deserialize)]
+struct ForgotPasswordBody {
+    email: String,
+}
+
+#[derive(Deserialize)]
+struct ResetPasswordBody {
+    token: String,
+    new_password: String,
+}
+
 #[derive(Serialize)]
 struct MeResponse {
     id: i64,
     username: String,
+    email_verified: bool,
 }
 
 #[derive(Serialize)]
@@ -147,7 +188,7 @@ impl From<db::GameSummary> for GameSummaryResponse {
     }
 }
 
-// ── Handlers ──────────────────────────────────────────────────────────────────
+// ── Auth handlers ─────────────────────────────────────────────────────────────
 
 async fn register(
     mut auth_session: AuthSession<AuthBackend>,
@@ -180,6 +221,16 @@ async fn register(
         .await?
         .ok_or(AppError::Internal)?;
 
+    // Send verification email (best-effort).
+    let token = generate_token();
+    let expires_at = now_unix() + VERIFY_TOKEN_EXPIRY;
+    if db::create_email_token(&state.db, user_id, &token, "verify", expires_at)
+        .await
+        .is_ok()
+    {
+        state.mailer.send_verification(&body.email, &token).await;
+    }
+
     auth_session.login(&user).await.map_err(|_| AppError::Internal)?;
 
     Ok((
@@ -187,6 +238,7 @@ async fn register(
         Json(MeResponse {
             id: user.id,
             username: user.username,
+            email_verified: user.email_verified,
         }),
     ))
 }
@@ -196,7 +248,7 @@ async fn login(
     Json(body): Json<LoginBody>,
 ) -> Result<impl IntoResponse, AppError> {
     let creds = Credentials {
-        username: body.username,
+        login: body.username,
         password: body.password,
     };
 
@@ -211,6 +263,7 @@ async fn login(
     Ok(Json(MeResponse {
         id: user.id,
         username: user.username,
+        email_verified: user.email_verified,
     }))
 }
 
@@ -224,11 +277,85 @@ async fn me(auth_session: AuthSession<AuthBackend>) -> Result<impl IntoResponse,
         Some(user) => Ok(Json(MeResponse {
             id: user.id,
             username: user.username,
+            email_verified: user.email_verified,
         })
         .into_response()),
         None => Ok(StatusCode::UNAUTHORIZED.into_response()),
     }
 }
+
+async fn verify_email(
+    State(state): State<Arc<AppState>>,
+    Query(params): Query<TokenQuery>,
+) -> Result<StatusCode, AppError> {
+    let user_id = db::consume_email_token(&state.db, &params.token, "verify")
+        .await?
+        .ok_or(AppError::BadRequest("invalid or expired token"))?;
+
+    db::set_email_verified(&state.db, user_id).await?;
+
+    Ok(StatusCode::OK)
+}
+
+async fn resend_verification(
+    auth_session: AuthSession<AuthBackend>,
+    State(state): State<Arc<AppState>>,
+) -> Result<StatusCode, AppError> {
+    let user = auth_session.user.ok_or(AppError::Unauthorized)?;
+
+    if user.email_verified {
+        return Ok(StatusCode::OK);
+    }
+
+    db::delete_email_tokens(&state.db, user.id, "verify").await?;
+
+    let token = generate_token();
+    let expires_at = now_unix() + VERIFY_TOKEN_EXPIRY;
+    db::create_email_token(&state.db, user.id, &token, "verify", expires_at).await?;
+
+    state.mailer.send_verification(&user.email, &token).await;
+
+    Ok(StatusCode::OK)
+}
+
+async fn forgot_password(
+    State(state): State<Arc<AppState>>,
+    Json(body): Json<ForgotPasswordBody>,
+) -> StatusCode {
+    // Always return 200 to avoid leaking which email addresses are registered.
+    if let Ok(Some(user)) = db::get_user_by_email(&state.db, &body.email).await {
+        let _ = db::delete_email_tokens(&state.db, user.id, "reset").await;
+        let token = generate_token();
+        let expires_at = now_unix() + RESET_TOKEN_EXPIRY;
+        if db::create_email_token(&state.db, user.id, &token, "reset", expires_at)
+            .await
+            .is_ok()
+        {
+            state.mailer.send_password_reset(&body.email, &token).await;
+        }
+    }
+    StatusCode::OK
+}
+
+async fn reset_password(
+    State(state): State<Arc<AppState>>,
+    Json(body): Json<ResetPasswordBody>,
+) -> Result<StatusCode, AppError> {
+    if body.new_password.len() < 8 {
+        return Err(AppError::BadRequest("password must be at least 8 characters"));
+    }
+
+    let user_id = db::consume_email_token(&state.db, &body.token, "reset")
+        .await?
+        .ok_or(AppError::BadRequest("invalid or expired token"))?;
+
+    let hash = hash_password(&body.new_password).map_err(|_| AppError::Internal)?;
+    db::update_password_hash(&state.db, user_id, &hash).await?;
+
+    Ok(StatusCode::OK)
+}
+
+// ── Profile handlers ──────────────────────────────────────────────────────────
 
 async fn user_profile(
     Path(username): Path<String>,
@@ -270,7 +397,7 @@ async fn user_games(
     }))
 }
 
-// ── Game detail (Phase 5) ─────────────────────────────────────────────────────
+// ── Game detail ───────────────────────────────────────────────────────────────
 
 #[derive(Serialize)]
 struct ParticipantWithUsername {
@@ -338,7 +465,7 @@ async fn game_detail(
     }))
 }
 
-// ── Game result recording (Phase 4) ──────────────────────────────────────────
+// ── Game result recording ─────────────────────────────────────────────────────
 
 #[derive(Deserialize)]
 struct GameResultBody {
@@ -368,7 +495,6 @@ async fn game_result(
 ) -> Result<impl IntoResponse, AppError> {
     let compound_id = format!("{}#{}", body.room_code, body.game_id);
 
-    // Snapshot the fields we need while holding the lock, then release immediately.
     let (game_record_id, user_ids) = {
         let rooms = state.rooms.lock().await;
         let room = rooms.get(&compound_id).ok_or(AppError::NotFound)?;

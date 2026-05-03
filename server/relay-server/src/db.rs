@@ -15,6 +15,7 @@ pub struct User {
     pub email: String,
     pub password_hash: String,
     pub created_at: i64,
+    pub email_verified: bool,
 }
 
 /// Aggregated game statistics for a user's public profile.
@@ -54,7 +55,7 @@ impl DbError {
     }
 }
 
-fn now_unix() -> i64 {
+pub fn now_unix() -> i64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
@@ -83,11 +84,26 @@ pub async fn init_db(url: &str) -> Pool {
         .batch_execute(include_str!("../migrations/002_participants_unique.sql"))
         .await
         .expect("Migration 002 failed");
+    client
+        .batch_execute(include_str!("../migrations/003_email_verification.sql"))
+        .await
+        .expect("Migration 003 failed");
 
     pool
 }
 
 // ── Users ────────────────────────────────────────────────────────────────────
+
+fn user_from_row(r: &tokio_postgres::Row) -> User {
+    User {
+        id: r.get("id"),
+        username: r.get("username"),
+        email: r.get("email"),
+        password_hash: r.get("password_hash"),
+        created_at: r.get("created_at"),
+        email_verified: r.get("email_verified"),
+    }
+}
 
 pub async fn create_user(
     pool: &Pool,
@@ -98,8 +114,8 @@ pub async fn create_user(
     let client = pool.get().await?;
     let row = client
         .query_one(
-            "INSERT INTO users (username, email, password_hash, created_at) \
-             VALUES ($1, $2, $3, $4) RETURNING id",
+            "INSERT INTO users (username, email, password_hash, created_at, email_verified) \
+             VALUES ($1, $2, $3, $4, FALSE) RETURNING id",
             &[&username, &email, &password_hash, &now_unix()],
         )
         .await?;
@@ -110,33 +126,123 @@ pub async fn get_user_by_id(pool: &Pool, id: i64) -> Result<Option<User>, DbErro
     let client = pool.get().await?;
     let row = client
         .query_opt(
-            "SELECT id, username, email, password_hash, created_at FROM users WHERE id = $1",
+            "SELECT id, username, email, password_hash, created_at, email_verified \
+             FROM users WHERE id = $1",
             &[&id],
         )
         .await?;
-    Ok(row.map(|r| User {
-        id: r.get("id"),
-        username: r.get("username"),
-        email: r.get("email"),
-        password_hash: r.get("password_hash"),
-        created_at: r.get("created_at"),
-    }))
+    Ok(row.as_ref().map(user_from_row))
 }
 
 pub async fn get_user_by_username(pool: &Pool, username: &str) -> Result<Option<User>, DbError> {
     let client = pool.get().await?;
     let row = client
         .query_opt(
-            "SELECT id, username, email, password_hash, created_at FROM users WHERE username = $1",
+            "SELECT id, username, email, password_hash, created_at, email_verified \
+             FROM users WHERE username = $1",
             &[&username],
         )
         .await?;
-    Ok(row.map(|r| User {
-        id: r.get("id"),
-        username: r.get("username"),
-        email: r.get("email"),
-        password_hash: r.get("password_hash"),
-        created_at: r.get("created_at"),
+    Ok(row.as_ref().map(user_from_row))
+}
+
+pub async fn get_user_by_email(pool: &Pool, email: &str) -> Result<Option<User>, DbError> {
+    let client = pool.get().await?;
+    let row = client
+        .query_opt(
+            "SELECT id, username, email, password_hash, created_at, email_verified \
+             FROM users WHERE email = $1",
+            &[&email],
+        )
+        .await?;
+    Ok(row.as_ref().map(user_from_row))
+}
+
+/// Looks up a user by username first; if not found, tries by email.
+pub async fn get_user_by_username_or_email(pool: &Pool, login: &str) -> Result<Option<User>, DbError> {
+    if let Some(u) = get_user_by_username(pool, login).await? {
+        return Ok(Some(u));
+    }
+    get_user_by_email(pool, login).await
+}
+
+pub async fn set_email_verified(pool: &Pool, user_id: i64) -> Result<(), DbError> {
+    let client = pool.get().await?;
+    client
+        .execute(
+            "UPDATE users SET email_verified = TRUE WHERE id = $1",
+            &[&user_id],
+        )
+        .await?;
+    Ok(())
+}
+
+pub async fn update_password_hash(pool: &Pool, user_id: i64, hash: &str) -> Result<(), DbError> {
+    let client = pool.get().await?;
+    client
+        .execute(
+            "UPDATE users SET password_hash = $1 WHERE id = $2",
+            &[&hash, &user_id],
+        )
+        .await?;
+    Ok(())
+}
+
+// ── Email tokens ──────────────────────────────────────────────────────────────
+
+pub async fn create_email_token(
+    pool: &Pool,
+    user_id: i64,
+    token: &str,
+    kind: &str,
+    expires_at: i64,
+) -> Result<(), DbError> {
+    let client = pool.get().await?;
+    client
+        .execute(
+            "INSERT INTO email_tokens (user_id, token, kind, expires_at, created_at) \
+             VALUES ($1, $2, $3, $4, $5)",
+            &[&user_id, &token, &kind, &expires_at, &now_unix()],
+        )
+        .await?;
+    Ok(())
+}
+
+/// Removes all tokens of the given kind for a user (call before creating a fresh one).
+pub async fn delete_email_tokens(pool: &Pool, user_id: i64, kind: &str) -> Result<(), DbError> {
+    let client = pool.get().await?;
+    client
+        .execute(
+            "DELETE FROM email_tokens WHERE user_id = $1 AND kind = $2",
+            &[&user_id, &kind],
+        )
+        .await?;
+    Ok(())
+}
+
+/// Atomically deletes the token row and returns the `user_id` if the token
+/// exists and has not expired. Returns `None` for missing or expired tokens.
+pub async fn consume_email_token(
+    pool: &Pool,
+    token: &str,
+    kind: &str,
+) -> Result<Option<i64>, DbError> {
+    let client = pool.get().await?;
+    let row = client
+        .query_opt(
+            "DELETE FROM email_tokens WHERE token = $1 AND kind = $2 \
+             RETURNING user_id, expires_at",
+            &[&token, &kind],
+        )
+        .await?;
+
+    Ok(row.and_then(|r| {
+        let expires_at: i64 = r.get("expires_at");
+        if expires_at >= now_unix() {
+            Some(r.get("user_id"))
+        } else {
+            None
+        }
     }))
 }
 

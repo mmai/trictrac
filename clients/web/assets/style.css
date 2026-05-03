@@ -292,6 +292,25 @@ a:hover { text-decoration: underline; }
 .portal-error   { color: var(--ui-red-accent); font-size: 0.875rem; margin-top: 0.5rem; }
 .portal-success { color: var(--ui-green-accent); font-size: 0.875rem; margin-top: 0.5rem; }
 
+.portal-link {
+    color: var(--ui-gold);
+    text-decoration: none;
+    font-size: 0.875rem;
+}
+.portal-link:hover { text-decoration: underline; }
+
+.portal-verification-banner {
+    background: rgba(200,164,72,0.08);
+    border: 1px solid rgba(200,164,72,0.35);
+    border-radius: 6px;
+    padding: 1.25rem;
+    text-align: center;
+}
+.portal-verification-banner p {
+    margin-bottom: 0.75rem;
+    font-size: 0.9rem;
+}
+
 /* ── Share URL row (lobby waiting card + game top bar) ──────────── */
 .share-url-row {
     display: flex;

@@ -34,6 +34,12 @@ in
     initialDatabases = [{ name = "trictrac"; user = "trictrac"; pass = "trictrac"; }];
   };
 
+  services = {
+    mailpit = {
+      enable = true;
+    };
+  };
+
   # https://devenv.sh/languages/
   languages.rust.enable = true;
 

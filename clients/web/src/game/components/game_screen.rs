@@ -246,7 +246,11 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
     let opp_name_end = opp_score.name.clone();
     let opp_holes_end = opp_score.holes;
 
-    let share_open = RwSignal::new(false);
+    // Open by default for the room creator while waiting for an opponent.
+    // When the opponent joins the stage becomes PreGameRoll, so the next
+    // re-mount will initialise this to false — auto-closing the popover.
+    let share_open = RwSignal::new(!is_bot_game && player_id == 0 && stage == SerStage::PreGame);
+    let share_copied = RwSignal::new(false);
     let share_url = if !is_bot_game {
         room_url(&room_id)
     } else {
@@ -290,17 +294,46 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
             </div>
 
             // ── Share popover ─────────────────────────────────────────────────
-            {move || share_open.get().then(|| view! {
-                <div class="share-popover">
-                    <p class="share-popover-label">{t!(i18n, share_link)}</p>
-                    <div class="share-url-row">
-                        <span class="share-url-text">{ share_url.clone() }</span>
+            {move || share_open.get().then(|| {
+                let url = share_url.clone();
+                let url_copy = share_url.clone();
+                view! {
+                    <div class="share-popover">
+                        <p class="share-popover-label">{t!(i18n, share_link)}</p>
+                        <div class="share-url-row">
+                            <span class="share-url-text">{url}</span>
+                            <button class="share-copy-btn" on:click=move |_| {
+                                #[cfg(target_arch = "wasm32")]
+                                {
+                                    let u = url_copy.clone();
+                                    wasm_bindgen_futures::spawn_local(async move {
+                                        if let Some(cb) = web_sys::window()
+                                            .map(|w| w.navigator().clipboard())
+                                        {
+                                            let _ = wasm_bindgen_futures::JsFuture::from(
+                                                cb.write_text(&u),
+                                            )
+                                            .await;
+                                            share_copied.set(true);
+                                            gloo_timers::future::TimeoutFuture::new(2000).await;
+                                            share_copied.set(false);
+                                        }
+                                    });
+                                }
+                            }>
+                                {move || if share_copied.get() {
+                                    t_string!(i18n, link_copied)
+                                } else {
+                                    t_string!(i18n, copy_link)
+                                }}
+                            </button>
+                        </div>
+                        <p class="share-popover-label" style="margin-top:0.75rem">
+                            {t!(i18n, scan_qr)}
+                        </p>
+                        <div class="qr-container" inner_html=share_svg.clone() />
                     </div>
-                    <p class="share-popover-label" style="margin-top:0.75rem">
-                        {t!(i18n, scan_qr)}
-                    </p>
-                    <div class="qr-container" inner_html=share_svg.clone() />
-                </div>
+                }
             })}
 
             // ── Merged scoreboard + scoring panels (above board) ─────────────

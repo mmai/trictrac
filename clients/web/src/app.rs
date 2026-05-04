@@ -3,7 +3,7 @@ use futures::{FutureExt, StreamExt};
 use gloo_storage::{LocalStorage, Storage};
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use leptos_router::components::{Route, Router, Routes};
+use leptos_router::components::{Route, Router, Routes, A};
 use leptos_router::hooks::use_location;
 use leptos_router::path;
 use serde::{Deserialize, Serialize};
@@ -19,14 +19,9 @@ use crate::game::session::{
 use crate::game::trictrac::backend::TrictracBackend;
 use crate::game::trictrac::types::{GameDelta, PlayerAction, ScoredEvent, SerStage, ViewState};
 use crate::i18n::*;
-use crate::nav::SiteNav;
 use crate::portal::{
-    account::AccountPage,
-    forgot_password::ForgotPasswordPage,
-    game_detail::GameDetailPage,
-    lobby::LobbyPage,
-    profile::ProfilePage,
-    reset_password::ResetPasswordPage,
+    account::AccountPage, forgot_password::ForgotPasswordPage, game_detail::GameDetailPage,
+    lobby::LobbyPage, profile::ProfilePage, reset_password::ResetPasswordPage,
     verify_email::VerifyEmailPage,
 };
 use trictrac_store::CheckerMove;
@@ -380,8 +375,7 @@ pub fn App() -> impl IntoView {
 
     view! {
         <Router>
-            <SiteNav />
-
+            <SiteHamburger />
             <main>
                 <Routes fallback=|| view! { <p class="portal-empty" style="padding:3rem;text-align:center">"Page not found."</p> }>
                     <Route path=path!("/") view=LobbyPage />
@@ -431,6 +425,105 @@ fn GameOverlay(
             .into_any(),
             _ => view! {}.into_any(),
         }
+    }
+}
+
+/// Persistent hamburger button + left sidebar — visible on every page.
+#[component]
+fn SiteHamburger() -> impl IntoView {
+    let i18n = use_i18n();
+    let auth_username =
+        use_context::<RwSignal<Option<String>>>().unwrap_or_else(|| RwSignal::new(None));
+    let screen = use_context::<RwSignal<Screen>>().expect("Screen context not found");
+    let cmd_tx = use_context::<futures::channel::mpsc::UnboundedSender<NetCommand>>()
+        .expect("cmd_tx not found in context");
+
+    let sidebar_open = RwSignal::new(false);
+
+    let cmd_tx_newgame = cmd_tx.clone();
+
+    view! {
+        // ── Hamburger button (☰ → ✕ animation) ───────────────────────────────
+        <button
+            class="game-hamburger"
+            class:game-hamburger-open=move || sidebar_open.get()
+            on:click=move |_| sidebar_open.update(|v| *v = !*v)
+            aria-label="Menu"
+        >
+            <span class="hb-bar hb-top"></span>
+            <span class="hb-bar hb-mid"></span>
+            <span class="hb-bar hb-bot"></span>
+        </button>
+
+        // ── Left sidebar ──────────────────────────────────────────────────────
+        <div class="game-sidebar" class:game-sidebar-open=move || sidebar_open.get()>
+
+            <div class="game-sidebar-header">
+                <span class="game-sidebar-brand">"Trictrac"</span>
+            </div>
+
+            // Language switcher
+            <div class="game-sidebar-section">
+                <span class="game-sidebar-label">"Language"</span>
+                <div class="lang-switcher">
+                    <button
+                        class:lang-active=move || i18n.get_locale() == Locale::en
+                        on:click=move |_| i18n.set_locale(Locale::en)
+                    >"EN"</button>
+                    <button
+                        class:lang-active=move || i18n.get_locale() == Locale::fr
+                        on:click=move |_| i18n.set_locale(Locale::fr)
+                    >"FR"</button>
+                </div>
+            </div>
+
+            // Auth
+            <div class="game-sidebar-section">
+                {move || match auth_username.get() {
+                    Some(u) => {
+                        let href = format!("/profile/{u}");
+                        view! {
+                            <A href=href attr:class="game-sidebar-link"
+                               on:click=move |_| sidebar_open.set(false)>
+                                {u}
+                            </A>
+                            <button class="game-sidebar-btn" on:click=move |_| {
+                                spawn_local(async move {
+                                    let _ = api::post_logout().await;
+                                    auth_username.set(None);
+                                });
+                            }>{t!(i18n, sign_out)}</button>
+                        }.into_any()
+                    },
+                    None => view! {
+                        <A href="/account" attr:class="game-sidebar-link"
+                           on:click=move |_| sidebar_open.set(false)>
+                            {t!(i18n, sign_in)}
+                        </A>
+                    }.into_any(),
+                }}
+            </div>
+
+            // New game — only shown while a game is in progress
+            {move || {
+                if matches!(screen.get(), Screen::Playing(_) | Screen::Connecting) {
+                    let tx = cmd_tx_newgame.clone();
+                    Some(view! {
+                        <div class="game-sidebar-section">
+                            <button class="game-sidebar-btn game-sidebar-btn-newgame"
+                                    on:click=move |_| {
+                                        tx.unbounded_send(NetCommand::Disconnect).ok();
+                                        sidebar_open.set(false);
+                                    }>
+                                {t!(i18n, new_game)}
+                            </button>
+                        </div>
+                    })
+                } else {
+                    None
+                }
+            }}
+        </div>
     }
 }
 

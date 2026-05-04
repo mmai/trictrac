@@ -19,8 +19,6 @@ use super::scoring::ScoringPanel;
 pub fn GameScreen(state: GameUiState) -> impl IntoView {
     let i18n = use_i18n();
 
-    let auth_username =
-        use_context::<RwSignal<Option<String>>>().unwrap_or_else(|| RwSignal::new(None));
     let vs = state.view_state.clone();
     let player_id = state.player_id;
     let is_my_turn = vs.active_mp_player == Some(player_id);
@@ -100,7 +98,6 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
 
     // ── Button senders ─────────────────────────────────────────────────────────
     let cmd_tx_go = cmd_tx.clone();
-    let cmd_tx_quit = cmd_tx.clone();
     let cmd_tx_end_quit = cmd_tx.clone();
     let cmd_tx_end_replay = cmd_tx.clone();
     // Only show the fallback Go button when there is no ScoringPanel showing it.
@@ -246,62 +243,23 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
     let opp_name_end = opp_score.name.clone();
     let opp_holes_end = opp_score.holes;
 
-    // Open by default for the room creator while waiting for an opponent.
-    // When the opponent joins the stage becomes PreGameRoll, so the next
-    // re-mount will initialise this to false — auto-closing the popover.
-    let share_open = RwSignal::new(!is_bot_game && player_id == 0 && stage == SerStage::PreGame);
-    let share_copied = RwSignal::new(false);
-    let share_url = if !is_bot_game {
-        room_url(&room_id)
-    } else {
-        String::new()
-    };
-    let share_svg = if !is_bot_game {
-        qr_svg(&share_url)
-    } else {
-        String::new()
-    };
+    let sidebar_copied = RwSignal::new(false);
+    let share_url = if !is_bot_game { room_url(&room_id) } else { String::new() };
+    let share_svg = if !is_bot_game { qr_svg(&share_url) } else { String::new() };
 
     view! {
+        // ── Game container ────────────────────────────────────────────────────
         <div class="game-container">
-            // ── Top bar ──────────────────────────────────────────────────────
-            <div class="top-bar">
-                <span>{move || if is_bot_game {
-                    t_string!(i18n, vs_bot_label).to_owned()
-                } else {
-                    t_string!(i18n, room_label, id = room_id.as_str())
-                }}</span>
-
-                {move || (!is_bot_game).then(|| view! {
-                    <button
-                        class="quit-link"
-                        style="border:none;background:transparent;cursor:pointer"
-                        on:click=move |_| share_open.update(|v| *v = !*v)
-                    >
-                        {move || if share_open.get() { "✕ " } else { "" }}
-                        {t!(i18n, share_btn)}
-                    </button>
-                })}
-
-                {move || auth_username.get().map(|u| view! {
-                    <span class="playing-as">"▶ " <strong>{u}</strong></span>
-                })}
-
-                <a class="quit-link" href="#" on:click=move |e| {
-                    e.prevent_default();
-                    cmd_tx_quit.unbounded_send(NetCommand::Disconnect).ok();
-                }>{t!(i18n, quit)}</a>
-            </div>
-
-            // ── Share popover ─────────────────────────────────────────────────
-            {move || share_open.get().then(|| {
-                let url = share_url.clone();
-                let url_copy = share_url.clone();
+            // ── Share popover (while waiting for opponent) ───────────────────
+            {(!is_bot_game && stage == SerStage::PreGame).then(|| {
+                let url_label = share_url.clone();
+                let url_copy  = share_url.clone();
+                let svg       = share_svg.clone();
                 view! {
                     <div class="share-popover">
                         <p class="share-popover-label">{t!(i18n, share_link)}</p>
                         <div class="share-url-row">
-                            <span class="share-url-text">{url}</span>
+                            <span class="share-url-text">{url_label}</span>
                             <button class="share-copy-btn" on:click=move |_| {
                                 #[cfg(target_arch = "wasm32")]
                                 {
@@ -312,26 +270,23 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
                                         {
                                             let _ = wasm_bindgen_futures::JsFuture::from(
                                                 cb.write_text(&u),
-                                            )
-                                            .await;
-                                            share_copied.set(true);
+                                            ).await;
+                                            sidebar_copied.set(true);
                                             gloo_timers::future::TimeoutFuture::new(2000).await;
-                                            share_copied.set(false);
+                                            sidebar_copied.set(false);
                                         }
                                     });
                                 }
                             }>
-                                {move || if share_copied.get() {
+                                {move || if sidebar_copied.get() {
                                     t_string!(i18n, link_copied)
                                 } else {
                                     t_string!(i18n, copy_link)
                                 }}
                             </button>
                         </div>
-                        <p class="share-popover-label" style="margin-top:0.75rem">
-                            {t!(i18n, scan_qr)}
-                        </p>
-                        <div class="qr-container" inner_html=share_svg.clone() />
+                        <p class="share-popover-label">{t!(i18n, scan_qr)}</p>
+                        <div class="qr-container" inner_html=svg />
                     </div>
                 }
             })}

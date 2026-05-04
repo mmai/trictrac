@@ -378,7 +378,7 @@ a:hover { text-decoration: underline; }
 /* ── Game overlay (full-screen, covers portal during play) ───────── */
 .game-overlay {
     position: fixed;
-    inset: 54px 0 0 0;
+    inset: 0;
     background: #8a7050;
     background-image:
         radial-gradient(ellipse at 20% 10%, rgba(80,48,16,0.35) 0%, transparent 60%),
@@ -1836,3 +1836,153 @@ a:hover { text-decoration: underline; }
 }
 
 .nickname-modal-alt a:hover { text-decoration: underline; }
+
+/* ── Game hamburger button (☰ → ✕ animation) ────────────────────────── */
+.game-hamburger {
+    position: fixed;
+    top: 0.6rem;
+    left: 0.6rem;
+    z-index: 251;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    background: var(--board-rail);
+    border: 1px solid rgba(200,164,72,0.35);
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+}
+.game-hamburger:hover {
+    background: #3d1f0a;
+    border-color: rgba(200,164,72,0.65);
+}
+
+.hb-bar {
+    display: block;
+    width: 16px;
+    height: 2px;
+    background: var(--ui-parchment);
+    border-radius: 1px;
+    transition: transform 0.25s cubic-bezier(0.22, 0.61, 0.36, 1), opacity 0.2s;
+    transform-origin: center;
+}
+/* Top bar rotates down to form \ */
+.game-hamburger-open .hb-top { transform: translateY(7px) rotate(45deg); }
+/* Middle bar fades out */
+.game-hamburger-open .hb-mid { opacity: 0; transform: scaleX(0); }
+/* Bottom bar rotates up to form / */
+.game-hamburger-open .hb-bot { transform: translateY(-7px) rotate(-45deg); }
+
+/* ── Game sidebar ────────────────────────────────────────────────────── */
+.game-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: 280px;
+    z-index: 250;
+    background: var(--board-rail);
+    border-right: 1px solid rgba(200,164,72,0.25);
+    display: flex;
+    flex-direction: column;
+    transform: translateX(-100%);
+    transition: transform 0.25s cubic-bezier(0.22, 0.61, 0.36, 1);
+    overflow-y: auto;
+}
+.game-sidebar-open {
+    transform: translateX(0);
+}
+
+.game-sidebar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1rem;
+    border-bottom: 1px solid rgba(200,164,72,0.2);
+    flex-shrink: 0;
+}
+
+.game-sidebar-brand {
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: var(--ui-gold);
+    letter-spacing: 0.06em;
+    margin-left: 45px;
+}
+
+.game-sidebar-close {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid rgba(200,164,72,0.25);
+    border-radius: 4px;
+    color: var(--ui-parchment);
+    font-size: 0.85rem;
+    cursor: pointer;
+    opacity: 0.65;
+    transition: opacity 0.15s;
+}
+.game-sidebar-close:hover { opacity: 1; }
+
+.game-sidebar-section {
+    padding: 0.9rem 1rem;
+    border-bottom: 1px solid rgba(200,164,72,0.12);
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+}
+
+.game-sidebar-label {
+    font-size: 0.7rem;
+    font-family: var(--font-ui);
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: rgba(242,232,208,0.45);
+}
+
+.game-sidebar-link {
+    font-family: var(--font-ui);
+    font-size: 0.85rem;
+    color: var(--ui-parchment);
+    text-decoration: none;
+    opacity: 0.8;
+    transition: opacity 0.15s;
+}
+.game-sidebar-link:hover { opacity: 1; text-decoration: underline; text-underline-offset: 2px; }
+
+.game-sidebar-btn {
+    font-family: var(--font-ui);
+    font-size: 0.82rem;
+    padding: 0.4rem 0.75rem;
+    border: 1px solid rgba(200,164,72,0.35);
+    border-radius: 4px;
+    background: rgba(200,164,72,0.1);
+    color: var(--ui-parchment);
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.15s;
+}
+.game-sidebar-btn:hover { background: rgba(200,164,72,0.22); }
+
+.game-sidebar-btn-newgame {
+    background: rgba(58,107,42,0.25);
+    border-color: rgba(58,107,42,0.55);
+    font-weight: 500;
+}
+.game-sidebar-btn-newgame:hover { background: rgba(58,107,42,0.42); }
+
+.game-sidebar-qr {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1;
+    max-width: 200px;
+    margin: 0 auto;
+}

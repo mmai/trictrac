@@ -121,5 +121,11 @@
   "scan_qr": "or scan the QR code",
   "join_code_label": "Join by code",
   "join_code_placeholder": "Room code",
-  "share_btn": "Share"
+  "share_btn": "Share",
+  "nickname_modal_title": "Choose your nickname",
+  "nickname_modal_hint": "You will play as:",
+  "nickname_modal_play": "Play",
+  "nickname_modal_or": "or",
+  "nickname_modal_sign_in": "Sign in",
+  "nickname_modal_register": "Create account"
 }

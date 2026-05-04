@@ -1776,3 +1776,63 @@ a:hover { text-decoration: underline; }
     color: var(--ui-red-accent);
     font-style: italic;
 }
+
+/* ── Nickname modal (anonymous player name chooser) ─────────────────── */
+.nickname-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 300;
+}
+
+.nickname-modal {
+    background: var(--ui-parchment);
+    border-radius: 8px;
+    padding: 2rem 2rem 1.75rem;
+    width: min(360px, 90vw);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    box-shadow:
+        0 20px 60px rgba(0,0,0,0.55),
+        0 0 0 1px rgba(200,164,72,0.35),
+        0 0 0 5px rgba(42,21,8,0.9),
+        0 0 0 6px rgba(200,164,72,0.2);
+    animation: game-over-appear 0.25s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.nickname-modal-title {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--ui-ink);
+    text-align: center;
+    letter-spacing: 0.04em;
+}
+
+.nickname-modal-hint {
+    font-family: var(--font-ui);
+    font-size: 0.8rem;
+    color: rgba(42,26,8,0.6);
+    text-align: center;
+    margin-bottom: -0.25rem;
+}
+
+.nickname-modal-alt {
+    text-align: center;
+    font-size: 0.8rem;
+    color: rgba(42,26,8,0.55);
+    padding-top: 0.5rem;
+    border-top: 1px solid rgba(138,106,40,0.2);
+}
+
+.nickname-modal-alt a {
+    color: var(--ui-gold-dark);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.nickname-modal-alt a:hover { text-decoration: underline; }

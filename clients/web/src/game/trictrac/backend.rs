@@ -202,6 +202,16 @@ impl BackEndArchitecture<PlayerAction, GameDelta, ViewState> for TrictracBackend
     }
 
     fn inform_rpc(&mut self, mp_player: u16, action: PlayerAction) {
+        // SetName is always accepted regardless of game stage or whose turn it is.
+        if let PlayerAction::SetName(name) = action {
+            let store_id = if mp_player == 0 { HOST_PLAYER_ID } else { GUEST_PLAYER_ID };
+            if let Some(p) = self.game.players.get_mut(&store_id) {
+                p.name = name;
+            }
+            self.broadcast_state();
+            return;
+        }
+
         // During the first-player ceremony only PreGameRoll actions are accepted.
         if self.ceremony_started {
             if matches!(action, PlayerAction::PreGameRoll) {
@@ -262,6 +272,7 @@ impl BackEndArchitecture<PlayerAction, GameDelta, ViewState> for TrictracBackend
                 }
             }
             PlayerAction::PreGameRoll => {} // ignored outside ceremony
+            PlayerAction::SetName(_) => {}  // handled at the top of inform_rpc
         }
 
         self.broadcast_state();

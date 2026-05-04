@@ -16,6 +16,8 @@ pub enum PlayerAction {
     Mark,
     /// Roll a single die during the pre-game ceremony to decide who goes first.
     PreGameRoll,
+    /// Declare the player's display name; sent once immediately after connecting.
+    SetName(String),
 }
 
 // ── Incremental state update broadcast to all clients ────────────────────────

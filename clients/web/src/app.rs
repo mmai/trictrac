@@ -154,11 +154,19 @@ pub fn App() -> impl IntoView {
     let auth_email_verified: RwSignal<bool> = RwSignal::new(false);
     provide_context(auth_username);
     provide_context(auth_email_verified);
+    // Set to true once get_me resolves (success or failure) so lobby can
+    // decide immediately whether to show the nickname modal.
+    let auth_loaded: RwSignal<bool> = RwSignal::new(false);
+    provide_context(auth_loaded);
+    // Nickname chosen by an anonymous player; used instead of "Anonymous".
+    let anon_nickname: RwSignal<Option<String>> = RwSignal::new(None);
+    provide_context(anon_nickname);
     spawn_local(async move {
         if let Ok(me) = api::get_me().await {
             auth_username.set(Some(me.username));
             auth_email_verified.set(me.email_verified);
         }
+        auth_loaded.set(true);
     });
 
     let (cmd_tx, mut cmd_rx) = mpsc::unbounded::<NetCommand>();
@@ -242,6 +250,7 @@ pub fn App() -> impl IntoView {
             if remote_config.is_none() {
                 let player_name = auth_username
                     .get_untracked()
+                    .or_else(|| anon_nickname.get_untracked())
                     .unwrap_or_else(|| untrack(|| t_string!(i18n, anonymous_name).to_string()));
                 loop {
                     let restart =
@@ -287,7 +296,11 @@ pub fn App() -> impl IntoView {
             let reconnect_token = session.reconnect_token;
             let my_name = auth_username
                 .get_untracked()
+                .or_else(|| anon_nickname.get_untracked())
                 .unwrap_or_else(|| t_string!(i18n, anonymous_name).to_string());
+            // Announce our name to the host backend so it can broadcast it to
+            // the opponent. Done once immediately after connecting.
+            session.send_action(PlayerAction::SetName(my_name.clone()));
             let mut vs = ViewState::default_with_names("", "");
             let mut result_submitted = false;
 

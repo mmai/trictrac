@@ -377,7 +377,7 @@ pub fn Board(
                                 cls.push_str(" exit-eligible");
                             }
 
-                            if seqs_c.is_empty() {
+                            if seqs_c.is_empty() && !is_move_stage {
                                 // No restriction (dice not rolled or not move stage)
                                 if can_stage && (sel.is_some() || is_mine) {
                                     cls.push_str(" clickable");

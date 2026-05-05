@@ -45,6 +45,9 @@ pub struct GameUiState {
     pub my_scored_event: Option<ScoredEvent>,
     pub opp_scored_event: Option<ScoredEvent>,
     pub last_moves: Option<(CheckerMove, CheckerMove)>,
+    /// True on the echo screen state set alongside a pending item — suppresses dice
+    /// roll animation and sound since they already played on the pending screen.
+    pub suppress_dice_anim: bool,
 }
 
 /// Reason the UI is paused waiting for the player to click Continue.
@@ -352,6 +355,7 @@ pub fn App() -> impl IntoView {
                                     my_scored_event: None,
                                     opp_scored_event: None,
                                     last_moves: compute_last_moves(&prev_vs, &vs, is_own_move),
+                                    suppress_dice_anim: false,
                                 },
                                 pending,
                                 screen,
@@ -402,13 +406,16 @@ fn GameOverlay(
 ) -> impl IntoView {
     let location = use_location();
 
+    // Memoize the front of the pending queue so that pushing a new item to the back
+    // does not re-mount GameScreen (and replay dice animation/sound) when the displayed
+    // state (the front) hasn't changed.
+    let pending_front = Memo::new(move |_| pending.with(|q| q.front().cloned()));
+
     move || {
         if location.pathname.get() != "/" {
             return view! {}.into_any();
         }
-        let q = pending.get();
-        let front = q.front().cloned();
-        if let Some(state) = front {
+        if let Some(state) = pending_front.get() {
             return view! {
                 <div class="game-overlay"><GameScreen state /></div>
             }

@@ -29,6 +29,7 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
         );
     let waiting_for_confirm = state.waiting_for_confirm;
     let pause_reason = state.pause_reason.clone();
+    let suppress_dice_anim = state.suppress_dice_anim;
 
     // ── Hovered jan moves (shown as arrows on the board) ──────────────────────
     let hovered_jan_moves: RwSignal<Vec<(CheckerMove, CheckerMove)>> = RwSignal::new(vec![]);
@@ -206,8 +207,14 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
     };
 
     // ── Sound effects (fire once on mount = once per state snapshot) ──────────
-    // Dice roll: dice just appeared (no preceding moves in this snapshot).
-    if show_dice && last_moves.is_none() {
+    // Dice roll: dice are fresh for the currently active player (Move stage means
+    // someone just rolled). Skipped on turn-switch states where the old dice linger
+    // in RollDice/MarkPoints stage before the opponent has rolled.
+    let active_is_move_stage = matches!(
+        vs.turn_stage,
+        SerTurnStage::Move | SerTurnStage::HoldOrGoChoice
+    );
+    if show_dice && last_moves.is_none() && active_is_move_stage && !suppress_dice_anim {
         crate::game::sound::play_dice_roll();
     }
     // Checker move: moves were committed in the preceding action.
@@ -328,6 +335,7 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
                 bar_is_double=is_double_dice
                 last_moves=last_moves
                 hit_fields=hit_fields
+                suppress_dice_anim=suppress_dice_anim
             />
 
             // ── Status, hints, and actions — cream strip below board ─

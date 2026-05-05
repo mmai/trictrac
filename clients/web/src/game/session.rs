@@ -47,6 +47,7 @@ pub async fn run_local_bot_game(
         my_scored_event: None,
         opp_scored_event: None,
         last_moves: None,
+        suppress_dice_anim: false,
     }));
 
     use futures::StreamExt;
@@ -73,6 +74,7 @@ pub async fn run_local_bot_game(
                     my_scored_event: scored,
                     opp_scored_event: opp_scored,
                     last_moves: compute_last_moves(&prev_vs, &vs, true),
+                    suppress_dice_anim: false,
                 }));
             }
             Some(NetCommand::PlayVsBot) => return true,
@@ -102,6 +104,7 @@ pub async fn run_local_bot_game(
                                     my_scored_event: None,
                                     opp_scored_event: None,
                                     last_moves: compute_last_moves(&delta_prev_vs, &vs, false),
+                                    suppress_dice_anim: false,
                                 },
                                 pending,
                                 screen,
@@ -220,6 +223,7 @@ pub fn push_or_show(
         });
         screen.set(Screen::Playing(GameUiState {
             last_moves: None,
+            suppress_dice_anim: true,
             ..new_state
         }));
     } else {

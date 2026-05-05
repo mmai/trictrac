@@ -272,6 +272,9 @@ pub fn Board(
     /// Fields where a hit (battue) was scored this turn — show ripple animation.
     #[prop(default = vec![])]
     hit_fields: Vec<u8>,
+    /// Suppress dice animation (echo screen shown after a pending confirm was dismissed).
+    #[prop(default = false)]
+    suppress_dice_anim: bool,
 ) -> impl IntoView {
     let board = view_state.board;
     let white_points = view_state.scores[0].points;
@@ -283,6 +286,11 @@ pub fn Board(
             view_state.turn_stage,
             SerTurnStage::Move | SerTurnStage::HoldOrGoChoice
         );
+    // True when ANY player is in the Move/HoldOrGoChoice stage — i.e., dice are fresh for the active player.
+    let active_is_move_stage = matches!(
+        view_state.turn_stage,
+        SerTurnStage::Move | SerTurnStage::HoldOrGoChoice
+    );
     let is_white = player_id == 0;
     let hovered_moves = use_context::<RwSignal<Vec<(CheckerMove, CheckerMove)>>>();
 
@@ -533,8 +541,13 @@ pub fn Board(
                                 bar_matched_dice_used(&staged, dice_vals)
                             } else if is_my_turn {
                                 (true, true)
-                            } else {
+                            } else if active_is_move_stage && !suppress_dice_anim {
+                                // Opponent has fresh dice in their Move stage (first view).
                                 (false, false)
+                            } else {
+                                // Dice are old: either from the previous turn (opponent not yet
+                                // rolled) or this is the echo screen after a pending confirm.
+                                (true, true)
                             };
                             let used = if die_idx == 0 { u0 } else { u1 };
                             view! { <Die value=die_val used=used is_double=bar_is_double /> }

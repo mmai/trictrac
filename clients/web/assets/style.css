@@ -705,6 +705,10 @@ a:hover { text-decoration: underline; }
     font-size: 1.05rem;
     color: var(--ui-ink);
     letter-spacing: 0.02em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
 }
 
 .score-bars { display: flex; flex-direction: row; gap: 1.5rem; flex: 1; align-items: center; }
@@ -808,7 +812,7 @@ a:hover { text-decoration: underline; }
 }
 
 .score-row-name {
-    min-width: 120px;
+    width: 120px;
     flex-shrink: 0;
     display: flex;
     align-items: baseline;

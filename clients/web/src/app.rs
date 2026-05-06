@@ -467,11 +467,7 @@ fn SiteHamburger() -> impl IntoView {
 
             <div class="game-sidebar-header">
                 <span class="game-sidebar-brand">"Trictrac"</span>
-            </div>
 
-            // Language switcher
-            <div class="game-sidebar-section">
-                <span class="game-sidebar-label">"Language"</span>
                 <div class="lang-switcher">
                     <button
                         class:lang-active=move || i18n.get_locale() == Locale::en
@@ -484,15 +480,52 @@ fn SiteHamburger() -> impl IntoView {
                 </div>
             </div>
 
+            // Language switcher
+            // <div class="game-sidebar-section">
+            //     <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
+            //         <path fill="currentColor" d="M192 64C209.7 64 224 78.3 224 96L224 128L352 128C369.7 128 384 142.3 384 160C384 177.7 369.7 192 352 192L342.4 192L334 215.1C317.6 260.3 292.9 301.6 261.8 337.1C276 345.9 290.8 353.7 306.2 360.6L356.6 383L418.8 243C423.9 231.4 435.4 224 448 224C460.6 224 472.1 231.4 477.2 243L605.2 531C612.4 547.2 605.1 566.1 589 573.2C572.9 580.3 553.9 573.1 546.8 557L526.8 512L369.3 512L349.3 557C342.1 573.2 323.2 580.4 307.1 573.2C291 566 283.7 547.1 290.9 531L330.7 441.5L280.3 419.1C257.3 408.9 235.3 396.7 214.5 382.7C193.2 399.9 169.9 414.9 145 427.4L110.3 444.6C94.5 452.5 75.3 446.1 67.4 430.3C59.5 414.5 65.9 395.3 81.7 387.4L116.2 370.1C132.5 361.9 148 352.4 162.6 341.8C148.8 329.1 135.8 315.4 123.7 300.9L113.6 288.7C102.3 275.1 104.1 254.9 117.7 243.6C131.3 232.3 151.5 234.1 162.8 247.7L173 259.9C184.5 273.8 197.1 286.7 210.4 298.6C237.9 268.2 259.6 232.5 273.9 193.2L274.4 192L64.1 192C46.3 192 32 177.7 32 160C32 142.3 46.3 128 64 128L160 128L160 96C160 78.3 174.3 64 192 64zM448 334.8L397.7 448L498.3 448L448 334.8z"/>
+            //     </svg>
+            //     <span> {t!(i18n, language)}</span>
+            //     <div class="lang-switcher">
+            //         <button
+            //             class:lang-active=move || i18n.get_locale() == Locale::en
+            //             on:click=move |_| i18n.set_locale(Locale::en)
+            //         >"EN"</button>
+            //         <button
+            //             class:lang-active=move || i18n.get_locale() == Locale::fr
+            //             on:click=move |_| i18n.set_locale(Locale::fr)
+            //         >"FR"</button>
+            //     </div>
+            // </div>
+
+            <div class="game-sidebar-section">
+                <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
+                    <path fill="currentColor" d="M304 70.1C313.1 61.9 326.9 61.9 336 70.1L568 278.1C577.9 286.9 578.7 302.1 569.8 312C560.9 321.9 545.8 322.7 535.9 313.8L527.9 306.6L527.9 511.9C527.9 547.2 499.2 575.9 463.9 575.9L175.9 575.9C140.6 575.9 111.9 547.2 111.9 511.9L111.9 306.6L103.9 313.8C94 322.6 78.9 321.8 70 312C61.1 302.2 62 287 71.8 278.1L304 70.1zM320 120.2L160 263.7L160 512C160 520.8 167.2 528 176 528L224 528L224 424C224 384.2 256.2 352 296 352L344 352C383.8 352 416 384.2 416 424L416 528L464 528C472.8 528 480 520.8 480 512L480 263.7L320 120.3zM272 528L368 528L368 424C368 410.7 357.3 400 344 400L296 400C282.7 400 272 410.7 272 424L272 528z"/>
+               </svg>
+            {move || {
+                let tx = cmd_tx_newgame.clone();
+                Some(view! {
+                    <A href="/" attr:class="game-sidebar-link"
+                        on:click=move |_| { tx.unbounded_send(NetCommand::Disconnect).ok(); sidebar_open.set(false); }>
+                        {t!(i18n, new_game)}
+                    </A>
+                })
+            }}
+            </div>
+
             // Auth
             <div class="game-sidebar-section">
+                <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
+                    <path fill="currentColor" d="M240 192C240 147.8 275.8 112 320 112C364.2 112 400 147.8 400 192C400 236.2 364.2 272 320 272C275.8 272 240 236.2 240 192zM448 192C448 121.3 390.7 64 320 64C249.3 64 192 121.3 192 192C192 262.7 249.3 320 320 320C390.7 320 448 262.7 448 192zM144 544C144 473.3 201.3 416 272 416L368 416C438.7 416 496 473.3 496 544L496 552C496 565.3 506.7 576 520 576C533.3 576 544 565.3 544 552L544 544C544 446.8 465.2 368 368 368L272 368C174.8 368 96 446.8 96 544L96 552C96 565.3 106.7 576 120 576C133.3 576 144 565.3 144 552L144 544z"/>
+                </svg>
+
                 {move || match auth_username.get() {
                     Some(u) => {
                         let href = format!("/profile/{u}");
                         view! {
                             <A href=href attr:class="game-sidebar-link"
                                on:click=move |_| sidebar_open.set(false)>
-                                {u}
+                               {u}
                             </A>
                             <button class="game-sidebar-btn" on:click=move |_| {
                                 spawn_local(async move {
@@ -510,26 +543,6 @@ fn SiteHamburger() -> impl IntoView {
                     }.into_any(),
                 }}
             </div>
-
-            // New game — only shown while a game is in progress
-            {move || {
-                if matches!(screen.get(), Screen::Playing(_) | Screen::Connecting) {
-                    let tx = cmd_tx_newgame.clone();
-                    Some(view! {
-                        <div class="game-sidebar-section">
-                            <button class="game-sidebar-btn game-sidebar-btn-newgame"
-                                    on:click=move |_| {
-                                        tx.unbounded_send(NetCommand::Disconnect).ok();
-                                        sidebar_open.set(false);
-                                    }>
-                                {t!(i18n, new_game)}
-                            </button>
-                        </div>
-                    })
-                } else {
-                    None
-                }
-            }}
         </div>
     }
 }

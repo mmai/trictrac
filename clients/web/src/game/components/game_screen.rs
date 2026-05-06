@@ -250,9 +250,17 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
     let opp_name_end = opp_score.name.clone();
     let opp_holes_end = opp_score.holes;
 
-    let sidebar_copied = RwSignal::new(false);
-    let share_url = if !is_bot_game { room_url(&room_id) } else { String::new() };
-    let share_svg = if !is_bot_game { qr_svg(&share_url) } else { String::new() };
+    let share_url_copied = RwSignal::new(false);
+    let share_url = if !is_bot_game {
+        room_url(&room_id)
+    } else {
+        String::new()
+    };
+    let share_svg = if !is_bot_game {
+        qr_svg(&share_url)
+    } else {
+        String::new()
+    };
 
     view! {
         // ── Game container ────────────────────────────────────────────────────
@@ -278,14 +286,14 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
                                             let _ = wasm_bindgen_futures::JsFuture::from(
                                                 cb.write_text(&u),
                                             ).await;
-                                            sidebar_copied.set(true);
+                                            share_url_copied.set(true);
                                             gloo_timers::future::TimeoutFuture::new(2000).await;
-                                            sidebar_copied.set(false);
+                                            share_url_copied.set(false);
                                         }
                                     });
                                 }
                             }>
-                                {move || if sidebar_copied.get() {
+                                {move || if share_url_copied.get() {
                                     t_string!(i18n, link_copied)
                                 } else {
                                     t_string!(i18n, copy_link)
@@ -298,7 +306,7 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
                 }
             })}
 
-            // ── Merged scoreboard + scoring panels (above board) ─────────────
+            // ── Merged scoreboard + scoring panels ─────────────
             // score-area is position:relative so the scoring-panels-container
             // can be absolute-positioned at the right of the hole counter.
             <div class="score-area">

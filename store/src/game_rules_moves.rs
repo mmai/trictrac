@@ -4,6 +4,7 @@ use crate::dice::Dice;
 use crate::game::GameState;
 use crate::player::Color;
 use log::info;
+use rand::seq::IndexedRandom;
 use std::cmp;
 use std::collections::HashSet;
 
@@ -327,14 +328,43 @@ impl MoveRules {
         Ok(())
     }
 
-    fn has_checkers_outside_last_quarter(&self) -> bool {
+    // check if there is still a checker left outside the last quarter after the allowed_move
+    fn has_checkers_outside_last_quarter(&self, allowed_move: Option<CheckerMove>) -> bool {
+        // Get the unique field allowed outside the last quarter, when the firt move origin is
+        // outside and the destination is inside the last quarter
+        let one_allowed = allowed_move
+            .filter(|m| m.get_to() > 18)
+            .map(|m| m.get_from());
+
         !self
             .board
             .get_color_fields(Color::White)
             .iter()
-            .filter(|(field, _count)| *field < 19)
+            .filter(|(field, count)| *field < 19 && !(Some(*field) == one_allowed && *count == 1))
             .collect::<Vec<&(usize, i8)>>()
             .is_empty()
+    }
+
+    fn forbid_exits(&self) -> bool {
+        let filtered = self
+            .board
+            .get_color_fields(Color::White)
+            .into_iter()
+            .filter(|(field, _count)| *field < 19)
+            .collect::<Vec<(usize, i8)>>();
+        let max_dice = if self.dice.values.0 > self.dice.values.1 {
+            self.dice.values.0
+        } else {
+            self.dice.values.1
+        };
+        match filtered[..] {
+            // all checkers in the last jan, exits are possible
+            [] => false,
+            // if there is only one checker outside the last jan, and it can go to the last jan with
+            // one of the dice, an exit is possible with the other dice.
+            [(field, 1)] if field + (max_dice as usize) > 18 => false,
+            _ => true,
+        }
     }
 
     fn check_exit_rules(
@@ -345,8 +375,8 @@ impl MoveRules {
         if !moves.0.is_exit() && !moves.1.is_exit() {
             return Ok(());
         }
-        // toutes les dames doivent être dans le jan de retour
-        if self.has_checkers_outside_last_quarter() {
+        // all checkers must be in the return jan
+        if self.has_checkers_outside_last_quarter(Some(moves.0)) {
             return Err(MoveError::ExitNeedsAllCheckersOnLastQuarter);
         }
 
@@ -584,7 +614,7 @@ impl MoveRules {
     ) -> Vec<(CheckerMove, CheckerMove)> {
         let mut moves_seqs = Vec::new();
         let color = &Color::White;
-        let forbid_exits = self.has_checkers_outside_last_quarter();
+        let forbid_exits = self.forbid_exits();
         // Precompute non-excedant sequences once so check_exit_rules need not repeat
         // the full move generation for every exit-move candidate.
         // Only needed when Exit is not already ignored and exits are actually reachable.
@@ -1687,6 +1717,46 @@ mod tests {
             CheckerMove::new(23, 0).unwrap(),
         );
         assert!(state.check_exit_rules(&moves, None).is_ok());
+
+        state.dice.values = (2, 6);
+        state.board.set_positions(
+            &crate::Color::White,
+            [
+                -9, -1, 0, 0, -2, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, -2, 1, 0, 0, 1, 0, 1, 10, 2,
+            ],
+        );
+        let moves = (
+            CheckerMove::new(17, 23).unwrap(),
+            CheckerMove::new(23, 0).unwrap(),
+        );
+        assert!(state.check_exit_rules(&moves, None).is_ok());
+
+        state.dice.values = (3, 1);
+        state.board.set_positions(
+            &crate::Color::White,
+            [
+                -10, -2, 0, 0, 0, 0, -1, 0, -2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 3, 2, 1,
+            ],
+        );
+        let moves = (
+            CheckerMove::new(22, 0).unwrap(),
+            CheckerMove::new(24, 0).unwrap(),
+        );
+        assert!(state.check_exit_rules(&moves, None).is_ok());
+
+        // Bad exit order: the first move must be with the checker furthest from the exit
+        state.dice.values = (3, 1);
+        state.board.set_positions(
+            &crate::Color::White,
+            [
+                -10, -2, 0, 0, 0, 0, -1, 0, -2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 3, 2, 1,
+            ],
+        );
+        let moves = (
+            CheckerMove::new(24, 0).unwrap(),
+            CheckerMove::new(22, 0).unwrap(),
+        );
+        assert!(state.check_exit_rules(&moves, None).is_err());
     }
 
     #[test]

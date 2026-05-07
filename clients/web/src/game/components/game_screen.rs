@@ -424,6 +424,17 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
                             >{t!(i18n, empty_move)}</button>
                         })
                     }}
+                    {move || {
+                        (is_move_stage && staged_moves.get().len() == 1).then(|| view! {
+                            <button
+                                class="btn btn-secondary"
+                                on:click=move |_| {
+                                    staged_moves.set(vec![]);
+                                    selected_origin.set(None);
+                                }
+                            >{t!(i18n, cancel_move)}</button>
+                        })
+                    }}
                 </div>
             </div>
 
@@ -442,6 +453,11 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
                 let opp_die = if player_id == 0 { pgr.guest_die } else { pgr.host_die };
                 let can_roll = my_die.is_none() && !waiting_for_confirm;
                 let show_tie = pgr.tie_count > 0;
+                let toss_result: Option<bool> = match (my_die, opp_die) {
+                    (Some(m), Some(o)) if m != o => Some(m > o),
+                    _ => None,
+                };
+                let opp_name_toss = opp_name_ceremony.clone();
                 view! {
                     <div class="ceremony-overlay">
                         <div class="ceremony-box">
@@ -459,6 +475,14 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
                                     <Die value=opp_die.unwrap_or(0) used=false />
                                 </div>
                             </div>
+                            {toss_result.map(|i_win| {
+                                let text = move || if i_win {
+                                    t_string!(i18n, toss_you_first).to_owned()
+                                } else {
+                                    t_string!(i18n, toss_opp_first, name = opp_name_toss.as_str()).to_owned()
+                                };
+                                view! { <p class="ceremony-result">{text}</p> }
+                            })}
                             {waiting_for_confirm.then(|| {
                                 let pending_c = pending;
                                 view! {

@@ -217,7 +217,7 @@ fn IdleCard(
     view! {
         <div class="login-actions">
             <button
-                class="login-btn login-btn-bot"
+                class="login-btn login-btn-secondary"
                 on:click=move |_| { cmd_bot.unbounded_send(NetCommand::PlayVsBot).ok(); }
             >
                 <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">

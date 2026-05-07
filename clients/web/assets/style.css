@@ -1859,6 +1859,14 @@ a:hover { text-decoration: underline; }
     font-style: italic;
 }
 
+.ceremony-result {
+    font-family: var(--font-display);
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: var(--ui-gold-dark);
+    letter-spacing: 0.04em;
+}
+
 /* ── Nickname modal (anonymous player name chooser) ─────────────────── */
 .nickname-backdrop {
     position: fixed;

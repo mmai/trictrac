@@ -21,12 +21,12 @@ fn generate_nickname() -> String {
     use rand::Rng;
     let mut rng = rand::rng();
     const ADJ: &[&str] = &[
-        "swift", "brave", "noble", "fierce", "clever", "bold", "cunning",
-        "agile", "sharp", "golden", "iron", "silver", "quick", "daring", "wild",
+        "swift", "brave", "noble", "fierce", "clever", "bold", "cunning", "agile", "sharp",
+        "golden", "iron", "silver", "quick", "daring", "wild",
     ];
     const NOUN: &[&str] = &[
-        "fox", "hawk", "wolf", "lion", "bear", "rook", "knight",
-        "duke", "earl", "lance", "blade", "crown", "dame", "ace", "star",
+        "fox", "hawk", "wolf", "lion", "bear", "rook", "knight", "duke", "earl", "lance", "blade",
+        "crown", "dame", "ace", "star",
     ];
     let adj = ADJ[rng.random_range(0..ADJ.len())];
     let noun = NOUN[rng.random_range(0..NOUN.len())];
@@ -124,7 +124,9 @@ pub fn LobbyPage() -> impl IntoView {
         };
         join_processed.set_value(true);
         if auth_username.get_untracked().is_some() {
-            cmd_tx_q.unbounded_send(NetCommand::JoinRoom { room: code }).ok();
+            cmd_tx_q
+                .unbounded_send(NetCommand::JoinRoom { room: code })
+                .ok();
         } else {
             pending_action.set(Some(PendingLobbyAction::Join { code }));
         }
@@ -203,7 +205,9 @@ fn IdleCard(
     let on_create = move |_: leptos::ev::MouseEvent| {
         let code = generate_room_code();
         if auth_username.get_untracked().is_some() {
-            cmd_create.unbounded_send(NetCommand::CreateRoom { room: code.clone() }).ok();
+            cmd_create
+                .unbounded_send(NetCommand::CreateRoom { room: code.clone() })
+                .ok();
             view_state.set(LobbyView::Waiting { code });
         } else {
             pending_action.set(Some(PendingLobbyAction::Create { code }));
@@ -216,9 +220,15 @@ fn IdleCard(
                 class="login-btn login-btn-bot"
                 on:click=move |_| { cmd_bot.unbounded_send(NetCommand::PlayVsBot).ok(); }
             >
+                <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
+                    <path fill="currentColor" d="M352 64C352 46.3 337.7 32 320 32C302.3 32 288 46.3 288 64L288 128L192 128C139 128 96 171 96 224L96 448C96 501 139 544 192 544L448 544C501 544 544 501 544 448L544 224C544 171 501 128 448 128L352 128L352 64zM160 432C160 418.7 170.7 408 184 408L216 408C229.3 408 240 418.7 240 432C240 445.3 229.3 456 216 456L184 456C170.7 456 160 445.3 160 432zM280 432C280 418.7 290.7 408 304 408L336 408C349.3 408 360 418.7 360 432C360 445.3 349.3 456 336 456L304 456C290.7 456 280 445.3 280 432zM400 432C400 418.7 410.7 408 424 408L456 408C469.3 408 480 418.7 480 432C480 445.3 469.3 456 456 456L424 456C410.7 456 400 445.3 400 432zM224 240C250.5 240 272 261.5 272 288C272 314.5 250.5 336 224 336C197.5 336 176 314.5 176 288C176 261.5 197.5 240 224 240zM368 288C368 261.5 389.5 240 416 240C442.5 240 464 261.5 464 288C464 314.5 442.5 336 416 336C389.5 336 368 314.5 368 288zM64 288C64 270.3 49.7 256 32 256C14.3 256 0 270.3 0 288L0 384C0 401.7 14.3 416 32 416C49.7 416 64 401.7 64 384L64 288zM608 256C590.3 256 576 270.3 576 288L576 384C576 401.7 590.3 416 608 416C625.7 416 640 401.7 640 384L640 288C640 270.3 625.7 256 608 256z"/>
+                </svg>
                 {t!(i18n, play_vs_bot)}
             </button>
             <button class="login-btn login-btn-primary" on:click=on_create>
+                <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
+                    <path  fill="currentColor" d="M598.1 139.4C608.8 131.6 611.2 116.6 603.4 105.9C595.6 95.2 580.6 92.8 569.9 100.6L495.4 154.8L485.5 148.2C465.8 135 442.6 128 418.9 128L359.7 128L359.3 128L215.7 128C189 128 163.2 136.9 142.3 153.1L70.1 100.6C59.4 92.8 44.4 95.2 36.6 105.9C28.8 116.6 31.2 131.6 41.9 139.4L129.9 203.4C139.5 210.3 152.6 209.3 161 201L164.9 197.1C178.4 183.6 196.7 176 215.8 176L262.1 176L170.4 267.7C154.8 283.3 154.8 308.6 170.4 324.3L171.2 325.1C218 372 294 372 340.9 325.1L368 298L465.8 395.8C481.4 411.4 481.4 436.7 465.8 452.4L456 462.2L425 431.2C415.6 421.8 400.4 421.8 391.1 431.2C381.8 440.6 381.7 455.8 391.1 465.1L419.1 493.1C401.6 503.5 381.9 509.8 361.5 511.6L313 463C303.6 453.6 288.4 453.6 279.1 463C269.8 472.4 269.7 487.6 279.1 496.9L294.1 511.9L290.3 511.9C254.2 511.9 219.6 497.6 194.1 472.1L65 343C55.6 333.6 40.4 333.6 31.1 343C21.8 352.4 21.7 367.6 31.1 376.9L160.2 506.1C194.7 540.6 241.5 560 290.3 560L342.1 560L343.1 561L344.1 560L349.8 560C398.6 560 445.4 540.6 479.9 506.1L499.8 486.2C501 485 502.1 483.9 503.2 482.7C503.9 482.2 504.5 481.6 505.1 481L609 377C618.4 367.6 618.4 352.4 609 343.1C599.6 333.8 584.4 333.7 575.1 343.1L521.3 396.9C517.1 384.1 510 372 499.8 361.8L385 247C375.6 237.6 360.4 237.6 351.1 247L307 291.1C280.5 317.6 238.5 319.1 210.3 295.7L309 197C322.4 183.6 340.6 176 359.6 175.9L368.1 175.9L368.3 175.9L419.1 175.9C433.3 175.9 447.2 180.1 459 188L482.7 204C491.1 209.6 502 209.3 510.1 203.4L598.1 139.4z"/>
+                </svg>
                 {t!(i18n, create_room)}
             </button>
         </div>
@@ -283,15 +293,23 @@ fn NicknameModal(
 
     let on_play = move |_: leptos::ev::MouseEvent| {
         let chosen = nick.get().trim().to_string();
-        let chosen = if chosen.is_empty() { generate_nickname() } else { chosen };
+        let chosen = if chosen.is_empty() {
+            generate_nickname()
+        } else {
+            chosen
+        };
         anon_nickname.set(Some(chosen));
         match &pending {
             PendingLobbyAction::Create { code } => {
-                cmd_tx.unbounded_send(NetCommand::CreateRoom { room: code.clone() }).ok();
+                cmd_tx
+                    .unbounded_send(NetCommand::CreateRoom { room: code.clone() })
+                    .ok();
                 view_state.set(LobbyView::Waiting { code: code.clone() });
             }
             PendingLobbyAction::Join { code } => {
-                cmd_tx.unbounded_send(NetCommand::JoinRoom { room: code.clone() }).ok();
+                cmd_tx
+                    .unbounded_send(NetCommand::JoinRoom { room: code.clone() })
+                    .ok();
             }
         }
         pending_action.set(None);

@@ -52,6 +52,8 @@ body {
   width: 1.2em;
   height: 1.2em;
   color: var(--ui-parchment);
+  vertical-align: -0.25em;
+  margin-right: 0.7em;
 }
 
 /* ── Site navigation ─────────────────────────────────────────────── */

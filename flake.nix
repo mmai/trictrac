@@ -32,25 +32,25 @@
               rustc = rustToolchain;
             };
             # Must match the wasm-bindgen version in Cargo.lock
-            wasm-bindgen-version = "0.2.118";
+            wasm-bindgen-version = "0.2.121";
             wasm-bindgen-cli = final.buildWasmBindgenCli rec {
               version = wasm-bindgen-version;
               src = final.fetchCrate {
                 pname = "wasm-bindgen-cli";
                 inherit version;
-                hash = "sha256-ve783oYH0TGv8Z8lIPdGjItzeLDQLOT5uv/jbFOlZpI=";
+                hash = "sha256-ZOMgFNOcGkO66Jz/Z83eoIu+DIzo3Z/vq6Z5g6BDY/w=";
               };
               cargoDeps = rustPlatform.fetchCargoVendor {
                 inherit src;
                 name = "wasm-bindgen-cli-vendor";
-                hash = "sha256-EYDfuBlH3zmTxACBL+sjicRna84CvoesKSQVcYiG9P0=";
+                hash = "sha256-DPdCDPTAPBrbqLUqnCwQu1dePs9lGg85JCJOCIr9qjU=";
               };
             };
 
             frontendCargoDeps = rustPlatform.fetchCargoVendor {
               src = ./.;
               name = "trictrac-frontend-vendor";
-              hash = "sha256-W2xlFgmA8biiIaE/EbC7ebHryo1lzrQYdrOCp5Xxjn8=";
+              hash = "sha256-eCuQcgKhdqHDRmRRK2cjmvRZZ661ecDYn0HIZWKDpSE=";
             };
           in
           final.stdenv.mkDerivation {
@@ -109,11 +109,6 @@
 
           cargoLock = {
             lockFile = ./Cargo.lock;
-            # Run `nix build .#trictrac` with the fake hashes to get the correct ones
-            outputHashes = {
-              "burn-rl-0.1.0" = "sha256-XAdabwHaSqi7ldO0v8Tuj7h1EX5QBeDIUgmme2Rdzqo=";
-              "gym-rs-0.3.1" = "sha256-TA7sK027dbpWcsMLt+c+ggIZb0ZZvTk/e5ihvUYxmK0=";
-            };
           };
 
           postInstall = ''

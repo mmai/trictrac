@@ -3,23 +3,17 @@ resolver = "2"
 
 members = [
   "store",
-  "clients/cli",
   "clients/backbone-lib",
   "clients/web",
   "server/protocol",
   "server/relay-server",
-  "bot",
-  "spiel_bot",
 ]
 
 default-members = [
   "store",
-  "clients/cli",
   "clients/backbone-lib",
   "server/protocol",
   "server/relay-server",
-  "bot",
-  "spiel_bot",
 ]
 
 # For the server we will need opt-level='3'

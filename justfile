@@ -34,6 +34,23 @@ build-relay:
   cp target/release/relay-server deploy
   cp -u server/relay-server/GameConfig.json deploy/
 
+# start a trictrac container with nixos-container
+# `boot.enableContainers = true` must be set on local nixos system
+local:
+	cd container && nix flake update nixpkgs trictrac && cd -
+	sudo nixos-container destroy trictrac
+	sudo nixos-container create trictrac --flake ./container/
+	nixos-container start trictrac
+	machinectl
+
+docker-build:
+  nix build .#trictrac-docker
+docker-run: docker-build
+  docker load < ./result
+  docker run mmai/trictrac -P
+docker-publish: docker-build
+  docker push mmai/trictrac
+
 runclibots:
 	cargo run --bin=client_cli -- --bot random,dqnburn:./bot/models/burnrl_dqn_40.mpk
 	#cargo run --bin=client_cli -- --bot dqn:./bot/models/dqn_model_final.json,dummy

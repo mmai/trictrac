@@ -28,10 +28,9 @@ French terms follow the mapping in [vocabulary.md](refs/vocabulary.md).
 - Must be entered **simultaneously** (_d'emblée_): exactly 2 checkers must enter together.
 - Must be vacated simultaneously: exactly 2 checkers must leave together.
 - Always holds ≥ 2 checkers while occupied; a single checker there is forbidden.
-- Three ways to take the corner:
+- Two ways to take the corner:
   - **By effect** (_par effet_): normal die values land exactly on it.
-  - **By puissance** (_par puissance_): the opponent's corner is empty; the player could take both corners simultaneously, but by privilege takes their own instead (as if stepping back one field).
-  - **By chance** (_par effet_): general case when it results from the dice.
+  - **By puissance** (_par puissance_): the opponent's corner is empty; the player could land exactly on the opponent's corner, but by privilege he takes their own instead (as if stepping back one field).
 - If both by-effect and by-puissance are possible, by-effect takes priority.
 - An empty corner may serve as a resting field during a chained move (not a landing).
 - Placing checkers on the **opponent's** corner is always forbidden.

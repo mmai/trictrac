@@ -702,6 +702,23 @@ impl MoveRules {
             }
             board.unmove_checker(color, first_move);
         }
+
+        // ── Par puissance (corner taken by force) ────────────────────────────
+        // Neither corner is taken via the normal loop above because the die
+        // would land on field 13 (opponent corner), which is always rejected
+        // by check_corner_rules.  Generate the canonical par-puissance pair
+        // once here; the deduplication step in get_possible_moves_sequences
+        // removes any duplicate produced by the swapped-dice second pass.
+        if !self.can_take_corner_by_effect() {
+            if let Some(seq) = self.try_puissance_corner_seq(dice1, dice2) {
+                if filling_seqs.map_or(true, |seqs| seqs.is_empty() || seqs.contains(&seq))
+                    && !moves_seqs.contains(&seq)
+                {
+                    moves_seqs.push(seq);
+                }
+            }
+        }
+
         moves_seqs
     }
 
@@ -780,6 +797,60 @@ impl MoveRules {
         let (count1, opt_color1) = res1.unwrap();
         let (count2, opt_color2) = res2.unwrap();
         count1 > 0 && count2 > 0 && opt_color1 == Some(color) && opt_color2 == Some(color)
+    }
+
+    /// Returns the par-puissance corner move pair if the conditions are met:
+    /// both corners empty, each die has an own checker exactly one field before
+    /// the opponent's corner (field 13).  The move with the lower source field
+    /// is returned first (canonical ordering so both dice-order calls produce
+    /// the same pair and the outer deduplication collapses them to one entry).
+    fn try_puissance_corner_seq(&self, dice1: u8, dice2: u8) -> Option<(CheckerMove, CheckerMove)> {
+        let own_corner: Field = 12; // MoveRules always works from White's perspective
+        let opp_corner: Field = 13;
+
+        let (count_own, _) = self.board.get_field_checkers(own_corner).ok()?;
+        let (count_opp, _) = self.board.get_field_checkers(opp_corner).ok()?;
+        if count_own > 0 || count_opp > 0 {
+            return None;
+        }
+
+        // Source field for each die: the field whose checker would reach the
+        // opponent's corner with a normal move.
+        let f1 = opp_corner.checked_sub(dice1 as usize)?;
+        let f2 = opp_corner.checked_sub(dice2 as usize)?;
+        if f1 == 0 || f2 == 0 {
+            return None;
+        }
+
+        let has_white = |f: Field| -> bool {
+            self.board
+                .get_field_checkers(f)
+                .map(|(c, col)| c >= 1 && col == Some(&Color::White))
+                .unwrap_or(false)
+        };
+
+        if dice1 == dice2 {
+            // Doublet: both moves from the same field, need ≥ 2 own checkers.
+            let ok = self
+                .board
+                .get_field_checkers(f1)
+                .map(|(c, col)| c >= 2 && col == Some(&Color::White))
+                .unwrap_or(false);
+            if !ok {
+                return None;
+            }
+            let m = CheckerMove::new(f1, own_corner).ok()?;
+            Some((m, m))
+        } else {
+            if !has_white(f1) || !has_white(f2) {
+                return None;
+            }
+            // Canonical: lower source field first.
+            let (fa, fb) = if f1 <= f2 { (f1, f2) } else { (f2, f1) };
+            let ma = CheckerMove::new(fa, own_corner).ok()?;
+            let mb = CheckerMove::new(fb, own_corner).ok()?;
+            Some((ma, mb))
+        }
     }
 }
 
@@ -1587,6 +1658,21 @@ mod tests {
                 CheckerMove::new(23, 0).unwrap(),
             ),
         ];
+        assert_eq!(moves, state.get_possible_moves_sequences(true, vec![]));
+
+        // Prise de coin par puissance
+        let mut board = Board::new();
+        board.set_positions(
+            &crate::Color::White,
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -2, -13,
+            ],
+        );
+        let state = MoveRules::new(&Color::White, &board, Dice { values: (3, 2) });
+        let moves = vec![(
+            CheckerMove::new(10, 12).unwrap(),
+            CheckerMove::new(11, 12).unwrap(),
+        )];
         assert_eq!(moves, state.get_possible_moves_sequences(true, vec![]));
     }
 

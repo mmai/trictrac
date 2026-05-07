@@ -2,40 +2,40 @@
 
 2013 EDITION — SUPPLEMENT TO THE REASONED DICTIONARY OF THE GAME OF TRICTRAC www.trictrac.org by Michel MALFILÂTRE (trictrac.org)
 
-*Translator's note: French game terms are preserved in italics on first use. See [vocabulary.md](vocabulary.md) for a complete French/English mapping.*
+_Translator's note: French game terms are preserved in italics on first use. See [vocabulary.md](vocabulary.md) for a complete French/English mapping._
 
 There are two types of game in grand trictrac: the ordinary game and the scored game.
 In both, the main laws and rules are the same; but the goal, scoring, and payments differ.
 
 ## ARTICLE I: THE ORDINARY GAME
 
-It is played between two players; the goal is to be the first to score 12 holes (*trous*). One hole equals 12 points.
+It is played between two players; the goal is to be the first to score 12 holes (_trous_). One hole equals 12 points.
 
 ## ARTICLE II: THE SCORED GAME
 
-It can be played by 2, 3, or 4 players in teams or in *chouette* format. The goal is to win as many tokens as possible by playing an agreed number of rounds (*marqués*). A round always pits two players against each other. With three or four players, participants rotate at each round in a defined order.
+It can be played by 2, 3, or 4 players in teams or in _chouette_ format. The goal is to win as many tokens as possible by playing an agreed number of rounds (_marqués_). A round always pits two players against each other. With three or four players, participants rotate at each round in a defined order.
 
-To win a round, a player must score at least 6 holes and then leave (*s'en aller*) (see Article XV). The maximum number of holes per round is generally unlimited, but players may agree otherwise.
+To win a round, a player must score at least 6 holes and then leave (_s'en aller_) (see Article XV). The maximum number of holes per round is generally unlimited, but players may agree otherwise.
 
-If both players are tied at or above 6 holes when one player leaves, the round is drawn and must be replayed (*refait*) immediately.
+If both players are tied at or above 6 holes when one player leaves, the round is drawn and must be replayed (_refait_) immediately.
 
 ## ARTICLE III: EQUIPMENT
 
-The game is played on a board called a *trictrac*, composed of two tables: the small jan table and the big jan table. The first table contains each player's small jan and the second contains each player's big jan. One player's small jan is also the other player's return jan. Each jan consists of 6 alternately coloured fields (*flèches*).
+The game is played on a board called a _trictrac_, composed of two tables: the small jan table and the big jan table. The first table contains each player's small jan and the second contains each player's big jan. One player's small jan is also the other player's return jan. Each jan consists of 6 alternately coloured fields (_flèches_).
 
 The board has 24 triangular fields in total and 30 holes drilled into its rails and bands.
 
-A hole is drilled at the base of each field. These holes hold each player's peg (*fichet*) to record the holes (games) won. The three holes on each side rail serve to place pegs at the start of the game, along with the flag (*pavillon*).
+A hole is drilled at the base of each field. These holes hold each player's peg (_fichet_) to record the holes (games) won. The three holes on each side rail serve to place pegs at the start of the game, along with the flag (_pavillon_).
 
-In addition to these three pegs (one of which is the flag), the game uses 30 checkers — 15 white and 15 black (or two other contrasting colours) — three tokens (*jetons*), two dice cups (*cornets*), and two six-sided dice.
+In addition to these three pegs (one of which is the flag), the game uses 30 checkers — 15 white and 15 black (or two other contrasting colours) — three tokens (_jetons_), two dice cups (_cornets_), and two six-sided dice.
 
 The scored game is also played with tokens used for payments, or with paper and pencil to keep a token account.
 
 ## ARTICLE IV: STARTING POSITION
 
-At the start of the game, all checkers are stacked into two separate stacks (*talons*): one of white checkers, one of black. Each stack is placed facing the other on a corner field adjacent to one of the two outer side rails, called the starting rail. This rail may later become the exit rail.
+At the start of the game, all checkers are stacked into two separate stacks (_talons_): one of white checkers, one of black. Each stack is placed facing the other on a corner field adjacent to one of the two outer side rails, called the starting rail. This rail may later become the exit rail.
 
-Each player uses the checkers from the stack closest to them. The corner fields against the other outer side rail are the rest corners. The twelfth field of each player — counting the stack as the first — is therefore that player's rest corner, or simply: *corner*.
+Each player uses the checkers from the stack closest to them. The corner fields against the other outer side rail are the rest corners. The twelfth field of each player — counting the stack as the first — is therefore that player's rest corner, or simply: _corner_.
 
 Pegs are placed in the 3 holes of the starting rail, with the flag occupying the central hole. Three tokens are placed against this rail between the two stacks.
 
@@ -47,7 +47,7 @@ An alternative method: one player rolls both dice; the player closest to the hig
 
 In both cases, if the dice show the same value, they must be re-rolled. A game may therefore not begin with a double.
 
-After each new setting (*relevé*), first-move privilege belongs to the player who first exited all their checkers or who left first (see Articles VIII and XV).
+After each new setting (_relevé_), first-move privilege belongs to the player who first exited all their checkers or who left first (see Articles VIII and XV).
 
 In the scored game with two players, first-move privilege alternates each round. With three or four players, it belongs to the player who remains to face a new opponent.
 
@@ -57,11 +57,11 @@ In case of a replay, the player who had first-move privilege in the drawn round 
 
 Both dice must be rolled together with a dice cup. They are valid when they land flat inside the board, even if resting on a checker or token. If a die is broken, rests on a rail, or lands outside the board, both dice must be re-rolled.
 
-The two numbers may be played with two checkers — each playing one number — or with a single checker playing both numbers successively in a chained move (*tout d'une*) (for 6 and 1: the 6 advances a checker six fields and the 1 advances another one field; or a single checker moves seven fields total, stopping on the first or sixth field as a resting point before reaching the seventh). 
+The two numbers may be played with two checkers — each playing one number — or with a single checker playing both numbers successively in a chained move (_tout d'une_) (for 6 and 1: the 6 advances a checker six fields and the 1 advances another one field; or a single checker moves seven fields total, stopping on the first or sixth field as a resting point before reaching the seventh).
 
 Both numbers must be played if possible. If only one can be played and there is a choice, the higher number must be played.
 
-Any unplayed number is penalised: this is a *jan-qui-ne-peut* (helpless man), worth 2 helplessness points per unplayed number, credited to the opponent.
+Any unplayed number is penalised: this is a _jan-qui-ne-peut_ (helpless man), worth 2 helplessness points per unplayed number, credited to the opponent.
 
 Dice must not be picked up before the move is fully played and all points marked (including school penalties).
 
@@ -79,7 +79,7 @@ A checker may not be placed on a field occupied by the opponent's checker(s).
 
 When all of a player's checkers are gathered in their last jan (return jan), they are exited from the board using the exit rail privilege, which grants this rail the value of one additional field.
 
-A checker may be exited by an exact exit number that brings it directly to the exit rail, or by an overflow number (*nombre excédant*) that would carry the farthest checker beyond the rail. Other numbers — failing numbers (*nombres défaillants*) — must be played within the jan.
+A checker may be exited by an exact exit number that brings it directly to the exit rail, or by an overflow number (_nombre excédant_) that would carry the farthest checker beyond the rail. Other numbers — failing numbers (_nombres défaillants_) — must be played within the jan.
 
 A checker may be exited in a chained move. A player may choose not to exit a checker on an exact exit number and instead play another checker within the jan as a failing number, if possible; but an overflow number must always exit a checker.
 
@@ -93,13 +93,13 @@ Exiting can occur multiple times in a game.
 
 ## ARTICLE IX: THE REST CORNER
 
-The rest corner may only be taken simultaneously (*d'emblée*): two checkers must enter it at the same time. Likewise, it may only be vacated simultaneously. It must therefore always be occupied by at least two checkers. It is forbidden to place or leave a single checker on one's own rest corner.
+The rest corner may only be taken simultaneously (_d'emblée_): two checkers must enter it at the same time. Likewise, it may only be vacated simultaneously. It must therefore always be occupied by at least two checkers. It is forbidden to place or leave a single checker on one's own rest corner.
 
 Under any circumstances, it is forbidden to place one or more checkers on the opponent's rest corner.
 
 An empty corner may, however, serve as a resting field for any checker during a chained move.
 
-A player may take their corner naturally, by effect (*par effet*), or by puissance (*par puissance*) — the latter when the opponent's corner is empty and the player could take it simultaneously. By privilege, the player takes their own corner instead, as if stepping back one field.
+A player may take their corner by effect (_par effet_, naturally), or by puissance (_par puissance_) — the latter when the opponent's corner is empty and the player could take it simultaneously. By privilege, the player takes their own corner instead, as if stepping back one field.
 
 If a player can take their corner both by effect and by puissance, they must take it by effect.
 
@@ -107,7 +107,7 @@ After vacating the corner, it may be retaken under the same conditions.
 
 ## ARTICLE X: HITTING CHECKERS
 
-This *jan de récompense* (reward jan) occurs when an opponent's checker is exposed alone on a half-field and the player rolls numbers that could cover it with one or more of their own checkers.
+This _jan de récompense_ (reward jan) occurs when an opponent's checker is exposed alone on a half-field and the player rolls numbers that could cover it with one or more of their own checkers.
 
 The hit is always fictitious — it exists only as a potential; no checker is actually moved.
 
@@ -127,14 +127,15 @@ Only one way is counted on a double, even when two checkers on a field could eac
 Multiple checkers may be hit in the same move.
 
 For each checker hit and for each way it is hit, this reward jan is worth:
+
 - **2 points** on a normal roll, **4 points** on a double — if the hit checker is in the big jan table.
 - **4 points** on a normal roll, **6 points** on a double — if the hit checker is in the small jan table or return jan.
 
 Reward jans must be marked by the player who achieves them (under penalty of being "sent to school" — see Article XVI).
 
-To hit a checker using the combined sum, the player must have a resting field (*repos*): a field where one die can land so that the second can (fictitiously) reach the target checker. This resting field must be either empty, already held by the player's own checkers, or occupied by a single opponent checker — which is then also hit.
+To hit a checker using the combined sum, the player must have a resting field (_repos_): a field where one die can land so that the second can (fictitiously) reach the target checker. This resting field must be either empty, already held by the player's own checkers, or occupied by a single opponent checker — which is then also hit.
 
-A *helpless man* (*jan-qui-ne-peut*) occurs when, attempting to hit using the combined sum, no free resting field exists and the player must stop on a full field held by the opponent. The hit is then a **false hit** (*à faux*), and the opponent gains as many points as the player would have scored with a true hit.
+A _helpless man_ (_jan-qui-ne-peut_) occurs when, attempting to hit using the combined sum, no free resting field exists and the player must stop on a full field held by the opponent. The hit is then a **false hit** (_à faux_), and the opponent gains as many points as the player would have scored with a true hit.
 
 A checker already hit with a true hit cannot also be hit with a false hit in the same move. However, multiple checkers may be hit simultaneously — some truly, others falsely.
 
@@ -172,7 +173,7 @@ The player is not obliged to actually fill those two fields; they are free to pl
 
 ### THE FULL JAN (PLEIN)
 
-A jan is full (*plein*) when a player occupies each of its six fields with at least two of their own checkers.
+A jan is full (_plein_) when a player occupies each of its six fields with at least two of their own checkers.
 
 Each player may fill their small jan, big jan, and return jan.
 
@@ -208,7 +209,7 @@ A full jan is conserved when the player can play both dice without breaking it �
 
 Conserving a full jan is worth **4 points** on a normal roll and **6 points** on a double. There can be at most one way to conserve.
 
-A player may use the privilege of conserving by helplessness (*par impuissance*) when, having a full jan, the position prevents playing one or both numbers. Only the number 6 allows this conservation, as all lower numbers can be played within the jan (even if it means breaking the full jan).
+A player may use the privilege of conserving by helplessness (_par impuissance_) when, having a full jan, the position prevents playing one or both numbers. Only the number 6 allows this conservation, as all lower numbers can be played within the jan (even if it means breaking the full jan).
 
 By privilege, the full return jan may be conserved by exiting one, two, or three checkers.
 
@@ -230,11 +231,11 @@ Points and holes won must always be marked before touching one's checkers to pla
 
 Points are marked with tokens. For **2 points**, the token is placed at the tip of the player's second field or between the second and third fields; for **4 points**, at the fourth or between the fourth and fifth; for **6 points**, at the sixth or against the cross-rail; for **8 points**, on the other side of that rail, in the big jan; for **10 points**, against the side rail of the big jan or at the tip of the rest corner field. **12 or 0 points** are marked against the starting rail between the two stacks, as at the start of the game.
 
-12 points make a hole. If the 12 points of a hole were all scored consecutively from zero — that is, without the opponent having scored any points during that run — the hole is won *bredouille* and counts as **2 holes**. This double-hole advantage applies equally to the first and second player to start marking. The first player to mark uses a single token and can win the hole bredouille as long as the opponent scores nothing. If the opponent then scores, they mark with a double token called the *bredouille* and continue marking this way as long as the first player scores nothing. If they reach at least 12 points in this fashion, they win the hole bredouille in second. But if the first player scores again beforehand, they remove one of the opponent's two tokens (*débredouiller*), and neither player can thereafter win the hole bredouille. Once both players each have a single-token mark, the hole will necessarily be won simple by one or the other.
+12 points make a hole. If the 12 points of a hole were all scored consecutively from zero — that is, without the opponent having scored any points during that run — the hole is won _bredouille_ and counts as **2 holes**. This double-hole advantage applies equally to the first and second player to start marking. The first player to mark uses a single token and can win the hole bredouille as long as the opponent scores nothing. If the opponent then scores, they mark with a double token called the _bredouille_ and continue marking this way as long as the first player scores nothing. If they reach at least 12 points in this fashion, they win the hole bredouille in second. But if the first player scores again beforehand, they remove one of the opponent's two tokens (_débredouiller_), and neither player can thereafter win the hole bredouille. Once both players each have a single-token mark, the hole will necessarily be won simple by one or the other.
 
 Holes are marked with pegs. Each player advances their peg along the row of holes drilled at the base of the twelve fields in their small and big jans. The first hole is at the base of the stack, the twelfth and last at the base of the rest corner.
 
-Earned holes must be marked before touching the tokens. Any opponent token (bredouille or not) is then reset to zero at the starting rail. The player's own token is also reset if they scored exactly 12 points; otherwise the remainder — *points de reste* — are marked normally with a token.
+Earned holes must be marked before touching the tokens. Any opponent token (bredouille or not) is then reset to zero at the starting rail. The player's own token is also reset if they scored exactly 12 points; otherwise the remainder — _points de reste_ — are marked normally with a token.
 
 If on the same move the opponent is owed points, they mark them afterwards, starting from zero, using one or two tokens depending on whether the player marked any remainder points.
 
@@ -246,7 +247,7 @@ As with the hole bredouille, this advantage applies equally to the first and sec
 
 ## ARTICLE XVI: STAYING OR LEAVING
 
-When a player wins one or more holes through their own dice roll, they may choose to stay (*tenir*) or use the privilege of leaving (*s'en aller*). If the winning points come from the opponent's roll (helpless man, schools), the player must stay.
+When a player wins one or more holes through their own dice roll, they may choose to stay (_tenir_) or use the privilege of leaving (_s'en aller_). If the winning points come from the opponent's roll (helpless man, schools), the player must stay.
 
 **Staying**: after marking the hole(s), the player resets the opponent's token if necessary, marks any remainder points, and continues playing normally. The opponent then marks any points they may have earned from this move (see Article XV).
 
@@ -260,7 +261,7 @@ There are three types of fault in this game:
 
 **1. Simple faults** — of little harm to the opponent; some can be corrected normally (e.g., playing out of turn, rolling outside the board, accidentally disturbing the position, forgetting to mark a school). No penalty is incurred for these faults.
 
-**2. False move faults (*fausse case*)** — potentially harmful; occur when a checker is not played to the correct field given the numbers rolled, or when a rule of play is violated (laws regarding the rest corner, forbidden jans, filling, and conserving). A false move may give rise to a school when points have been marked for a jan that is not then actually performed — as the rules require (e.g., marking for filling or conserving but not doing so). In addition to the rule "checker touched, checker abandoned, checker played" (unless the player said "*j'adoube*"), the player must accept the opponent's decision regarding rectification of the fault.
+**2. False move faults (_fausse case_)** — potentially harmful; occur when a checker is not played to the correct field given the numbers rolled, or when a rule of play is violated (laws regarding the rest corner, forbidden jans, filling, and conserving). A false move may give rise to a school when points have been marked for a jan that is not then actually performed — as the rules require (e.g., marking for filling or conserving but not doing so). In addition to the rule "checker touched, checker abandoned, checker played" (unless the player said "_j'adoube_"), the player must accept the opponent's decision regarding rectification of the fault.
 
 The opponent must point out the fault(s) before rolling for their own move; they may rectify the fault in their own interest, while respecting the rules, or leave the position unchanged. If a corner was taken by puissance when it could have been taken by effect, the opponent may prevent the player from taking it on that move if the fault is recognised and an alternative play exists. If a half-field was falsely covered, the opponent may also prevent the covering.
 
@@ -349,7 +350,7 @@ The queue is not mandatory when scoring is kept in writing, but may be counted b
 
 Each player then settles their outstanding bets equitably with each opponent.
 
-A **bet** (*pari*) is any round exceeding each player's contingent. The contingent is the average number of rounds played between two opponents.
+A **bet** (_pari_) is any round exceeding each player's contingent. The contingent is the average number of rounds played between two opponents.
 
 Thus, if two players play eight rounds, each player's contingent is four, and any round won or lost beyond four is a bet won or lost. This gain or loss is doubled since a bet won by one player is also a bet lost by the other.
 
@@ -381,29 +382,29 @@ The game ends when all debts have been settled.
 
 This table summarises the point value of all scoring events: jans and figures of the game.
 
-"J" = the player (who rolled the dice); "A" = the opponent (*adversaire*): they indicate who benefits. Numbers indicate points scored.
+"J" = the player (who rolled the dice); "A" = the opponent (_adversaire_): they indicate who benefits. Numbers indicate points scored.
 
-| SCORING EVENT | Beneficiary | Per occurrence | Normal roll | Double |
-|---|---|---|---|---|
-| Six tables jan (three-roll jan) | J | — | 4 | — |
-| Two tables jan | J | — | 4 | 6 |
-| Contre two tables | A | — | 4 | 6 |
-| Mezeas jan | J | — | 4 | 6 |
-| Contre mezeas | A | — | 4 | 6 |
-| Small jan filled | J | Per way | 4 | 6 |
-| Small jan conserved | J | — | 4 | 6 |
-| Big jan filled | J | Per way | 4 | 6 |
-| Big jan conserved | J | — | 4 | 6 |
-| Return jan filled | J | Per way | 4 | 6 |
-| Return jan conserved | J | — | 4 | 6 |
-| True hit in small jan table | J | Per way | 4 | 6 |
-| False hit in small jan table | A | Per way | 4 | 6 |
-| True hit in big jan table | J | Per way | 2 | 4 |
-| False hit in big jan table | A | Per way | 2 | 4 |
-| Corner hit | J | — | 4 | 6 |
-| Exit (last checker) | J | — | 4 | 6 |
-| Helpless man (unplayed number) | A | Per number | 2 | 2 |
-| Misery pile achieved | J | — | 4 | 6 |
-| Misery pile conserved | J | — | 4 | 6 |
+| SCORING EVENT                   | Beneficiary | Per occurrence | Normal roll | Double |
+| ------------------------------- | ----------- | -------------- | ----------- | ------ |
+| Six tables jan (three-roll jan) | J           | —              | 4           | —      |
+| Two tables jan                  | J           | —              | 4           | 6      |
+| Contre two tables               | A           | —              | 4           | 6      |
+| Mezeas jan                      | J           | —              | 4           | 6      |
+| Contre mezeas                   | A           | —              | 4           | 6      |
+| Small jan filled                | J           | Per way        | 4           | 6      |
+| Small jan conserved             | J           | —              | 4           | 6      |
+| Big jan filled                  | J           | Per way        | 4           | 6      |
+| Big jan conserved               | J           | —              | 4           | 6      |
+| Return jan filled               | J           | Per way        | 4           | 6      |
+| Return jan conserved            | J           | —              | 4           | 6      |
+| True hit in small jan table     | J           | Per way        | 4           | 6      |
+| False hit in small jan table    | A           | Per way        | 4           | 6      |
+| True hit in big jan table       | J           | Per way        | 2           | 4      |
+| False hit in big jan table      | A           | Per way        | 2           | 4      |
+| Corner hit                      | J           | —              | 4           | 6      |
+| Exit (last checker)             | J           | —              | 4           | 6      |
+| Helpless man (unplayed number)  | A           | Per number     | 2           | 2      |
+| Misery pile achieved            | J           | —              | 4           | 6      |
+| Misery pile conserved           | J           | —              | 4           | 6      |
 
 School penalties are worth to the opponent exactly the number of points that were over- or under-marked on that move.

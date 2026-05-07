@@ -50,6 +50,44 @@ pub async fn run_local_bot_game(
         suppress_dice_anim: false,
     }));
 
+    run_local_bot_game_loop(screen, cmd_rx, pending, player_name, backend, vs).await
+}
+
+/// Runs a bot game from a pre-built backend and initial ViewState (used for snapshot replay).
+/// Returns `true` if the player wants to play again.
+pub async fn run_local_bot_game_with_backend(
+    screen: RwSignal<Screen>,
+    cmd_rx: &mut mpsc::UnboundedReceiver<NetCommand>,
+    pending: RwSignal<VecDeque<GameUiState>>,
+    player_name: String,
+    backend: TrictracBackend,
+) -> bool {
+    let mut vs = backend.get_view_state().clone();
+    patch_bot_names(&mut vs, &player_name);
+    screen.set(Screen::Playing(GameUiState {
+        view_state: vs.clone(),
+        player_id: 0,
+        room_id: String::new(),
+        is_bot_game: true,
+        waiting_for_confirm: false,
+        pause_reason: None,
+        my_scored_event: None,
+        opp_scored_event: None,
+        last_moves: None,
+        suppress_dice_anim: false,
+    }));
+
+    run_local_bot_game_loop(screen, cmd_rx, pending, player_name, backend, vs).await
+}
+
+async fn run_local_bot_game_loop(
+    screen: RwSignal<Screen>,
+    cmd_rx: &mut mpsc::UnboundedReceiver<NetCommand>,
+    pending: RwSignal<VecDeque<GameUiState>>,
+    player_name: String,
+    mut backend: TrictracBackend,
+    mut vs: ViewState,
+) -> bool {
     use futures::StreamExt;
     loop {
         match cmd_rx.next().await {

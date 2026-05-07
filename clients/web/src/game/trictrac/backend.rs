@@ -1,5 +1,5 @@
 use backbone_lib::traits::{BackEndArchitecture, BackendCommand};
-use trictrac_store::{Dice, DiceRoller, GameEvent, GameState, TurnStage};
+use trictrac_store::{Color, Dice, DiceRoller, GameEvent, GameState, Player, Stage, TurnStage};
 
 use super::types::{GameDelta, PlayerAction, PreGameRollState, SerStage, SerTurnStage, ViewState};
 
@@ -129,6 +129,65 @@ impl TrictracBackend {
 impl TrictracBackend {
     pub fn get_game(&self) -> &GameState {
         &self.game
+    }
+
+    /// Build a backend pre-loaded with the given `ViewState` snapshot so a bot
+    /// game can resume from an arbitrary position (debug feature).
+    pub fn from_view_state(vs: ViewState, player_name: &str) -> Self {
+        let mut game = GameState::new(false);
+
+        game.board.set_positions(&Color::White, vs.board);
+
+        game.stage = match vs.stage {
+            SerStage::InGame => Stage::InGame,
+            SerStage::Ended => Stage::Ended,
+            _ => Stage::InGame,
+        };
+
+        game.turn_stage = match vs.turn_stage {
+            SerTurnStage::RollDice => TurnStage::RollDice,
+            SerTurnStage::RollWaiting => TurnStage::RollWaiting,
+            SerTurnStage::MarkPoints => TurnStage::MarkPoints,
+            SerTurnStage::HoldOrGoChoice => TurnStage::HoldOrGoChoice,
+            SerTurnStage::Move => TurnStage::Move,
+            SerTurnStage::MarkAdvPoints => TurnStage::MarkAdvPoints,
+        };
+
+        game.dice = Dice { values: vs.dice };
+
+        game.active_player_id = match vs.active_mp_player {
+            Some(0) => HOST_PLAYER_ID,
+            Some(1) => GUEST_PLAYER_ID,
+            _ => HOST_PLAYER_ID,
+        };
+
+        let build_player = |score: &crate::game::trictrac::types::PlayerScore,
+                             color: Color|
+         -> Player {
+            let mut p = Player::new(score.name.clone(), color);
+            p.points = score.points;
+            p.holes = score.holes;
+            p.can_bredouille = score.can_bredouille;
+            p
+        };
+
+        game.players.insert(HOST_PLAYER_ID, build_player(&vs.scores[0], Color::White));
+        game.players.insert(GUEST_PLAYER_ID, build_player(&vs.scores[1], Color::Black));
+
+        let mut view_state = ViewState::from_game_state(&game, HOST_PLAYER_ID, GUEST_PLAYER_ID);
+        view_state.scores[0].name = player_name.to_string();
+        view_state.scores[1].name = "Bot".to_string();
+
+        TrictracBackend {
+            game,
+            dice_roller: DiceRoller::default(),
+            commands: Vec::new(),
+            view_state,
+            arrived: [true, true],
+            pre_game_dice: [None; 2],
+            tie_count: 0,
+            ceremony_started: false,
+        }
     }
 }
 

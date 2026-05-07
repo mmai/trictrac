@@ -15,6 +15,7 @@ use crate::api;
 use crate::game::components::{ConnectingScreen, GameScreen};
 use crate::game::session::{
     compute_last_moves, patch_player_name, push_or_show, run_local_bot_game,
+    run_local_bot_game_with_backend,
 };
 use crate::game::trictrac::backend::TrictracBackend;
 use crate::game::trictrac::types::{GameDelta, PlayerAction, ScoredEvent, SerStage, ViewState};
@@ -83,6 +84,8 @@ pub enum NetCommand {
         host_state: Option<Vec<u8>>,
     },
     PlayVsBot,
+    /// Start a bot game with the board/score position from a previously taken snapshot.
+    ReplaySnapshot(ViewState),
     Action(PlayerAction),
     Disconnect,
 }
@@ -190,9 +193,14 @@ pub fn App() -> impl IntoView {
 
     spawn_local(async move {
         loop {
+            let mut snapshot_init: Option<ViewState> = None;
             let remote_config: Option<(RoomConfig, bool)> = loop {
                 match cmd_rx.next().await {
                     Some(NetCommand::PlayVsBot) => break None,
+                    Some(NetCommand::ReplaySnapshot(vs)) => {
+                        snapshot_init = Some(vs);
+                        break None;
+                    }
                     Some(NetCommand::CreateRoom { room }) => {
                         break Some((
                             RoomConfig {
@@ -251,8 +259,23 @@ pub fn App() -> impl IntoView {
                     .or_else(|| anon_nickname.get_untracked())
                     .unwrap_or_else(|| untrack(|| t_string!(i18n, anonymous_name).to_string()));
                 loop {
-                    let restart =
-                        run_local_bot_game(screen, &mut cmd_rx, pending, player_name.clone()).await;
+                    let restart = match snapshot_init.take() {
+                        Some(vs) => {
+                            let backend = TrictracBackend::from_view_state(vs, &player_name);
+                            run_local_bot_game_with_backend(
+                                screen,
+                                &mut cmd_rx,
+                                pending,
+                                player_name.clone(),
+                                backend,
+                            )
+                            .await
+                        }
+                        None => {
+                            run_local_bot_game(screen, &mut cmd_rx, pending, player_name.clone())
+                                .await
+                        }
+                    };
                     if !restart {
                         break;
                     }
@@ -446,8 +469,14 @@ fn SiteHamburger() -> impl IntoView {
         .expect("cmd_tx not found in context");
 
     let sidebar_open = RwSignal::new(false);
+    let snapshot_copied = RwSignal::new(false);
+    let replay_open = RwSignal::new(false);
+    let replay_text = RwSignal::new(String::new());
+    let replay_error = RwSignal::new(false);
 
     let cmd_tx_newgame = cmd_tx.clone();
+    let cmd_tx_snapshot = cmd_tx.clone();
+    let cmd_tx_replay = cmd_tx.clone();
 
     view! {
         // ── Hamburger button (☰ → ✕ animation) ───────────────────────────────
@@ -542,6 +571,100 @@ fn SiteHamburger() -> impl IntoView {
                         </A>
                     }.into_any(),
                 }}
+            </div>
+
+            // ── Debug section ─────────────────────────────────────────────────
+            <div class="game-sidebar-section" style="flex-direction:column;gap:0.4rem">
+                <span class="game-sidebar-label">{t!(i18n, debug_section)}</span>
+
+                // "Take snapshot" — only visible while a game is in progress
+                {move || {
+                    let Screen::Playing(ref state) = screen.get() else { return None; };
+                    let vs = state.view_state.clone();
+                    let tx = cmd_tx_snapshot.clone();
+                    Some(view! {
+                        <button class="game-sidebar-btn" on:click=move |_| {
+                            if let Ok(json) = serde_json::to_string(&vs) {
+                                #[cfg(target_arch = "wasm32")]
+                                {
+                                    let json_c = json.clone();
+                                    spawn_local(async move {
+                                        if let Some(cb) = web_sys::window()
+                                            .map(|w| w.navigator().clipboard())
+                                        {
+                                            let _ = wasm_bindgen_futures::JsFuture::from(
+                                                cb.write_text(&json_c),
+                                            ).await;
+                                            snapshot_copied.set(true);
+                                            gloo_timers::future::TimeoutFuture::new(2000).await;
+                                            snapshot_copied.set(false);
+                                        }
+                                    });
+                                }
+                                let _ = tx; // suppress unused warning on non-wasm
+                            }
+                        }>
+                            {move || if snapshot_copied.get() {
+                                t_string!(i18n, snapshot_copied).to_owned()
+                            } else {
+                                t_string!(i18n, take_snapshot).to_owned()
+                            }}
+                        </button>
+                    })
+                }}
+
+                // "Replay snapshot" — always visible
+                <button class="game-sidebar-btn" on:click=move |_| {
+                    replay_text.set(String::new());
+                    replay_error.set(false);
+                    replay_open.set(true);
+                    sidebar_open.set(false);
+                }>{t!(i18n, replay_snapshot)}</button>
+            </div>
+        </div>
+
+        // ── Replay snapshot modal ─────────────────────────────────────────────
+        <div class="ceremony-overlay" style="z-index:300"
+            style:display=move || if replay_open.get() { "" } else { "none" }
+            on:click=move |_| replay_open.set(false)>
+            <div class="ceremony-box" style="min-width:340px;max-width:480px;width:90vw"
+                 on:click=|e| e.stop_propagation()>
+                <h2 style="font-size:1.3rem">{t!(i18n, replay_snapshot)}</h2>
+                <p class="game-sub-prompt" style="margin:0;text-align:center">
+                    {t!(i18n, replay_paste_hint)}
+                </p>
+                <textarea
+                    style="width:100%;min-height:120px;background:rgba(0,0,0,0.25);border:1px solid rgba(200,164,72,0.35);border-radius:4px;color:var(--ui-parchment);font-family:var(--font-ui);font-size:0.75rem;padding:0.5rem;resize:vertical;box-sizing:border-box"
+                    placeholder="{ \"board\": [...], ... }"
+                    prop:value=move || replay_text.get()
+                    on:input=move |e| {
+                        use leptos::prelude::event_target_value;
+                        replay_text.set(event_target_value(&e));
+                        replay_error.set(false);
+                    }
+                />
+                {move || replay_error.get().then(|| view! {
+                    <p style="color:var(--ui-red-accent);font-size:0.8rem;margin:0">
+                        {t!(i18n, replay_invalid_state)}
+                    </p>
+                })}
+                <div style="display:flex;gap:0.75rem;justify-content:center">
+                    <button class="btn btn-secondary" on:click=move |_| replay_open.set(false)>
+                        {t!(i18n, cancel)}
+                    </button>
+                    <button class="btn btn-primary" on:click=move |_| {
+                        let text = replay_text.get_untracked();
+                        match serde_json::from_str::<ViewState>(&text) {
+                            Ok(vs) => {
+                                cmd_tx_replay
+                                    .unbounded_send(NetCommand::ReplaySnapshot(vs))
+                                    .ok();
+                                replay_open.set(false);
+                            }
+                            Err(_) => replay_error.set(true),
+                        }
+                    }>{t!(i18n, replay_start)}</button>
+                </div>
             </div>
         </div>
     }

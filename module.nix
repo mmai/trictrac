@@ -123,6 +123,15 @@ in
           "${cfg.hostname}" = {
             enableACME = withSSL;
             forceSSL = withSSL;
+            # Explicit listen so this vhost isn't shadowed by a default_server
+            # created by other virtual hosts with forceSSL = true.
+            listen = if withSSL then [
+              { addr = "0.0.0.0"; port = 443; ssl = true; }
+              { addr = "[::]";    port = 443; ssl = true; }
+            ] else [
+              { addr = "0.0.0.0"; port = 80; ssl = false; }
+              { addr = "[::]";    port = 80; ssl = false; }
+            ];
             locations."/" = {
               extraConfig = proxyConfig;
               proxyPass = "http://trictrac-api/";

@@ -8,10 +8,6 @@
 
   outputs = { self, nixpkgs, rust-overlay }:
     let
-      rustPkgs = import nixpkgs {
-        inherit (final) system;
-        overlays = [ rust-overlay.overlays.default ];
-      };
       systems = [ "x86_64-linux" "i686-linux" "aarch64-linux" ];
       forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f system);
       nixpkgsFor = forAllSystems (system:
@@ -22,7 +18,13 @@
       );
     in
     {
-      overlay = final: prev: {
+      overlay = final: prev:
+        let
+          # Extend final privately with rust-overlay to get rust-bin for the WASM
+          # toolchain without exposing rust-overlay attributes to consumers.
+          rustPkgs = final.extend rust-overlay.overlays.default;
+        in
+        {
 
         trictrac-front =
           let

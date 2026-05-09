@@ -41,6 +41,39 @@ in
         description = "Port the relay server listens on.";
       };
 
+      smtp = {
+        host = mkOption {
+          type = types.str;
+          default = "127.0.0.1";
+          description = "SMTP server hostname.";
+        };
+        port = mkOption {
+          type = types.port;
+          default = 1025;
+          description = "SMTP server port.";
+        };
+        from = mkOption {
+          type = types.str;
+          default = "noreply@trictrac.local";
+          description = "Sender address for outgoing mail.";
+        };
+        user = mkOption {
+          type = types.str;
+          default = "";
+          description = "SMTP username (leave empty to skip authentication).";
+        };
+        passwordFile = mkOption {
+          type = types.nullOr types.path;
+          default = null;
+          example = "/run/secrets/trictrac-smtp-password";
+          description = ''
+            Path to a file containing a single line: SMTP_PASSWORD=<secret>.
+            Loaded as a systemd EnvironmentFile so the secret never appears in
+            the Nix store or process environment of other units.
+          '';
+        };
+      };
+
       createDatabaseLocally = mkOption {
         type = types.bool;
         default = true;
@@ -136,8 +169,13 @@ in
         wantedBy = [ "multi-user.target" ];
 
         environment = {
-          # Use TCP + trust auth (matches NixOS postgresql.authentication above)
           DATABASE_URL = "postgresql://${cfg.user}@127.0.0.1/${cfg.user}";
+          APP_URL = "${cfg.protocol}://${cfg.hostname}";
+          SMTP_HOST = cfg.smtp.host;
+          SMTP_PORT = toString cfg.smtp.port;
+          SMTP_FROM = cfg.smtp.from;
+        } // optionalAttrs (cfg.smtp.user != "") {
+          SMTP_USER = cfg.smtp.user;
         };
 
         serviceConfig = {
@@ -149,6 +187,7 @@ in
           WorkingDirectory = "/var/lib/trictrac";
           ExecStartPre = "${setupScript}";
           ExecStart = "${pkgs.trictrac}/bin/relay-server";
+          EnvironmentFile = mkIf (cfg.smtp.passwordFile != null) cfg.smtp.passwordFile;
           Restart = "on-failure";
           RestartSec = "5s";
         };

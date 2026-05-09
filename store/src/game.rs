@@ -80,6 +80,7 @@ pub struct GameState {
     roll_first: bool,
     // NOTE: add to a Setting struct if other fields needed
     pub schools_enabled: bool,
+    pub debug_message: String,
 }
 
 // implement Display trait
@@ -119,6 +120,7 @@ impl Default for GameState {
             dice_jans: PossibleJans::default(),
             roll_first: true,
             schools_enabled: false,
+            debug_message: "".into(),
         }
     }
 }
@@ -147,6 +149,11 @@ impl GameState {
         game
     }
 
+    pub fn get_debug_message(&self) -> String {
+        // format!("{:?}", self.history.last())
+        format!("{:?}", self.debug_message)
+    }
+
     pub fn mirror(&self) -> GameState {
         let mirrored_active_player = if self.active_player_id == 1 { 2 } else { 1 };
         let mut mirrored_players = HashMap::new();
@@ -156,13 +163,6 @@ impl GameState {
         if let Some(p1) = self.players.get(&1) {
             mirrored_players.insert(2, p1.mirror());
         }
-        let mirrored_history = self
-            .history
-            .clone()
-            .iter()
-            .map(|evt| evt.get_mirror(false))
-            .collect();
-
         let (move1, move2) = self.dice_moves;
         GameState {
             stage: self.stage,
@@ -171,13 +171,14 @@ impl GameState {
             active_player_id: mirrored_active_player,
             // active_player_id: self.active_player_id,
             players: mirrored_players,
-            history: mirrored_history,
+            history: Vec::new(),
             dice: self.dice,
             dice_points: self.dice_points,
             dice_moves: (move1.mirror(), move2.mirror()),
             dice_jans: self.dice_jans.mirror(),
             roll_first: self.roll_first,
             schools_enabled: self.schools_enabled,
+            debug_message: self.debug_message.clone(),
         }
     }
 
@@ -205,6 +206,110 @@ impl GameState {
 
     pub fn to_vec_float(&self) -> Vec<f32> {
         self.to_vec().iter().map(|&x| x as f32).collect()
+    }
+
+    /// Get state as a tensor for neural network training (Option B, TD-Gammon style).
+    /// Returns 217 f32 values, all normalized to [0, 1].
+    ///
+    /// Must be called from the active player's perspective: callers should mirror
+    /// the GameState for Black before calling so that "own" always means White.
+    ///
+    /// Layout:
+    ///   [0..95]    own (White) checkers: 4 values per field × 24 fields
+    ///   [96..191]  opp (Black) checkers: 4 values per field × 24 fields
+    ///   [192..193] dice values / 6
+    ///   [194]      active player color (0=White, 1=Black)
+    ///   [195]      turn_stage / 5
+    ///   [196..199] White player: points/12, holes/12, can_bredouille, can_big_bredouille
+    ///   [200..203] Black player: same
+    ///   [204..207] own quarter filled (quarters 1-4)
+    ///   [208..211] opp quarter filled (quarters 1-4)
+    ///   [212]      own checkers all in exit zone (fields 19-24)
+    ///   [213]      opp checkers all in exit zone (fields 1-6)
+    ///   [214]      own coin de repos taken (field 12 has ≥2 own checkers)
+    ///   [215]      opp coin de repos taken (field 13 has ≥2 opp checkers)
+    ///   [216]      own dice_roll_count / 3, clamped to 1
+    pub fn to_tensor(&self) -> Vec<f32> {
+        let mut t = Vec::with_capacity(217);
+        let pos: Vec<i8> = self.board.to_vec(); // 24 elements, positive=White, negative=Black
+
+        // [0..95] own (White) checkers, TD-Gammon encoding.
+        // Each field contributes 4 values:
+        //   (count==1), (count==2), (count==3), (count-3)/12  ← all in [0,1]
+        // The overflow term is divided by 12 because the maximum excess is
+        // 15 (all checkers) − 3 = 12.
+        for &c in &pos {
+            let own = c.max(0) as u8;
+            t.push((own == 1) as u8 as f32);
+            t.push((own == 2) as u8 as f32);
+            t.push((own == 3) as u8 as f32);
+            t.push(own.saturating_sub(3) as f32 / 12.0);
+        }
+
+        // [96..191] opp (Black) checkers, same encoding.
+        for &c in &pos {
+            let opp = (-c).max(0) as u8;
+            t.push((opp == 1) as u8 as f32);
+            t.push((opp == 2) as u8 as f32);
+            t.push((opp == 3) as u8 as f32);
+            t.push(opp.saturating_sub(3) as f32 / 12.0);
+        }
+
+        // [192..193] dice
+        t.push(self.dice.values.0 as f32 / 6.0);
+        t.push(self.dice.values.1 as f32 / 6.0);
+
+        // [194] active player color
+        t.push(
+            self.who_plays()
+                .map(|p| if p.color == Color::Black { 1.0f32 } else { 0.0 })
+                .unwrap_or(0.0),
+        );
+
+        // [195] turn stage
+        t.push(u8::from(self.turn_stage) as f32 / 5.0);
+
+        // [196..199] White player stats
+        let wp = self.get_white_player();
+        t.push(wp.map_or(0.0, |p| p.points as f32 / 12.0));
+        t.push(wp.map_or(0.0, |p| p.holes as f32 / 12.0));
+        t.push(wp.map_or(0.0, |p| p.can_bredouille as u8 as f32));
+        t.push(wp.map_or(0.0, |p| p.can_big_bredouille as u8 as f32));
+
+        // [200..203] Black player stats
+        let bp = self.get_black_player();
+        t.push(bp.map_or(0.0, |p| p.points as f32 / 12.0));
+        t.push(bp.map_or(0.0, |p| p.holes as f32 / 12.0));
+        t.push(bp.map_or(0.0, |p| p.can_bredouille as u8 as f32));
+        t.push(bp.map_or(0.0, |p| p.can_big_bredouille as u8 as f32));
+
+        // [204..207] own (White) quarter fill status
+        for &start in &[1usize, 7, 13, 19] {
+            t.push(self.board.is_quarter_filled(Color::White, start) as u8 as f32);
+        }
+
+        // [208..211] opp (Black) quarter fill status
+        for &start in &[1usize, 7, 13, 19] {
+            t.push(self.board.is_quarter_filled(Color::Black, start) as u8 as f32);
+        }
+
+        // [212] can_exit_own: no own checker in fields 1-18
+        t.push(pos[0..18].iter().all(|&c| c <= 0) as u8 as f32);
+
+        // [213] can_exit_opp: no opp checker in fields 7-24
+        t.push(pos[6..24].iter().all(|&c| c >= 0) as u8 as f32);
+
+        // [214] own coin de repos taken (field 12 = index 11, ≥2 own checkers)
+        t.push((pos[11] >= 2) as u8 as f32);
+
+        // [215] opp coin de repos taken (field 13 = index 12, ≥2 opp checkers)
+        t.push((pos[12] <= -2) as u8 as f32);
+
+        // [216] own dice_roll_count / 3, clamped to 1
+        t.push((wp.map_or(0, |p| p.dice_roll_count) as f32 / 3.0).min(1.0));
+
+        debug_assert_eq!(t.len(), 217, "to_tensor length mismatch");
+        t
     }
 
     /// Get state as a vector (to be used for bot training input) :
@@ -497,8 +602,9 @@ impl GameState {
             dice_points: (0, 0),
             dice_moves: (CheckerMove::default(), CheckerMove::default()),
             dice_jans: PossibleJans::default(),
-            roll_first: false,      // Assume not first roll
-            schools_enabled: false, // Assume disabled
+            roll_first: false,        // Assume not first roll
+            schools_enabled: false,   // Assume disabled
+            debug_message: "".into(), // Assume disabled
         })
     }
 
@@ -651,7 +757,7 @@ impl GameState {
                     error!("Player not active : {}", self.active_player_id);
                     return false;
                 }
-                // Check the player can leave (ie the game is in the KeepOrLeaveChoice stage)
+                // Check the player can leave (ie the game is in the HoldOrGoChoice stage)
                 if self.turn_stage != TurnStage::HoldOrGoChoice {
                     error!("bad stage {:?}", self.turn_stage);
                     error!(
@@ -793,7 +899,7 @@ impl GameState {
                             return Err("No active player".into());
                         };
                         debug!("new hole  -> {holes_count:?}");
-                        if holes_count > 12 {
+                        if holes_count >= 12 {
                             self.stage = Stage::Ended;
                         } else {
                             self.turn_stage = TurnStage::HoldOrGoChoice;
@@ -810,7 +916,7 @@ impl GameState {
                         let Some(holes) = self.get_active_player().map(|p| p.holes) else {
                             return Err("No active player".into());
                         };
-                        if holes > 12 {
+                        if holes >= 12 {
                             self.stage = Stage::Ended;
                         } else {
                             self.turn_stage = if self.turn_stage == TurnStage::MarkAdvPoints {
@@ -828,7 +934,7 @@ impl GameState {
                     }
                 }
             }
-            Go { player_id: _ } => self.new_pick_up(),
+            Go { player_id: _ } => self.new_pick_up(true),
             Move { player_id, moves } => {
                 let Some(player) = self.players.get(player_id) else {
                     return Err("unknown player {player_id}".into());
@@ -840,20 +946,37 @@ impl GameState {
                     .move_checker(&player.color, moves.1)
                     .map_err(|e| e.to_string())?;
                 self.dice_moves = *moves;
-                let Some(active_player_id) = self.players.keys().find(|id| *id != player_id) else {
-                    return Err("Can't find player id {id}".into());
-                };
-                self.active_player_id = *active_player_id;
-                self.turn_stage = if self.schools_enabled {
-                    TurnStage::MarkAdvPoints
+                // Check if all current player's checkers have exited
+                let checkers = self.board.get_color_fields(player.color);
+                let checkers_count = checkers.iter().fold(0, |acc, (_f, count)| acc + count);
+                if checkers_count == 0 {
+                    // all checkers have exited, we reset the board
+                    // mark opp. points
+                    let Some(opponent_player_id) = self.players.keys().find(|id| *id != player_id)
+                    else {
+                        return Err("Can't find player id {id}".into());
+                    };
+                    let _ = self.mark_points(*opponent_player_id, self.dice_points.1);
+                    // reset checkers, keep points
+                    self.new_pick_up(false);
                 } else {
-                    // The player has moved, we can mark its opponent's points (which is now the current player)
-                    let new_hole = self.mark_points(self.active_player_id, self.dice_points.1);
-                    if new_hole && self.get_active_player().map(|p| p.holes).unwrap_or(0) > 12 {
-                        self.stage = Stage::Ended;
-                    }
-                    TurnStage::RollDice
-                };
+                    let Some(active_player_id) = self.players.keys().find(|id| *id != player_id)
+                    else {
+                        return Err("Can't find player id {id}".into());
+                    };
+                    self.active_player_id = *active_player_id;
+                    self.turn_stage = if self.schools_enabled {
+                        TurnStage::MarkAdvPoints
+                    } else {
+                        // The player has moved, we can mark its opponent's points (which is now the current player)
+                        let new_hole = self.mark_points(self.active_player_id, self.dice_points.1);
+                        if new_hole && self.get_active_player().map(|p| p.holes).unwrap_or(0) >= 12
+                        {
+                            self.stage = Stage::Ended;
+                        }
+                        TurnStage::RollDice
+                    };
+                }
             }
             PlayError => {}
         }
@@ -863,10 +986,13 @@ impl GameState {
 
     /// Set a new pick up ('relevé') after a player won a hole and choose to 'go',
     /// or after a player has bore off (took of his men off the board)
-    fn new_pick_up(&mut self) {
+    fn new_pick_up(&mut self, reset_points: bool) {
         self.players.iter_mut().for_each(|(_id, p)| {
-            // reset points
-            p.points = 0;
+            // reset points only after "go", not after checkers exit
+            if reset_points {
+                // reset points
+                p.points = 0;
+            }
             // reset dice_roll_count
             p.dice_roll_count = 0;
             // reset bredouille
@@ -890,7 +1016,12 @@ impl GameState {
             player.color, self.board, dice, player.dice_roll_count
         );
         let points_rules = PointsRules::new(&player.color, &self.board, *dice);
-        Ok(points_rules.get_result_jans(player.dice_roll_count))
+        let (jans, points) = points_rules.get_result_jans(player.dice_roll_count);
+        Ok(if player.color == Color::White {
+            (jans, points)
+        } else {
+            (jans.mirror(), points)
+        })
     }
 
     /// Determines if someone has won the game
@@ -912,6 +1043,16 @@ impl GameState {
 
     pub fn mark_points_for_bot_training(&mut self, player_id: PlayerId, points: u8) -> bool {
         self.mark_points(player_id, points)
+    }
+
+    /// Total accumulated score for a player: `holes × 12 + points`.
+    ///
+    /// Returns `0` if `player_id` is not found (e.g. before `init_player`).
+    pub fn total_score(&self, player_id: PlayerId) -> i32 {
+        self.players
+            .get(&player_id)
+            .map(|p| p.holes as i32 * 12 + p.points as i32)
+            .unwrap_or(0)
     }
 
     fn mark_points(&mut self, player_id: PlayerId, points: u8) -> bool {
@@ -1168,5 +1309,35 @@ mod tests {
         assert_eq!(game_state.players.get(&pid).unwrap().points, 1);
         assert_eq!(game_state.get_active_player().unwrap().points, 0);
         assert_eq!(game_state.turn_stage, TurnStage::MarkAdvPoints);
+    }
+
+    #[test]
+    fn last_checker_exit() {
+        let mut game_state = init_test_gamestate(TurnStage::Move);
+        game_state.board.set_positions(
+            &crate::Color::White,
+            [
+                -5, -2, -2, -4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+            ],
+        );
+        game_state.schools_enabled = true;
+        let _ = game_state.consume(&GameEvent::Mark {
+            player_id: game_state.active_player_id,
+            points: 4,
+        });
+        let player = game_state.get_active_player().unwrap();
+        assert_eq!(player.points, 4);
+        game_state.dice.values = (4, 5);
+        let _ = game_state.consume(&GameEvent::Move {
+            player_id: game_state.active_player_id,
+            moves: (
+                CheckerMove::new(24, 0).unwrap(),
+                CheckerMove::new(0, 0).unwrap(),
+            ),
+        });
+        let player = game_state.get_active_player().unwrap();
+        assert_eq!(game_state.turn_stage, TurnStage::RollDice);
+        assert_eq!(game_state.board, Board::default());
+        assert_eq!(player.points, 4);
     }
 }

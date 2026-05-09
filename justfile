@@ -8,6 +8,49 @@ shell:
 	devenv shell
 runcli:
 	RUST_LOG=info cargo run --bin=client_cli
+
+[working-directory: 'clients/web']
+dev:
+  trunk serve
+
+test-web:
+  wasm-pack test --node clients/web
+
+[working-directory: 'clients/web']
+build:
+  trunk build --release
+  cp dist/index.html ../../deploy/index.html
+  cp dist/*.wasm ../../deploy/
+  cp dist/*.js ../../deploy/
+  cp dist/*.css ../../deploy/
+
+[working-directory: 'deploy']
+run-relay:
+  ./relay-server
+
+build-relay:
+  CARGO_PROFILE_RELEASE_OPT_LEVEL=3 cargo build -p relay-server --release
+  mkdir -p deploy
+  cp target/release/relay-server deploy
+  cp -u server/relay-server/GameConfig.json deploy/
+
+# start a trictrac container with nixos-container
+# `boot.enableContainers = true` must be set on local nixos system
+local:
+	cd container && nix flake update nixpkgs trictrac && cd -
+	sudo nixos-container destroy trictrac
+	sudo nixos-container create trictrac --flake ./container/
+	nixos-container start trictrac
+	machinectl
+
+docker-build:
+  nix build .#trictrac-docker
+docker-run: docker-build
+  docker load < ./result
+  docker run mmai/trictrac -P
+docker-publish: docker-build
+  docker push mmai/trictrac
+
 runclibots:
 	cargo run --bin=client_cli -- --bot random,dqnburn:./bot/models/burnrl_dqn_40.mpk
 	#cargo run --bin=client_cli -- --bot dqn:./bot/models/dqn_model_final.json,dummy
@@ -19,16 +62,7 @@ profile:
   echo '1' | sudo tee /proc/sys/kernel/perf_event_paranoid
   cargo build --profile profiling
   samply record ./target/profiling/client_cli --bot dummy,dummy
-pythonlib:
-  rm -rf target/wheels
-  maturin build -m store/Cargo.toml --release
-  pip install --no-deps --force-reinstall --prefix .devenv/state/venv target/wheels/*.whl
-cxxlib:
-  cargo build --release -p trictrac-store
-  @echo "Static lib: $(ls target/release/libtrictrac_store.a)"
-  @echo "CXX header: $(find target -name 'cxxengine.rs.h' | head -1)"
 trainbot algo:
-  #python ./store/python/trainModel.py
   # cargo run --bin=train_dqn # ok
   # ./bot/scripts/trainValid.sh
   ./bot/scripts/train.sh {{algo}}
@@ -41,3 +75,4 @@ profiletrainbot:
   echo '1' | sudo tee /proc/sys/kernel/perf_event_paranoid
   cargo build --profile profiling --bin=train_dqn_burn
   LD_LIBRARY_PATH=./target/profiling  samply record ./target/profiling/train_dqn_burn
+

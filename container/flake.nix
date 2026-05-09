@@ -2,9 +2,8 @@
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
   # inputs.trictrac.url = "github:mmai/trictrac";
   inputs.trictrac.url = "..";
-  inputs.rust-overlay.url = "github:oxalica/rust-overlay";
 
-  outputs = { self, nixpkgs, trictrac, rust-overlay }:
+  outputs = { self, nixpkgs, trictrac }:
     {
       nixosConfigurations = {
 
@@ -30,8 +29,8 @@
                 networking.firewall.allowedTCPPorts = [ 80 ];
                 networking.hostName = hostname;
 
-                # rust-overlay must be applied first so trictrac.overlay can use rust-bin
-                nixpkgs.overlays = [ rust-overlay.overlays.default trictrac.overlay ];
+                # trictrac.overlay already includes rust-overlay
+                nixpkgs.overlays = [ trictrac.overlay ];
 
                 services.trictrac = {
                   enable = true;

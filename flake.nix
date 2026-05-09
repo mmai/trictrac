@@ -8,13 +8,16 @@
 
   outputs = { self, nixpkgs, rust-overlay }:
     let
+      rustPkgs = import nixpkgs {
+        inherit (final) system;
+        overlays = [ rust-overlay.overlays.default ];
+      };
       systems = [ "x86_64-linux" "i686-linux" "aarch64-linux" ];
       forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f system);
-      # rust-overlay must be applied before self.overlay so that rust-bin is available
       nixpkgsFor = forAllSystems (system:
         import nixpkgs {
           inherit system;
-          overlays = [ rust-overlay.overlays.default self.overlay ];
+          overlays = [ self.overlay ];
         }
       );
     in
@@ -24,7 +27,7 @@
         trictrac-front =
           let
             # WASM build needs wasm32-unknown-unknown target in the Rust toolchain
-            rustToolchain = final.rust-bin.stable.latest.default.override {
+            rustToolchain = rustPkgs.rust-bin.stable.latest.default.override {
               targets = [ "wasm32-unknown-unknown" ];
             };
             rustPlatform = final.makeRustPlatform {

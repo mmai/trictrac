@@ -26,140 +26,140 @@
         in
         {
 
-        trictrac-front =
-          let
-            # WASM build needs wasm32-unknown-unknown target in the Rust toolchain
-            rustToolchain = rustPkgs.rust-bin.stable.latest.default.override {
-              targets = [ "wasm32-unknown-unknown" ];
-            };
-            rustPlatform = final.makeRustPlatform {
-              cargo = rustToolchain;
-              rustc = rustToolchain;
-            };
-            # Must match the wasm-bindgen version in Cargo.lock
-            wasm-bindgen-version = "0.2.121";
-            wasm-bindgen-cli = final.buildWasmBindgenCli rec {
-              version = wasm-bindgen-version;
-              src = final.fetchCrate {
-                pname = "wasm-bindgen-cli";
-                inherit version;
-                hash = "sha256-ZOMgFNOcGkO66Jz/Z83eoIu+DIzo3Z/vq6Z5g6BDY/w=";
+          trictrac-front =
+            let
+              # WASM build needs wasm32-unknown-unknown target in the Rust toolchain
+              rustToolchain = rustPkgs.rust-bin.stable.latest.default.override {
+                targets = [ "wasm32-unknown-unknown" ];
               };
-              cargoDeps = rustPlatform.fetchCargoVendor {
-                inherit src;
-                name = "wasm-bindgen-cli-vendor";
-                hash = "sha256-DPdCDPTAPBrbqLUqnCwQu1dePs9lGg85JCJOCIr9qjU=";
+              rustPlatform = final.makeRustPlatform {
+                cargo = rustToolchain;
+                rustc = rustToolchain;
               };
+              # Must match the wasm-bindgen version in Cargo.lock
+              wasm-bindgen-version = "0.2.121";
+              wasm-bindgen-cli = final.buildWasmBindgenCli rec {
+                version = wasm-bindgen-version;
+                src = final.fetchCrate {
+                  pname = "wasm-bindgen-cli";
+                  inherit version;
+                  hash = "sha256-ZOMgFNOcGkO66Jz/Z83eoIu+DIzo3Z/vq6Z5g6BDY/w=";
+                };
+                cargoDeps = rustPlatform.fetchCargoVendor {
+                  inherit src;
+                  name = "wasm-bindgen-cli-vendor";
+                  hash = "sha256-DPdCDPTAPBrbqLUqnCwQu1dePs9lGg85JCJOCIr9qjU=";
+                };
+              };
+
+              frontendCargoDeps = rustPlatform.fetchCargoVendor {
+                src = ./.;
+                name = "trictrac-frontend-vendor";
+                hash = "sha256-LxqqHxNRZ9jhdh8JJUb/Wt5phJLmB3CMXmYNA19yOCM=";
+              };
+            in
+            final.stdenv.mkDerivation {
+              name = "trictrac-front";
+              src = ./.;
+
+              nativeBuildInputs = with final; [
+                rustToolchain
+                lld
+                rustPlatform.cargoSetupHook
+                wasm-bindgen-cli
+                trunk
+                binaryen
+              ];
+
+              cargoDeps = frontendCargoDeps;
+
+              buildPhase = ''
+                runHook preBuild
+                export HOME=$TMPDIR
+
+                # Pin tool versions so trunk finds them in PATH instead of downloading
+                cat >> clients/web/Trunk.toml << 'EOF'
+
+                [tools]
+                wasm-bindgen = { version = "${wasm-bindgen-version}" }
+                wasm-opt = { version = "version_124" }
+                EOF
+
+                pushd clients/web
+                trunk build --release --offline
+                popd
+
+                runHook postBuild
+              '';
+
+              installPhase = ''
+                runHook preInstall
+                mkdir -p $out
+                cp -R clients/web/dist/. $out/
+                runHook postInstall
+              '';
             };
 
-            frontendCargoDeps = rustPlatform.fetchCargoVendor {
-              src = ./.;
-              name = "trictrac-frontend-vendor";
-              hash = "sha256-eCuQcgKhdqHDRmRRK2cjmvRZZ661ecDYn0HIZWKDpSE=";
-            };
-          in
-          final.stdenv.mkDerivation {
-            name = "trictrac-front";
+          trictrac = with final; rustPlatform.buildRustPackage {
+            pname = "trictrac";
+            version = "0.2.1";
             src = ./.;
 
-            nativeBuildInputs = with final; [
-              rustToolchain
-              lld
-              rustPlatform.cargoSetupHook
-              wasm-bindgen-cli
-              trunk
-              binaryen
-            ];
+            nativeBuildInputs = [ pkg-config ];
+            buildInputs = [ openssl ];
 
-            cargoDeps = frontendCargoDeps;
+            # Build only the relay server; skip WASM/bot crates
+            cargoBuildFlags = [ "-p" "relay-server" ];
+            doCheck = false;
 
-            buildPhase = ''
-              runHook preBuild
-              export HOME=$TMPDIR
-
-              # Pin tool versions so trunk finds them in PATH instead of downloading
-              cat >> clients/web/Trunk.toml << 'EOF'
-
-              [tools]
-              wasm-bindgen = { version = "${wasm-bindgen-version}" }
-              wasm-opt = { version = "version_124" }
-              EOF
-
-              pushd clients/web
-              trunk build --release --offline
-              popd
-
-              runHook postBuild
-            '';
-
-            installPhase = ''
-              runHook preInstall
-              mkdir -p $out
-              cp -R clients/web/dist/. $out/
-              runHook postInstall
-            '';
-          };
-
-        trictrac = with final; rustPlatform.buildRustPackage {
-          pname = "trictrac";
-          version = "0.2.0";
-          src = ./.;
-
-          nativeBuildInputs = [ pkg-config ];
-          buildInputs = [ openssl ];
-
-          # Build only the relay server; skip WASM/bot crates
-          cargoBuildFlags = [ "-p" "relay-server" ];
-          doCheck = false;
-
-          cargoLock = {
-            lockFile = ./Cargo.lock;
-          };
-
-          postInstall = ''
-            install -m 644 ${./server/relay-server/GameConfig.json} $out/GameConfig.json
-          '';
-
-          meta = with lib; {
-            description = "A online game of trictrac";
-            homepage = "https://github.com/mmai/trictrac";
-            license = licenses.gpl3;
-            platforms = platforms.unix;
-          };
-        };
-
-        trictrac-docker = with final;
-          let
-            port = "8080";
-            entrypoint = writeScript "entrypoint.sh" ''
-              #!${runtimeShell}
-              # Populate a writable working dir with static files + config
-              mkdir -p /var/lib/trictrac
-              for f in ${trictrac-front}/*; do
-                ln -sf "$f" "/var/lib/trictrac/$(basename "$f")"
-              done
-              cp -n ${trictrac}/GameConfig.json /var/lib/trictrac/ 2>/dev/null || true
-              cd /var/lib/trictrac
-              echo "Starting trictrac server on port ${port}"
-              exec ${trictrac}/bin/relay-server
-            '';
-          in
-          dockerTools.buildImage {
-            name = "mmai/trictrac";
-            tag = "latest";
-            copyToRoot = buildEnv {
-              name = "trictrac-env";
-              paths = [ busybox ];
+            cargoLock = {
+              lockFile = ./Cargo.lock;
             };
-            config = {
-              Entrypoint = [ entrypoint ];
-              ExposedPorts = {
-                "${port}/tcp" = { };
+
+            postInstall = ''
+              install -m 644 ${./server/relay-server/GameConfig.json} $out/GameConfig.json
+            '';
+
+            meta = with lib; {
+              description = "A online game of trictrac";
+              homepage = "https://github.com/mmai/trictrac";
+              license = licenses.gpl3;
+              platforms = platforms.unix;
+            };
+          };
+
+          trictrac-docker = with final;
+            let
+              port = "8080";
+              entrypoint = writeScript "entrypoint.sh" ''
+                #!${runtimeShell}
+                # Populate a writable working dir with static files + config
+                mkdir -p /var/lib/trictrac
+                for f in ${trictrac-front}/*; do
+                  ln -sf "$f" "/var/lib/trictrac/$(basename "$f")"
+                done
+                cp -n ${trictrac}/GameConfig.json /var/lib/trictrac/ 2>/dev/null || true
+                cd /var/lib/trictrac
+                echo "Starting trictrac server on port ${port}"
+                exec ${trictrac}/bin/relay-server
+              '';
+            in
+            dockerTools.buildImage {
+              name = "mmai/trictrac";
+              tag = "latest";
+              copyToRoot = buildEnv {
+                name = "trictrac-env";
+                paths = [ busybox ];
+              };
+              config = {
+                Entrypoint = [ entrypoint ];
+                ExposedPorts = {
+                  "${port}/tcp" = { };
+                };
               };
             };
-          };
 
-      };
+        };
 
       packages = forAllSystems (system: {
         inherit (nixpkgsFor.${system}) trictrac trictrac-front trictrac-docker;

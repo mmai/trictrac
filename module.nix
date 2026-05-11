@@ -48,9 +48,14 @@ in
           description = "SMTP server hostname.";
         };
         port = mkOption {
-          type = types.port;
-          default = 1025;
-          description = "SMTP server port.";
+          type = types.nullOr types.port;
+          default = null;
+          description = "SMTP server port. Defaults to 465 when tls = true, 1025 otherwise.";
+        };
+        tls = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Use TLS (port 465). Required for Resend and other cloud SMTP providers.";
         };
         from = mkOption {
           type = types.str;
@@ -60,7 +65,7 @@ in
         user = mkOption {
           type = types.str;
           default = "";
-          description = "SMTP username (leave empty to skip authentication).";
+          description = "SMTP username (leave empty to skip authentication). Use \"resend\" for Resend.";
         };
         passwordFile = mkOption {
           type = types.nullOr types.path;
@@ -181,8 +186,11 @@ in
           DATABASE_URL = "postgresql://${cfg.user}@127.0.0.1/${cfg.user}";
           APP_URL = "${cfg.protocol}://${cfg.hostname}";
           SMTP_HOST = cfg.smtp.host;
-          SMTP_PORT = toString cfg.smtp.port;
+          SMTP_PORT = toString (if cfg.smtp.port != null then cfg.smtp.port
+                                else if cfg.smtp.tls then 465 else 1025);
           SMTP_FROM = cfg.smtp.from;
+        } // optionalAttrs cfg.smtp.tls {
+          SMTP_TLS = "true";
         } // optionalAttrs (cfg.smtp.user != "") {
           SMTP_USER = cfg.smtp.user;
         };

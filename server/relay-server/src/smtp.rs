@@ -1,15 +1,18 @@
-//! SMTP mailer (plain SMTP, no TLS).
+//! SMTP mailer.
 //!
 //! Configured via environment variables:
-//!   SMTP_HOST      — default: 127.0.0.1   (mailpit in dev)
-//!   SMTP_PORT      — default: 1025         (mailpit default)
+//!   SMTP_HOST      — default: 127.0.0.1      (mailpit in dev)
+//!   SMTP_PORT      — default: 1025            (mailpit) / 465 when SMTP_TLS=true
+//!   SMTP_TLS       — set to "true" to use TLS (required for Resend and other cloud SMTP)
 //!   SMTP_FROM      — default: noreply@trictrac.local
-//!   SMTP_USER      — optional SMTP credentials
-//!   SMTP_PASSWORD  — optional SMTP credentials
+//!   SMTP_USER      — optional SMTP credentials (use "resend" for Resend)
+//!   SMTP_PASSWORD  — optional SMTP credentials (use Resend API key)
 //!   APP_URL        — default: http://localhost:9091  (frontend base URL for email links)
 //!
-//! For production with TLS, run a local relay (e.g. Postfix) or use an SMTP
-//! service that accepts plain connections on a local port and handles TLS externally.
+//! Production (Resend):
+//!   SMTP_HOST=smtp.resend.com  SMTP_TLS=true
+//!   SMTP_USER=resend  SMTP_PASSWORD=re_xxxx
+//!   SMTP_FROM=noreply@yourdomain.com
 
 use lettre::{
     AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor,
@@ -26,21 +29,47 @@ pub struct Mailer {
 impl Mailer {
     pub fn from_env() -> Self {
         let host = std::env::var("SMTP_HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
-        let port: u16 = std::env::var("SMTP_PORT")
-            .ok()
-            .and_then(|p| p.parse().ok())
-            .unwrap_or(1025);
+        let tls = std::env::var("SMTP_TLS").map(|v| v == "true").unwrap_or(false);
         let from_str = std::env::var("SMTP_FROM")
             .unwrap_or_else(|_| "noreply@trictrac.local".to_string());
         let app_url = std::env::var("APP_URL")
             .unwrap_or_else(|_| "http://localhost:9091".to_string());
 
-        let mut builder =
-            AsyncSmtpTransport::<Tokio1Executor>::builder_dangerous(&host).port(port);
-        if let (Ok(user), Ok(pass)) = (std::env::var("SMTP_USER"), std::env::var("SMTP_PASSWORD")) {
-            builder = builder.credentials(SmtpCredentials::new(user, pass));
-        }
-        let transport = builder.build();
+        let credentials = if let (Ok(user), Ok(pass)) =
+            (std::env::var("SMTP_USER"), std::env::var("SMTP_PASSWORD"))
+        {
+            Some(SmtpCredentials::new(user, pass))
+        } else {
+            None
+        };
+
+        let transport = if tls {
+            // TLS on port 465 (Resend, SendGrid, etc.)
+            let default_port = 465u16;
+            let port: u16 = std::env::var("SMTP_PORT")
+                .ok()
+                .and_then(|p| p.parse().ok())
+                .unwrap_or(default_port);
+            let mut builder = AsyncSmtpTransport::<Tokio1Executor>::relay(&host)
+                .expect("invalid SMTP_HOST for TLS relay")
+                .port(port);
+            if let Some(creds) = credentials {
+                builder = builder.credentials(creds);
+            }
+            builder.build()
+        } else {
+            // Plain SMTP (Mailpit dev, or local relay)
+            let port: u16 = std::env::var("SMTP_PORT")
+                .ok()
+                .and_then(|p| p.parse().ok())
+                .unwrap_or(1025);
+            let mut builder =
+                AsyncSmtpTransport::<Tokio1Executor>::builder_dangerous(&host).port(port);
+            if let Some(creds) = credentials {
+                builder = builder.credentials(creds);
+            }
+            builder.build()
+        };
 
         let from = from_str
             .parse()

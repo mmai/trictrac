@@ -9,6 +9,15 @@ shell:
 runcli:
 	RUST_LOG=info cargo run --bin=client_cli
 
+# example:  fix-wasm-version 0.2.118
+fix-wasm-version version:
+  cargo update \
+      -p wasm-bindgen --precise {{version}} \
+      -p wasm-bindgen-futures \
+      -p wasm-bindgen-test \
+      -p js-sys \
+      -p web-sys
+
 [working-directory: 'clients/web']
 dev:
   trunk serve

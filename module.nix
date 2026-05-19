@@ -175,6 +175,13 @@ in
             install -m 644 ${pkgs.trictrac}/GameConfig.json "$STATE_DIRECTORY/GameConfig.json"
           fi
         '';
+        smtpEnvScript = if cfg.smtp.passwordFile != null then
+          pkgs.writeShellScript "trictrac-smtp-env" ''
+            set -euo pipefail
+            printf 'SMTP_PASS=%s\n' "$(< ${cfg.smtp.passwordFile})" > /run/trictrac/smtp.env
+            chmod 400 /run/trictrac/smtp.env
+          ''
+        else null;
       in
       {
         description = "trictrac relay server";
@@ -201,10 +208,12 @@ in
           # systemd creates /var/lib/trictrac and sets STATE_DIRECTORY accordingly
           StateDirectory = "trictrac";
           StateDirectoryMode = "0755";
+          # systemd creates /run/trictrac for the smtp.env file
+          RuntimeDirectory = "trictrac";
           WorkingDirectory = "/var/lib/trictrac";
-          ExecStartPre = "${setupScript}";
+          ExecStartPre = [ "${setupScript}" ] ++ optional (smtpEnvScript != null) "+${smtpEnvScript}";
           ExecStart = "${pkgs.trictrac}/bin/relay-server";
-          EnvironmentFile = mkIf (cfg.smtp.passwordFile != null) cfg.smtp.passwordFile;
+          EnvironmentFile = mkIf (cfg.smtp.passwordFile != null) "/run/trictrac/smtp.env";
           Restart = "on-failure";
           RestartSec = "5s";
         };

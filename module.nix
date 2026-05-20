@@ -178,7 +178,7 @@ in
         '';
         startScript = pkgs.writeShellScript "trictrac-start" (
           optionalString (cfg.smtp.passwordFile != null) ''
-            export SMTP_PASS="$(< "$CREDENTIALS_DIRECTORY/smtp-pass")"
+            export SMTP_PASSWORD="$(< "$CREDENTIALS_DIRECTORY/smtp-pass")"
           '' + ''
             exec ${pkgs.trictrac}/bin/relay-server
           ''

@@ -95,7 +95,7 @@
   "verify_email_checking": "Vérification en cours…",
   "verify_email_success": "Votre email a été vérifié.",
   "verify_email_invalid": "Ce lien de vérification est invalide ou a expiré.",
-  "email_not_verified_banner": "Un mail de vérification a été envoyé à votre adresse email — veuillez consulter votre boîte de réception.",
+  "email_not_verified_banner": "Un email de vérification vous a été envoyé — veuillez consulter votre boîte de réception.",
   "resend_verification": "Renvoyer l'email de vérification",
   "verification_email_resent": "Email de vérification envoyé.",
   "loading": "Chargement…",

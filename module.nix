@@ -178,7 +178,7 @@ in
         '';
         startScript = pkgs.writeShellScript "trictrac-start" (
           optionalString (cfg.smtp.passwordFile != null) ''
-            export SMTP_PASS="$(< ${cfg.smtp.passwordFile})"
+            export SMTP_PASS="$(< "$CREDENTIALS_DIRECTORY/smtp-pass")"
           '' + ''
             exec ${pkgs.trictrac}/bin/relay-server
           ''
@@ -210,6 +210,7 @@ in
           StateDirectory = "trictrac";
           StateDirectoryMode = "0755";
           WorkingDirectory = "/var/lib/trictrac";
+          LoadCredential = mkIf (cfg.smtp.passwordFile != null) "smtp-pass:${cfg.smtp.passwordFile}";
           ExecStartPre = "${setupScript}";
           ExecStart = "${startScript}";
           Restart = "on-failure";

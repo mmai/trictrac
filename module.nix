@@ -130,13 +130,14 @@ in
             forceSSL = withSSL;
             # Explicit listen so this vhost isn't shadowed by a default_server
             # created by other virtual hosts with forceSSL = true.
-            listen = if withSSL then [
-              { addr = "0.0.0.0"; port = 443; ssl = true; }
-              { addr = "[::]";    port = 443; ssl = true; }
-            ] else [
-              { addr = "0.0.0.0"; port = 80; ssl = false; }
-              { addr = "[::]";    port = 80; ssl = false; }
-            ];
+            listen =
+              if withSSL then [
+                { addr = "0.0.0.0"; port = 443; ssl = true; }
+                { addr = "[::]"; port = 443; ssl = true; }
+              ] else [
+                { addr = "0.0.0.0"; port = 80; ssl = false; }
+                { addr = "[::]"; port = 80; ssl = false; }
+              ];
             locations."/" = {
               extraConfig = proxyConfig;
               proxyPass = "http://trictrac-api/";
@@ -175,13 +176,13 @@ in
             install -m 644 ${pkgs.trictrac}/GameConfig.json "$STATE_DIRECTORY/GameConfig.json"
           fi
         '';
-        smtpEnvScript = if cfg.smtp.passwordFile != null then
-          pkgs.writeShellScript "trictrac-smtp-env" ''
-            set -euo pipefail
-            printf 'SMTP_PASS=%s\n' "$(< ${cfg.smtp.passwordFile})" > /run/trictrac/smtp.env
-            chmod 400 /run/trictrac/smtp.env
+        startScript = pkgs.writeShellScript "trictrac-start" (
+          optionalString (cfg.smtp.passwordFile != null) ''
+            export SMTP_PASS="$(< ${cfg.smtp.passwordFile})"
+          '' + ''
+            exec ${pkgs.trictrac}/bin/relay-server
           ''
-        else null;
+        );
       in
       {
         description = "trictrac relay server";
@@ -194,7 +195,7 @@ in
           APP_URL = "${cfg.protocol}://${cfg.hostname}";
           SMTP_HOST = cfg.smtp.host;
           SMTP_PORT = toString (if cfg.smtp.port != null then cfg.smtp.port
-                                else if cfg.smtp.tls then 465 else 1025);
+          else if cfg.smtp.tls then 465 else 1025);
           SMTP_FROM = cfg.smtp.from;
         } // optionalAttrs cfg.smtp.tls {
           SMTP_TLS = "true";
@@ -208,12 +209,9 @@ in
           # systemd creates /var/lib/trictrac and sets STATE_DIRECTORY accordingly
           StateDirectory = "trictrac";
           StateDirectoryMode = "0755";
-          # systemd creates /run/trictrac for the smtp.env file
-          RuntimeDirectory = "trictrac";
           WorkingDirectory = "/var/lib/trictrac";
-          ExecStartPre = [ "${setupScript}" ] ++ optional (smtpEnvScript != null) "+${smtpEnvScript}";
-          ExecStart = "${pkgs.trictrac}/bin/relay-server";
-          EnvironmentFile = mkIf (cfg.smtp.passwordFile != null) "/run/trictrac/smtp.env";
+          ExecStartPre = "${setupScript}";
+          ExecStart = "${startScript}";
           Restart = "on-failure";
           RestartSec = "5s";
         };

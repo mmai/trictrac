@@ -32,6 +32,7 @@ use std::collections::VecDeque;
 const RELAY_URL: &str = "ws://localhost:8080/ws";
 const GAME_ID: &str = "trictrac";
 const STORAGE_KEY: &str = "trictrac_session";
+const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// The state the UI needs to render the game screen.
 #[derive(Clone, PartialEq)]
@@ -620,6 +621,9 @@ fn SiteHamburger() -> impl IntoView {
                     replay_open.set(true);
                     sidebar_open.set(false);
                 }>{t!(i18n, replay_snapshot)}</button>
+            </div>
+            <div>
+                <span class="site-nav-version">"v" {VERSION}</span>
             </div>
         </div>
 

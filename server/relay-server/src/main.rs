@@ -99,9 +99,9 @@ async fn main() {
         .route("/ws", get(websocket_handler))
         .merge(http::router())
         .with_state(app_state)
+        .fallback_service(ServeDir::new(".").not_found_service(ServeFile::new("index.html")))
         .layer(auth_layer)
-        .layer(cors)
-        .fallback_service(ServeDir::new(".").not_found_service(ServeFile::new("index.html")));
+        .layer(cors);
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:8080")
         .await

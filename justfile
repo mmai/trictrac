@@ -2,6 +2,17 @@
 # ^ A shebang isn't required, but allows a justfile to be executed
 #   like a script, with `./justfile test`, for example.
 
+# Bump the project version and start a git-flow release.
+# Usage: just bump 0.2.12
+# After running, finish with: git flow release finish <version>
+bump version:
+  sed -i '/^\[workspace\.package\]/,/^\[/{s/^version = ".*"/version = "{{version}}"/}' Cargo.toml
+  sed -i 's/version = "[0-9.]*"; # trictrac-version/version = "{{version}}"; # trictrac-version/' flake.nix
+  git flow release start {{version}}
+  git add Cargo.toml flake.nix
+  git commit -m "chore: bump version to {{version}}"
+  @echo "Done. Finish with: git flow release finish {{version}}"
+
 doc:
   cargo doc --no-deps
 shell:

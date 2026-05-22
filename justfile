@@ -8,9 +8,9 @@
 bump version:
   sed -i '/^\[workspace\.package\]/,/^\[/{s/^version = ".*"/version = "{{version}}"/}' Cargo.toml
   sed -i 's/version = "[0-9.]*"; # trictrac-version/version = "{{version}}"; # trictrac-version/' flake.nix
-  git flow release start {{version}}
   git add Cargo.toml flake.nix
   git commit -m "chore: bump version to {{version}}"
+  git flow release start {{version}}
   @echo "Done. Finish with: git flow release finish {{version}}"
 
 doc:

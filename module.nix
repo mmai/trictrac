@@ -123,6 +123,7 @@ in
             proxy_read_timeout 3600s;
           '';
           withSSL = cfg.protocol == "https";
+          listenPort = if withSSL then 443 else 80;
         in
         {
           "${cfg.hostname}" = {
@@ -130,18 +131,19 @@ in
             forceSSL = withSSL;
             # Explicit listen so this vhost isn't shadowed by a default_server
             # created by other virtual hosts with forceSSL = true.
-            listen =
-              if withSSL then [
-                { addr = "0.0.0.0"; port = 443; ssl = true; }
-                { addr = "[::]"; port = 443; ssl = true; }
-              ] else [
-                { addr = "0.0.0.0"; port = 80; ssl = false; }
-                { addr = "[::]"; port = 80; ssl = false; }
+            listen = [
+                { addr = "0.0.0.0"; port = listenPort; ssl = withSSL; }
+                { addr = "[::]"; port = listenPort; ssl = withSSL; }
               ];
             locations."/" = {
               extraConfig = proxyConfig;
               proxyPass = "http://trictrac-api/";
             };
+
+            extraConfig = ''
+              error_log /var/log/nginx/trictrac_error.log;
+              access_log /var/log/nginx/trictrac_access.log;
+            '';
           };
         };
     };

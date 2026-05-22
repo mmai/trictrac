@@ -41,7 +41,12 @@ fn ProfileContent(profile: UserProfile, username: String) -> impl IntoView {
         Locale::en => "en-GB",
         Locale::fr => "fr-FR",
     };
-    let joined = api::format_ts(profile.created_at, locale_tag, &api::DateFormatOptions::date_only());
+    let date_format = api::DateFormatOptions {
+        date_style: Some("long"),
+        time_style: None,
+    };
+    let joined = api::format_ts(profile.created_at, locale_tag, &date_format);
+    // let joined = api::format_ts(profile.created_at, locale_tag, &api::DateFormatOptions::date_only());
 
     view! {
         <div class="portal-card">
@@ -60,10 +65,6 @@ fn ProfileContent(profile: UserProfile, username: String) -> impl IntoView {
                 <div class="stat-box">
                     <div class="value outcome-loss">{ profile.losses }</div>
                     <div class="label">{t!(i18n, stat_losses)}</div>
-                </div>
-                <div class="stat-box">
-                    <div class="value outcome-draw">{ profile.draws }</div>
-                    <div class="label">{t!(i18n, stat_draws)}</div>
                 </div>
             </div>
         </div>

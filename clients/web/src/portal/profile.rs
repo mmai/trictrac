@@ -37,7 +37,11 @@ fn ProfileContent(profile: UserProfile, username: String) -> impl IntoView {
         async move { api::get_user_games(&u, p).await }
     });
 
-    let joined = api::format_ts(profile.created_at);
+    let locale_tag = match i18n.get_locale() {
+        Locale::en => "en-GB",
+        Locale::fr => "fr-FR",
+    };
+    let joined = api::format_ts(profile.created_at, locale_tag, &api::DateFormatOptions::date_only());
 
     view! {
         <div class="portal-card">
@@ -84,6 +88,10 @@ fn ProfileContent(profile: UserProfile, username: String) -> impl IntoView {
 #[component]
 fn GamesTable(games: Vec<GameSummary>, page: RwSignal<i64>) -> impl IntoView {
     let i18n = use_i18n();
+    let locale_tag = match i18n.get_locale() {
+        Locale::en => "en-GB",
+        Locale::fr => "fr-FR",
+    };
     let rows = games.clone();
     let has_next = games.len() == 20;
 
@@ -100,8 +108,8 @@ fn GamesTable(games: Vec<GameSummary>, page: RwSignal<i64>) -> impl IntoView {
             </thead>
             <tbody>
                 {rows.into_iter().map(|g| {
-                    let started = api::format_ts(g.started_at);
-                    let ended = g.ended_at.map(api::format_ts).unwrap_or_else(|| "—".into());
+                    let started = api::format_ts(g.started_at, locale_tag, &api::DateFormatOptions::date_only());
+                    let ended = g.ended_at.map(|ts| api::format_ts(ts, locale_tag, &api::DateFormatOptions::date_only())).unwrap_or_else(|| "—".into());
                     let outcome_class = match g.outcome.as_deref() {
                         Some("win")  => "outcome-win",
                         Some("loss") => "outcome-loss",

@@ -244,10 +244,53 @@ pub async fn post_reset_password(token: &str, new_password: &str) -> Result<(), 
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
 
-pub fn format_ts(ts: i64) -> String {
+/// Maps to the `Intl.DateTimeFormat` options object accepted by `Date.toLocaleString`.
+/// `Default` passes no options (browser default: full date + time).
+pub struct DateFormatOptions {
+    /// "full" | "long" | "medium" | "short" — omit to suppress date part
+    pub date_style: Option<&'static str>,
+    /// "full" | "long" | "medium" | "short" — omit to suppress time part
+    pub time_style: Option<&'static str>,
+}
+
+impl Default for DateFormatOptions {
+    fn default() -> Self {
+        Self { date_style: None, time_style: None }
+    }
+}
+
+impl DateFormatOptions {
+    pub fn date_only() -> Self {
+        Self { date_style: Some("short"), time_style: None }
+    }
+
+    pub fn time_only() -> Self {
+        Self { date_style: None, time_style: Some("short") }
+    }
+
+    pub fn date_time() -> Self {
+        Self { date_style: Some("short"), time_style: Some("short") }
+    }
+
+    fn to_js_value(&self) -> wasm_bindgen::JsValue {
+        if self.date_style.is_none() && self.time_style.is_none() {
+            return wasm_bindgen::JsValue::UNDEFINED;
+        }
+        let obj = js_sys::Object::new();
+        if let Some(v) = self.date_style {
+            let _ = js_sys::Reflect::set(&obj, &"dateStyle".into(), &v.into());
+        }
+        if let Some(v) = self.time_style {
+            let _ = js_sys::Reflect::set(&obj, &"timeStyle".into(), &v.into());
+        }
+        obj.into()
+    }
+}
+
+pub fn format_ts(ts: i64, locale: &str, opts: &DateFormatOptions) -> String {
     let ms = (ts * 1000) as f64;
     let date = js_sys::Date::new(&wasm_bindgen::JsValue::from_f64(ms));
-    date.to_locale_string("en-GB", &wasm_bindgen::JsValue::UNDEFINED)
+    date.to_locale_string(locale, &opts.to_js_value())
         .as_string()
         .unwrap_or_default()
 }

@@ -32,8 +32,12 @@ pub fn GameDetailPage() -> impl IntoView {
 #[component]
 fn GameDetailView(game: GameDetail) -> impl IntoView {
     let i18n = use_i18n();
-    let started = api::format_ts(game.started_at);
-    let ended = game.ended_at.map(api::format_ts)
+    let locale_tag = match i18n.get_locale() {
+        Locale::en => "en-GB",
+        Locale::fr => "fr-FR",
+    };
+    let started = api::format_ts(game.started_at, locale_tag, &api::DateFormatOptions::date_only());
+    let ended = game.ended_at.map(|ts| api::format_ts(ts, locale_tag, &api::DateFormatOptions::date_only()))
         .unwrap_or_else(|| t_string!(i18n, game_ongoing).to_string());
 
     view! {

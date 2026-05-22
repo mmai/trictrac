@@ -2076,3 +2076,19 @@ a:hover { text-decoration: underline; }
     max-width: 200px;
     margin: 0 auto;
 }
+
+/* Push the version wrapper to the bottom of the sidebar flex column */
+.game-sidebar > div:has(.site-nav-version) {
+    margin-top: auto;
+    padding: 0.75rem 1rem;
+    border-top: 1px solid rgba(200,164,72,0.12);
+}
+
+.site-nav-version {
+    display: block;
+    text-align: center;
+    font-family: var(--font-ui);
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    color: rgba(200,164,72,0.4);
+}

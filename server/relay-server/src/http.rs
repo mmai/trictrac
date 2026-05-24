@@ -245,6 +245,7 @@ async fn register(
 
 async fn login(
     mut auth_session: AuthSession<AuthBackend>,
+    State(state): State<Arc<AppState>>,
     Json(body): Json<LoginBody>,
 ) -> Result<impl IntoResponse, AppError> {
     let creds = Credentials {
@@ -259,6 +260,18 @@ async fn login(
     };
 
     auth_session.login(&user).await.map_err(|_| AppError::Internal)?;
+
+    if !user.email_verified {
+        let _ = db::delete_email_tokens(&state.db, user.id, "verify").await;
+        let token = generate_token();
+        let expires_at = now_unix() + VERIFY_TOKEN_EXPIRY;
+        if db::create_email_token(&state.db, user.id, &token, "verify", expires_at)
+            .await
+            .is_ok()
+        {
+            state.mailer.send_verification(&user.email, &token).await;
+        }
+    }
 
     Ok(Json(MeResponse {
         id: user.id,

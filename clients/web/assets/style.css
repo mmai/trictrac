@@ -2045,6 +2045,7 @@ a:hover { text-decoration: underline; }
     text-decoration: none;
     opacity: 0.8;
     transition: opacity 0.15s;
+    cursor: pointer;
 }
 .game-sidebar-link:hover { opacity: 1; text-decoration: underline; text-underline-offset: 2px; }
 
@@ -2078,13 +2079,13 @@ a:hover { text-decoration: underline; }
 }
 
 /* Push the version wrapper to the bottom of the sidebar flex column */
-.game-sidebar > div:has(.site-nav-version) {
+.sidebar-footer {
     margin-top: auto;
-    padding: 0.75rem 1rem;
     border-top: 1px solid rgba(200,164,72,0.12);
 }
 
 .site-nav-version {
+    margin: 2em 0 1em;
     display: block;
     text-align: center;
     font-family: var(--font-ui);

@@ -29,7 +29,22 @@ use trictrac_store::CheckerMove;
 
 use std::collections::VecDeque;
 
-const RELAY_URL: &str = "ws://localhost:8080/ws";
+fn relay_url() -> String {
+    #[cfg(debug_assertions)]
+    {
+        "ws://localhost:8080/ws".to_string()
+    }
+    #[cfg(not(debug_assertions))]
+    {
+        let location = web_sys::window()
+            .and_then(|w| Some(w.location()))
+            .unwrap();
+        let protocol = location.protocol().unwrap_or_default();
+        let host = location.host().unwrap_or_default();
+        let ws_protocol = if protocol == "https:" { "wss" } else { "ws" };
+        format!("{ws_protocol}://{host}/ws")
+    }
+}
 const GAME_ID: &str = "trictrac";
 const STORAGE_KEY: &str = "trictrac_session";
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -205,7 +220,7 @@ pub fn App() -> impl IntoView {
                     Some(NetCommand::CreateRoom { room }) => {
                         break Some((
                             RoomConfig {
-                                relay_url: RELAY_URL.to_string(),
+                                relay_url: relay_url(),
                                 game_id: GAME_ID.to_string(),
                                 room_id: room,
                                 rule_variation: 0,
@@ -219,7 +234,7 @@ pub fn App() -> impl IntoView {
                     Some(NetCommand::JoinRoom { room }) => {
                         break Some((
                             RoomConfig {
-                                relay_url: RELAY_URL.to_string(),
+                                relay_url: relay_url(),
                                 game_id: GAME_ID.to_string(),
                                 room_id: room,
                                 rule_variation: 0,
@@ -304,7 +319,7 @@ pub fn App() -> impl IntoView {
 
             if !session.is_host {
                 save_session(&StoredSession {
-                    relay_url: RELAY_URL.to_string(),
+                    relay_url: relay_url(),
                     game_id: GAME_ID.to_string(),
                     room_id: room_id_for_storage.clone(),
                     token: session.reconnect_token,
@@ -358,7 +373,7 @@ pub fn App() -> impl IntoView {
 
                             if is_host {
                                 save_session(&StoredSession {
-                                    relay_url: RELAY_URL.to_string(),
+                                    relay_url: relay_url(),
                                     game_id: GAME_ID.to_string(),
                                     room_id: room_id_for_storage.clone(),
                                     token: reconnect_token,

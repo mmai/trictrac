@@ -55,6 +55,10 @@ build-relay:
   cp target/release/relay-server deploy
   cp -u server/relay-server/GameConfig.json deploy/
 
+# generate web stats report from the current nginx logs
+stats:
+  ssh -t raspberry sudo goaccess /var/log/nginx/trictrac_access.log --log-format=COMBINED -o html > var/stats/report.html
+
 # start a trictrac container with nixos-container
 # `boot.enableContainers = true` must be set on local nixos system
 local:

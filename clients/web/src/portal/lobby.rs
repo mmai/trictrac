@@ -195,12 +195,9 @@ fn IdleCard(
     pending_action: RwSignal<Option<PendingLobbyAction>>,
 ) -> impl IntoView {
     let i18n = use_i18n();
-    let join_open = RwSignal::new(false);
-    let join_code = RwSignal::new(String::new());
 
     let cmd_bot = cmd_tx.clone();
     let cmd_create = cmd_tx.clone();
-    let cmd_join = cmd_tx;
 
     let on_create = move |_: leptos::ev::MouseEvent| {
         let code = generate_room_code();
@@ -231,48 +228,6 @@ fn IdleCard(
                 </svg>
                 {t!(i18n, create_room)}
             </button>
-        </div>
-
-        // Hidden "join by code" fallback
-        <div style="margin-top:1.25rem;text-align:center">
-            <button
-                class="portal-page-btn"
-                style="font-size:0.75rem;opacity:0.7"
-                on:click=move |_| join_open.update(|v| *v = !*v)
-            >
-                {move || if join_open.get() { "▲ " } else { "▼ " }}
-                {t!(i18n, join_code_label)}
-            </button>
-            {move || {
-                let cmd = cmd_join.clone();
-                join_open.get().then(|| view! {
-                    <div style="margin-top:0.75rem;display:flex;gap:0.5rem">
-                        <input
-                            class="login-input"
-                            style="margin:0"
-                            type="text"
-                            placeholder=move || t_string!(i18n, join_code_placeholder)
-                            prop:value=move || join_code.get()
-                            on:input=move |ev| join_code.set(event_target_value(&ev))
-                        />
-                        <button
-                            class="login-btn login-btn-secondary"
-                            style="margin:0;padding:0 1rem"
-                            disabled=move || join_code.get().is_empty()
-                            on:click=move |_| {
-                                let code = join_code.get();
-                                if auth_username.get_untracked().is_some() {
-                                    cmd.unbounded_send(NetCommand::JoinRoom { room: code }).ok();
-                                } else {
-                                    pending_action.set(Some(PendingLobbyAction::Join { code }));
-                                }
-                            }
-                        >
-                            {t!(i18n, join_room)}
-                        </button>
-                    </div>
-                })
-            }}
         </div>
     }
 }
@@ -338,8 +293,6 @@ fn NicknameModal(
                     {t!(i18n, nickname_modal_or)}
                     " "
                     <A href="/account">{t!(i18n, nickname_modal_sign_in)}</A>
-                    " · "
-                    <A href="/account">{t!(i18n, nickname_modal_register)}</A>
                 </p>
             </div>
         </div>

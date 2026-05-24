@@ -189,7 +189,7 @@ dependencies = [
 
 [[package]]
 name = "backbone-lib"
-version = "0.2.11"
+version = "0.2.12"
 dependencies = [
  "bytes",
  "ewebsock",
@@ -2649,7 +2649,7 @@ dependencies = [
 
 [[package]]
 name = "protocol"
-version = "0.2.11"
+version = "0.2.12"
 dependencies = [
  "serde",
 ]
@@ -2883,7 +2883,7 @@ checksum = "dc897dd8d9e8bd1ed8cdad82b5966c3e0ecae09fb1907d58efaa013543185d0a"
 
 [[package]]
 name = "relay-server"
-version = "0.2.11"
+version = "0.2.12"
 dependencies = [
  "argon2",
  "axum",
@@ -3893,7 +3893,7 @@ dependencies = [
 
 [[package]]
 name = "trictrac-store"
-version = "0.2.11"
+version = "0.2.12"
 dependencies = [
  "anyhow",
  "base64 0.21.7",
@@ -3906,7 +3906,7 @@ dependencies = [
 
 [[package]]
 name = "trictrac-web"
-version = "0.2.11"
+version = "0.2.12"
 dependencies = [
  "backbone-lib",
  "futures",

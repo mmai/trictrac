@@ -3,7 +3,7 @@ use leptos::prelude::*;
 use leptos_router::components::A;
 use leptos_router::hooks::use_query_map;
 
-use crate::app::{NetCommand, Screen};
+use crate::app::{AnonNickname, NetCommand, Screen};
 use crate::i18n::*;
 
 // ── Room/nickname generation ──────────────────────────────────────────────────
@@ -103,7 +103,7 @@ pub fn LobbyPage() -> impl IntoView {
     let cmd_tx = use_context::<UnboundedSender<NetCommand>>().expect("NetCommand sender");
     let auth_username = use_context::<RwSignal<Option<String>>>().expect("auth_username context");
     let auth_loaded = use_context::<RwSignal<bool>>().expect("auth_loaded context");
-    let anon_nickname = use_context::<RwSignal<Option<String>>>().expect("anon_nickname context");
+    let anon_nickname = use_context::<AnonNickname>().expect("anon_nickname context").0;
     let query = use_query_map();
 
     let view_state: RwSignal<LobbyView> = RwSignal::new(LobbyView::Idle);

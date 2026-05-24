@@ -2,6 +2,7 @@ use leptos::prelude::*;
 use leptos_router::hooks::use_query_map;
 
 use crate::api;
+use crate::app::AuthEmailVerified;
 use crate::i18n::*;
 
 #[derive(Clone, PartialEq)]
@@ -16,8 +17,8 @@ pub fn VerifyEmailPage() -> impl IntoView {
     let i18n = use_i18n();
     let auth_username =
         use_context::<RwSignal<Option<String>>>().expect("auth_username context not found");
-    let auth_email_verified =
-        use_context::<RwSignal<bool>>().expect("auth_email_verified context not found");
+    let auth_email_verified = use_context::<AuthEmailVerified>()
+        .expect("auth_email_verified context not found").0;
 
     let query = use_query_map();
     let token = query.with(|m| m.get("token").map(|s| s.to_string()).unwrap_or_default());

@@ -29,6 +29,12 @@ use trictrac_store::CheckerMove;
 
 use std::collections::VecDeque;
 
+/// Newtype wrappers so context lookup can distinguish signals of the same inner type.
+#[derive(Clone, Copy)]
+pub(crate) struct AnonNickname(pub RwSignal<Option<String>>);
+#[derive(Clone, Copy)]
+pub(crate) struct AuthEmailVerified(pub RwSignal<bool>);
+
 fn relay_url() -> String {
     #[cfg(debug_assertions)]
     {
@@ -170,14 +176,14 @@ pub fn App() -> impl IntoView {
     let auth_username: RwSignal<Option<String>> = RwSignal::new(None);
     let auth_email_verified: RwSignal<bool> = RwSignal::new(false);
     provide_context(auth_username);
-    provide_context(auth_email_verified);
+    provide_context(AuthEmailVerified(auth_email_verified));
     // Set to true once get_me resolves (success or failure) so lobby can
     // decide immediately whether to show the nickname modal.
     let auth_loaded: RwSignal<bool> = RwSignal::new(false);
     provide_context(auth_loaded);
     // Nickname chosen by an anonymous player; used instead of "Anonymous".
     let anon_nickname: RwSignal<Option<String>> = RwSignal::new(None);
-    provide_context(anon_nickname);
+    provide_context(AnonNickname(anon_nickname));
     spawn_local(async move {
         if let Ok(me) = api::get_me().await {
             auth_username.set(Some(me.username));

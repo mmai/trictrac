@@ -2,6 +2,7 @@ use leptos::prelude::*;
 use leptos_router::hooks::use_navigate;
 
 use crate::api;
+use crate::app::AuthEmailVerified;
 use crate::i18n::*;
 
 #[component]
@@ -9,8 +10,8 @@ pub fn AccountPage() -> impl IntoView {
     let i18n = use_i18n();
     let auth_username =
         use_context::<RwSignal<Option<String>>>().expect("auth_username context not found");
-    let auth_email_verified =
-        use_context::<RwSignal<bool>>().expect("auth_email_verified context not found");
+    let auth_email_verified = use_context::<AuthEmailVerified>()
+        .expect("auth_email_verified context not found").0;
     let navigate = use_navigate();
 
     // Only redirect to profile when the email is actually verified.
@@ -107,8 +108,8 @@ fn LoginForm() -> impl IntoView {
     let i18n = use_i18n();
     let auth_username =
         use_context::<RwSignal<Option<String>>>().expect("auth_username context not found");
-    let auth_email_verified =
-        use_context::<RwSignal<bool>>().expect("auth_email_verified context not found");
+    let auth_email_verified = use_context::<AuthEmailVerified>()
+        .expect("auth_email_verified context not found").0;
     let navigate = use_navigate();
 
     let login = RwSignal::new(String::new());
@@ -177,8 +178,8 @@ fn RegisterForm() -> impl IntoView {
     let i18n = use_i18n();
     let auth_username =
         use_context::<RwSignal<Option<String>>>().expect("auth_username context not found");
-    let auth_email_verified =
-        use_context::<RwSignal<bool>>().expect("auth_email_verified context not found");
+    let auth_email_verified = use_context::<AuthEmailVerified>()
+        .expect("auth_email_verified context not found").0;
 
     let username = RwSignal::new(String::new());
     let email = RwSignal::new(String::new());

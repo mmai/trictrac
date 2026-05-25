@@ -147,6 +147,19 @@ pub async fn post_logout() -> Result<(), String> {
     }
 }
 
+pub async fn delete_account() -> Result<(), String> {
+    let resp = gloo_net::http::Request::delete(&url("/auth/account"))
+        .credentials(web_sys::RequestCredentials::Include)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    if resp.status() == 204 {
+        Ok(())
+    } else {
+        Err(format!("status {}", resp.status()))
+    }
+}
+
 pub async fn get_user_profile(username: &str) -> Result<UserProfile, String> {
     let resp = gloo_net::http::Request::get(&url(&format!("/users/{username}")))
         .credentials(web_sys::RequestCredentials::Include)

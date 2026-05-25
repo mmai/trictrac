@@ -1,7 +1,8 @@
 use leptos::prelude::*;
-use leptos_router::{components::A, hooks::use_params_map};
+use leptos_router::{components::A, hooks::use_navigate, hooks::use_params_map};
 
 use crate::api::{self, GameSummary, UserProfile};
+use crate::app::{AuthEmailVerified, FlashMessage};
 use crate::i18n::*;
 
 #[component]
@@ -30,6 +31,8 @@ pub fn ProfilePage() -> impl IntoView {
 #[component]
 fn ProfileContent(profile: UserProfile, username: String) -> impl IntoView {
     let i18n = use_i18n();
+    let auth_username =
+        use_context::<RwSignal<Option<String>>>().expect("auth_username context not found");
     let page = RwSignal::new(0i64);
     let games = LocalResource::new(move || {
         let u = username.clone();
@@ -46,7 +49,9 @@ fn ProfileContent(profile: UserProfile, username: String) -> impl IntoView {
         time_style: None,
     };
     let joined = api::format_ts(profile.created_at, locale_tag, &date_format);
-    // let joined = api::format_ts(profile.created_at, locale_tag, &api::DateFormatOptions::date_only());
+
+    let profile_username = profile.username.clone();
+    let is_own_profile = move || auth_username.get().as_deref() == Some(&profile_username);
 
     view! {
         <div class="portal-card">
@@ -81,6 +86,106 @@ fn ProfileContent(profile: UserProfile, username: String) -> impl IntoView {
                         view! { <GamesTable games=r.games page=page /> }.into_any()
                     }
                 }
+            }}
+        </div>
+
+        {move || if is_own_profile() {
+            let uname = profile.username.clone();
+            view! { <DeleteAccountSection username=uname /> }.into_any()
+        } else {
+            view! { <span /> }.into_any()
+        }}
+    }
+}
+
+#[component]
+fn DeleteAccountSection(username: String) -> impl IntoView {
+    let i18n = use_i18n();
+    let auth_username =
+        use_context::<RwSignal<Option<String>>>().expect("auth_username context not found");
+    let auth_email_verified = use_context::<AuthEmailVerified>()
+        .expect("auth_email_verified context not found").0;
+    let flash = use_context::<FlashMessage>().expect("FlashMessage context not found").0;
+    let navigate = use_navigate();
+
+    let confirming = RwSignal::new(false);
+    let confirm_input = RwSignal::new(String::new());
+    let error = RwSignal::new(String::new());
+    let pending = RwSignal::new(false);
+
+    view! {
+        <div class="portal-card portal-danger-zone">
+            <h2>{t!(i18n, delete_account_title)}</h2>
+            {move || if !confirming.get() {
+                view! {
+                    <div>
+                        <p class="portal-meta" style="margin-bottom:1rem">
+                            {t!(i18n, delete_account_warning)}
+                        </p>
+                        <button class="portal-danger-btn"
+                            on:click=move |_| confirming.set(true)
+                        >{t!(i18n, delete_account_btn)}</button>
+                    </div>
+                }.into_any()
+            } else {
+                // Define submit fresh each reactive call so the closure is FnMut-compatible.
+                let expected = username.clone();
+                let nav = navigate.clone();
+                let submit = move |ev: leptos::ev::SubmitEvent| {
+                    ev.prevent_default();
+                    if pending.get() { return; }
+                    error.set(String::new());
+
+                    if confirm_input.get() != expected {
+                        error.set(t_string!(i18n, delete_account_mismatch).to_string());
+                        return;
+                    }
+
+                    pending.set(true);
+                    let nav = nav.clone();
+                    wasm_bindgen_futures::spawn_local(async move {
+                        match api::delete_account().await {
+                            Ok(()) => {
+                                auth_username.set(None);
+                                auth_email_verified.set(false);
+                                flash.set(Some(t_string!(i18n, account_deleted).to_string()));
+                                nav("/", Default::default());
+                            }
+                            Err(e) => {
+                                error.set(e);
+                                pending.set(false);
+                            }
+                        }
+                    });
+                };
+                view! {
+                    <form on:submit=submit>
+                        <p class="portal-meta" style="margin-bottom:1rem">
+                            {t!(i18n, delete_account_warning)}
+                        </p>
+                        <label class="portal-label">{t!(i18n, delete_account_confirm_label)}</label>
+                        <input class="portal-input" type="text" required
+                            prop:value=move || confirm_input.get()
+                            on:input=move |ev| confirm_input.set(event_target_value(&ev)) />
+                        {move || if !error.get().is_empty() {
+                            view! { <p class="portal-error">{ error.get() }</p> }.into_any()
+                        } else {
+                            view! { <span /> }.into_any()
+                        }}
+                        <div style="display:flex;gap:0.75rem;margin-top:1rem">
+                            <button class="portal-danger-btn" type="submit"
+                                disabled=move || pending.get()
+                            >{t!(i18n, delete_account_confirm_btn)}</button>
+                            <button class="portal-page-btn" type="button"
+                                on:click=move |_| {
+                                    confirming.set(false);
+                                    confirm_input.set(String::new());
+                                    error.set(String::new());
+                                }
+                            >{t!(i18n, cancel)}</button>
+                        </div>
+                    </form>
+                }.into_any()
             }}
         </div>
     }

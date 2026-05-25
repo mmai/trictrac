@@ -87,7 +87,7 @@ async fn main() {
         .allow_origin(AllowOrigin::list([
             "http://localhost:9091".parse().unwrap(), // unified web dev server
         ]))
-        .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
+        .allow_methods([Method::GET, Method::POST, Method::DELETE, Method::OPTIONS])
         .allow_headers([
             HeaderName::from_static("content-type"),
             HeaderName::from_static("cookie"),

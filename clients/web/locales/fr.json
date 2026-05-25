@@ -138,5 +138,12 @@
   "nickname_modal_sign_in": "connectez-vous",
   "nickname_modal_register": "Créer un compte",
   "new_game": "Nouvelle partie",
-  "language": "Langue"
+  "language": "Langue",
+  "delete_account_title": "Zone de danger",
+  "delete_account_btn": "Supprimer mon compte",
+  "delete_account_warning": "Cette action est irréversible. Votre compte sera définitivement supprimé.",
+  "delete_account_confirm_label": "Tapez votre nom d'utilisateur pour confirmer :",
+  "delete_account_confirm_btn": "Supprimer définitivement",
+  "delete_account_mismatch": "Le nom d'utilisateur ne correspond pas.",
+  "account_deleted": "Votre compte a été définitivement supprimé."
 }

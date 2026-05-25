@@ -19,7 +19,7 @@ use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
     response::{IntoResponse, Response},
-    routing::{get, post},
+    routing::{delete, get, post},
 };
 use axum_login::AuthSession;
 use rand::distributions::Alphanumeric;
@@ -48,6 +48,7 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/auth/resend-verification", post(resend_verification))
         .route("/auth/forgot-password", post(forgot_password))
         .route("/auth/reset-password", post(reset_password))
+        .route("/auth/account", delete(delete_account))
         .route("/users/{username}", get(user_profile))
         .route("/users/{username}/games", get(user_games))
         .route("/games/result", post(game_result))
@@ -283,6 +284,16 @@ async fn login(
 
 async fn logout(mut auth_session: AuthSession<AuthBackend>) -> Result<StatusCode, AppError> {
     auth_session.logout().await.map_err(|_| AppError::Internal)?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn delete_account(
+    mut auth_session: AuthSession<AuthBackend>,
+    State(state): State<Arc<AppState>>,
+) -> Result<StatusCode, AppError> {
+    let user = auth_session.user.clone().ok_or(AppError::Unauthorized)?;
+    auth_session.logout().await.map_err(|_| AppError::Internal)?;
+    db::delete_user(&state.db, user.id).await?;
     Ok(StatusCode::NO_CONTENT)
 }
 

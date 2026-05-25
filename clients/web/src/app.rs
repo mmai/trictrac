@@ -34,6 +34,9 @@ use std::collections::VecDeque;
 pub(crate) struct AnonNickname(pub RwSignal<Option<String>>);
 #[derive(Clone, Copy)]
 pub(crate) struct AuthEmailVerified(pub RwSignal<bool>);
+/// One-shot message shown as a top banner and auto-dismissed after a few seconds.
+#[derive(Clone, Copy)]
+pub(crate) struct FlashMessage(pub RwSignal<Option<String>>);
 
 fn relay_url() -> String {
     #[cfg(debug_assertions)]
@@ -182,6 +185,8 @@ pub fn App() -> impl IntoView {
     // Nickname chosen by an anonymous player; used instead of "Anonymous".
     let anon_nickname: RwSignal<Option<String>> = RwSignal::new(None);
     provide_context(AnonNickname(anon_nickname));
+    let flash: RwSignal<Option<String>> = RwSignal::new(None);
+    provide_context(FlashMessage(flash));
     spawn_local(async move {
         if let Ok(me) = api::get_me().await {
             auth_username.set(Some(me.username));
@@ -423,6 +428,7 @@ pub fn App() -> impl IntoView {
     view! {
         <Router>
             <SiteHamburger />
+            <FlashBanner />
             <main>
                 <Routes fallback=|| view! { <p class="portal-empty" style="padding:3rem;text-align:center">"Page not found."</p> }>
                     <Route path=path!("/") view=LobbyPage />
@@ -439,6 +445,28 @@ pub fn App() -> impl IntoView {
             <GameOverlay pending=pending screen=screen />
         </Router>
     }
+}
+
+/// Fixed top banner that shows a flash message and auto-dismisses after 5 seconds.
+#[component]
+fn FlashBanner() -> impl IntoView {
+    let flash = use_context::<FlashMessage>().expect("FlashMessage context not found").0;
+
+    Effect::new(move |_| {
+        if flash.get().is_some() {
+            spawn_local(async move {
+                gloo_timers::future::TimeoutFuture::new(5_000).await;
+                flash.set(None);
+            });
+        }
+    });
+
+    move || flash.get().map(|msg| view! {
+        <div class="flash-banner">
+            <span>{ msg }</span>
+            <button class="flash-dismiss" on:click=move |_| flash.set(None)>"✕"</button>
+        </div>
+    })
 }
 
 /// Renders the full-screen game overlay, but only when the current route is "/".

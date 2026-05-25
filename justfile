@@ -11,7 +11,6 @@ bump version:
   sed -i 's/version = "[0-9.]*"; # trictrac-version/version = "{{version}}"; # trictrac-version/' flake.nix
   git add Cargo.toml flake.nix
   git commit -m "chore: bump version to {{version}}"
-  git flow release start {{version}}
   @echo "Done. Finish with: git flow release finish {{version}}"
 
 # Sync pages content to production server

@@ -56,7 +56,7 @@
               frontendCargoDeps = rustPlatform.fetchCargoVendor {
                 src = ./.;
                 name = "trictrac-frontend-vendor";
-                hash = "sha256-E3MJbEehbXni7B8fQPS8fSri4f2b0A33r2djiK81E2Y=";
+                hash = "sha256-R75zHXKhv0nkBv6U24ZCAtwp1yaSbr0bFywWQHwhSkM=";
               };
             in
             final.stdenv.mkDerivation {
@@ -103,7 +103,7 @@
 
           trictrac = with final; rustPlatform.buildRustPackage {
             pname = "trictrac";
-            version = "0.2.14"; # trictrac-version
+            version = "0.2.15"; # trictrac-version
             src = ./.;
 
             nativeBuildInputs = [ pkg-config ];

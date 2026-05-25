@@ -19,7 +19,7 @@ use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
     response::{IntoResponse, Response},
-    routing::{get, post},
+    routing::{delete, get, post},
 };
 use axum_login::AuthSession;
 use rand::distributions::Alphanumeric;
@@ -48,10 +48,12 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/auth/resend-verification", post(resend_verification))
         .route("/auth/forgot-password", post(forgot_password))
         .route("/auth/reset-password", post(reset_password))
+        .route("/auth/account", delete(delete_account))
         .route("/users/{username}", get(user_profile))
         .route("/users/{username}/games", get(user_games))
         .route("/games/result", post(game_result))
         .route("/games/{id}", get(game_detail))
+        .route("/pages/{slug}", get(get_page))
 }
 
 // ── Token generation ──────────────────────────────────────────────────────────
@@ -245,6 +247,7 @@ async fn register(
 
 async fn login(
     mut auth_session: AuthSession<AuthBackend>,
+    State(state): State<Arc<AppState>>,
     Json(body): Json<LoginBody>,
 ) -> Result<impl IntoResponse, AppError> {
     let creds = Credentials {
@@ -260,6 +263,18 @@ async fn login(
 
     auth_session.login(&user).await.map_err(|_| AppError::Internal)?;
 
+    if !user.email_verified {
+        let _ = db::delete_email_tokens(&state.db, user.id, "verify").await;
+        let token = generate_token();
+        let expires_at = now_unix() + VERIFY_TOKEN_EXPIRY;
+        if db::create_email_token(&state.db, user.id, &token, "verify", expires_at)
+            .await
+            .is_ok()
+        {
+            state.mailer.send_verification(&user.email, &token).await;
+        }
+    }
+
     Ok(Json(MeResponse {
         id: user.id,
         username: user.username,
@@ -269,6 +284,16 @@ async fn login(
 
 async fn logout(mut auth_session: AuthSession<AuthBackend>) -> Result<StatusCode, AppError> {
     auth_session.logout().await.map_err(|_| AppError::Internal)?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn delete_account(
+    mut auth_session: AuthSession<AuthBackend>,
+    State(state): State<Arc<AppState>>,
+) -> Result<StatusCode, AppError> {
+    let user = auth_session.user.clone().ok_or(AppError::Unauthorized)?;
+    auth_session.logout().await.map_err(|_| AppError::Internal)?;
+    db::delete_user(&state.db, user.id).await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -521,4 +546,67 @@ async fn game_result(
     );
 
     Ok(Json(GameResultResponse { game_record_id }))
+}
+
+// ── Static content pages ──────────────────────────────────────────────────────
+
+#[derive(Deserialize)]
+struct LangQuery {
+    #[serde(default = "default_lang")]
+    lang: String,
+}
+
+fn default_lang() -> String {
+    "en".to_string()
+}
+
+#[derive(Serialize)]
+struct PageResponse {
+    title: String,
+    content: String,
+}
+
+async fn get_page(
+    Path(slug): Path<String>,
+    Query(query): Query<LangQuery>,
+    State(state): State<Arc<AppState>>,
+) -> Result<impl IntoResponse, AppError> {
+    // Reject slugs with path-traversal characters or unusual lengths.
+    if slug.is_empty()
+        || slug.len() > 64
+        || !slug.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+    {
+        return Err(AppError::NotFound);
+    }
+    // Normalise lang to a safe identifier.
+    let lang = if !query.lang.is_empty()
+        && query.lang.len() <= 5
+        && query.lang.chars().all(|c| c.is_ascii_alphabetic())
+    {
+        query.lang.to_ascii_lowercase()
+    } else {
+        "en".to_string()
+    };
+
+    let base = std::path::Path::new(&state.pages_dir);
+    let primary = base.join(&slug).join(format!("{lang}.md"));
+
+    let content = match tokio::fs::read_to_string(&primary).await {
+        Ok(c) => c,
+        Err(_) if lang != "en" => {
+            let fallback = base.join(&slug).join("en.md");
+            tokio::fs::read_to_string(&fallback)
+                .await
+                .map_err(|_| AppError::NotFound)?
+        }
+        Err(_) => return Err(AppError::NotFound),
+    };
+
+    let title = content
+        .lines()
+        .find(|l| l.starts_with("# "))
+        .map(|l| l[2..].trim().to_string())
+        .unwrap_or_default();
+
+    Ok(Json(PageResponse { title, content }))
 }

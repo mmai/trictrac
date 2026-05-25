@@ -21,15 +21,37 @@ use crate::game::trictrac::backend::TrictracBackend;
 use crate::game::trictrac::types::{GameDelta, PlayerAction, ScoredEvent, SerStage, ViewState};
 use crate::i18n::*;
 use crate::portal::{
-    account::AccountPage, forgot_password::ForgotPasswordPage, game_detail::GameDetailPage,
-    lobby::LobbyPage, profile::ProfilePage, reset_password::ResetPasswordPage,
-    verify_email::VerifyEmailPage,
+    account::AccountPage, content_page::ContentPage, forgot_password::ForgotPasswordPage,
+    game_detail::GameDetailPage, lobby::LobbyPage, profile::ProfilePage,
+    reset_password::ResetPasswordPage, verify_email::VerifyEmailPage,
 };
 use trictrac_store::CheckerMove;
 
 use std::collections::VecDeque;
 
-const RELAY_URL: &str = "ws://localhost:8080/ws";
+/// Newtype wrappers so context lookup can distinguish signals of the same inner type.
+#[derive(Clone, Copy)]
+pub(crate) struct AnonNickname(pub RwSignal<Option<String>>);
+#[derive(Clone, Copy)]
+pub(crate) struct AuthEmailVerified(pub RwSignal<bool>);
+/// One-shot message shown as a top banner and auto-dismissed after a few seconds.
+#[derive(Clone, Copy)]
+pub(crate) struct FlashMessage(pub RwSignal<Option<String>>);
+
+fn relay_url() -> String {
+    #[cfg(debug_assertions)]
+    {
+        "ws://localhost:8080/ws".to_string()
+    }
+    #[cfg(not(debug_assertions))]
+    {
+        let location = web_sys::window().and_then(|w| Some(w.location())).unwrap();
+        let protocol = location.protocol().unwrap_or_default();
+        let host = location.host().unwrap_or_default();
+        let ws_protocol = if protocol == "https:" { "wss" } else { "ws" };
+        format!("{ws_protocol}://{host}/ws")
+    }
+}
 const GAME_ID: &str = "trictrac";
 const STORAGE_KEY: &str = "trictrac_session";
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -155,14 +177,16 @@ pub fn App() -> impl IntoView {
     let auth_username: RwSignal<Option<String>> = RwSignal::new(None);
     let auth_email_verified: RwSignal<bool> = RwSignal::new(false);
     provide_context(auth_username);
-    provide_context(auth_email_verified);
+    provide_context(AuthEmailVerified(auth_email_verified));
     // Set to true once get_me resolves (success or failure) so lobby can
     // decide immediately whether to show the nickname modal.
     let auth_loaded: RwSignal<bool> = RwSignal::new(false);
     provide_context(auth_loaded);
     // Nickname chosen by an anonymous player; used instead of "Anonymous".
     let anon_nickname: RwSignal<Option<String>> = RwSignal::new(None);
-    provide_context(anon_nickname);
+    provide_context(AnonNickname(anon_nickname));
+    let flash: RwSignal<Option<String>> = RwSignal::new(None);
+    provide_context(FlashMessage(flash));
     spawn_local(async move {
         if let Ok(me) = api::get_me().await {
             auth_username.set(Some(me.username));
@@ -205,7 +229,7 @@ pub fn App() -> impl IntoView {
                     Some(NetCommand::CreateRoom { room }) => {
                         break Some((
                             RoomConfig {
-                                relay_url: RELAY_URL.to_string(),
+                                relay_url: relay_url(),
                                 game_id: GAME_ID.to_string(),
                                 room_id: room,
                                 rule_variation: 0,
@@ -219,7 +243,7 @@ pub fn App() -> impl IntoView {
                     Some(NetCommand::JoinRoom { room }) => {
                         break Some((
                             RoomConfig {
-                                relay_url: RELAY_URL.to_string(),
+                                relay_url: relay_url(),
                                 game_id: GAME_ID.to_string(),
                                 room_id: room,
                                 rule_variation: 0,
@@ -304,7 +328,7 @@ pub fn App() -> impl IntoView {
 
             if !session.is_host {
                 save_session(&StoredSession {
-                    relay_url: RELAY_URL.to_string(),
+                    relay_url: relay_url(),
                     game_id: GAME_ID.to_string(),
                     room_id: room_id_for_storage.clone(),
                     token: session.reconnect_token,
@@ -358,7 +382,7 @@ pub fn App() -> impl IntoView {
 
                             if is_host {
                                 save_session(&StoredSession {
-                                    relay_url: RELAY_URL.to_string(),
+                                    relay_url: relay_url(),
                                     game_id: GAME_ID.to_string(),
                                     room_id: room_id_for_storage.clone(),
                                     token: reconnect_token,
@@ -404,6 +428,7 @@ pub fn App() -> impl IntoView {
     view! {
         <Router>
             <SiteHamburger />
+            <FlashBanner />
             <main>
                 <Routes fallback=|| view! { <p class="portal-empty" style="padding:3rem;text-align:center">"Page not found."</p> }>
                     <Route path=path!("/") view=LobbyPage />
@@ -413,11 +438,40 @@ pub fn App() -> impl IntoView {
                     <Route path=path!("/verify-email") view=VerifyEmailPage />
                     <Route path=path!("/forgot-password") view=ForgotPasswordPage />
                     <Route path=path!("/reset-password") view=ResetPasswordPage />
+                    <Route path=path!("/page/:slug") view=ContentPage />
                 </Routes>
             </main>
 
             <GameOverlay pending=pending screen=screen />
         </Router>
+    }
+}
+
+/// Fixed top banner that shows a flash message and auto-dismisses after 5 seconds.
+#[component]
+fn FlashBanner() -> impl IntoView {
+    let flash = use_context::<FlashMessage>()
+        .expect("FlashMessage context not found")
+        .0;
+
+    Effect::new(move |_| {
+        if flash.get().is_some() {
+            spawn_local(async move {
+                gloo_timers::future::TimeoutFuture::new(5_000).await;
+                flash.set(None);
+            });
+        }
+    });
+
+    move || {
+        flash.get().map(|msg| {
+            view! {
+                <div class="flash-banner">
+                    <span>{ msg }</span>
+                    <button class="flash-dismiss" on:click=move |_| flash.set(None)>"✕"</button>
+                </div>
+            }
+        })
     }
 }
 
@@ -544,47 +598,60 @@ fn SiteHamburger() -> impl IntoView {
             </div>
 
             // Auth
-            <div class="game-sidebar-section">
-                <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
-                    <path fill="currentColor" d="M240 192C240 147.8 275.8 112 320 112C364.2 112 400 147.8 400 192C400 236.2 364.2 272 320 272C275.8 272 240 236.2 240 192zM448 192C448 121.3 390.7 64 320 64C249.3 64 192 121.3 192 192C192 262.7 249.3 320 320 320C390.7 320 448 262.7 448 192zM144 544C144 473.3 201.3 416 272 416L368 416C438.7 416 496 473.3 496 544L496 552C496 565.3 506.7 576 520 576C533.3 576 544 565.3 544 552L544 544C544 446.8 465.2 368 368 368L272 368C174.8 368 96 446.8 96 544L96 552C96 565.3 106.7 576 120 576C133.3 576 144 565.3 144 552L144 544z"/>
-                </svg>
-
                 {move || match auth_username.get() {
                     Some(u) => {
                         let href = format!("/profile/{u}");
                         view! {
+                        <div class="game-sidebar-section">
+                            <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
+                                <path fill="currentColor" d="M240 192C240 147.8 275.8 112 320 112C364.2 112 400 147.8 400 192C400 236.2 364.2 272 320 272C275.8 272 240 236.2 240 192zM448 192C448 121.3 390.7 64 320 64C249.3 64 192 121.3 192 192C192 262.7 249.3 320 320 320C390.7 320 448 262.7 448 192zM144 544C144 473.3 201.3 416 272 416L368 416C438.7 416 496 473.3 496 544L496 552C496 565.3 506.7 576 520 576C533.3 576 544 565.3 544 552L544 544C544 446.8 465.2 368 368 368L272 368C174.8 368 96 446.8 96 544L96 552C96 565.3 106.7 576 120 576C133.3 576 144 565.3 144 552L144 544z"/>
+                            </svg>
+
                             <A href=href attr:class="game-sidebar-link"
                                on:click=move |_| sidebar_open.set(false)>
                                {u}
                             </A>
-                            <button class="game-sidebar-btn" on:click=move |_| {
+                        </div>
+                        <div class="game-sidebar-section">
+                            <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
+                                <path fill="currentColor" d="M224 160C241.7 160 256 145.7 256 128C256 110.3 241.7 96 224 96L160 96C107 96 64 139 64 192L64 448C64 501 107 544 160 544L224 544C241.7 544 256 529.7 256 512C256 494.3 241.7 480 224 480L160 480C142.3 480 128 465.7 128 448L128 192C128 174.3 142.3 160 160 160L224 160zM566.6 342.6C579.1 330.1 579.1 309.8 566.6 297.3L438.6 169.3C426.1 156.8 405.8 156.8 393.3 169.3C380.8 181.8 380.8 202.1 393.3 214.6L466.7 288L256 288C238.3 288 224 302.3 224 320C224 337.7 238.3 352 256 352L466.7 352L393.3 425.4C380.8 437.9 380.8 458.2 393.3 470.7C405.8 483.2 426.1 483.2 438.6 470.7L566.6 342.7z"/>
+                            </svg>
+                            <a class="game-sidebar-link" on:click=move |_| {
                                 spawn_local(async move {
                                     let _ = api::post_logout().await;
                                     auth_username.set(None);
                                 });
-                            }>{t!(i18n, sign_out)}</button>
+                            }>{t!(i18n, sign_out)}</a>
+                        </div>
                         }.into_any()
                     },
                     None => view! {
+                        <div class="game-sidebar-section">
+                            <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
+                                <path fill="currentColor" d="M416 160L480 160C497.7 160 512 174.3 512 192L512 448C512 465.7 497.7 480 480 480L416 480C398.3 480 384 494.3 384 512C384 529.7 398.3 544 416 544L480 544C533 544 576 501 576 448L576 192C576 139 533 96 480 96L416 96C398.3 96 384 110.3 384 128C384 145.7 398.3 160 416 160zM406.6 342.6C419.1 330.1 419.1 309.8 406.6 297.3L278.6 169.3C266.1 156.8 245.8 156.8 233.3 169.3C220.8 181.8 220.8 202.1 233.3 214.6L306.7 288L96 288C78.3 288 64 302.3 64 320C64 337.7 78.3 352 96 352L306.7 352L233.3 425.4C220.8 437.9 220.8 458.2 233.3 470.7C245.8 483.2 266.1 483.2 278.6 470.7L406.6 342.7z"/>
+                            </svg>
                         <A href="/account" attr:class="game-sidebar-link"
                            on:click=move |_| sidebar_open.set(false)>
                             {t!(i18n, sign_in)}
                         </A>
+                        </div>
                     }.into_any(),
                 }}
-            </div>
 
+            <div class="sidebar-footer">
             // ── Debug section ─────────────────────────────────────────────────
-            <div class="game-sidebar-section" style="flex-direction:column;gap:0.4rem">
-                <span class="game-sidebar-label">{t!(i18n, debug_section)}</span>
-
                 // "Take snapshot" — only visible while a game is in progress
                 {move || {
                     let Screen::Playing(ref state) = screen.get() else { return None; };
                     let vs = state.view_state.clone();
                     let tx = cmd_tx_snapshot.clone();
                     Some(view! {
-                        <button class="game-sidebar-btn" on:click=move |_| {
+
+                    <div class="game-sidebar-section">
+                        <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
+                            <path fill="currentColor" d="M257.1 96C238.4 96 220.9 105.4 210.5 120.9L184.5 160L128 160C92.7 160 64 188.7 64 224L64 480C64 515.3 92.7 544 128 544L512 544C547.3 544 576 515.3 576 480L576 224C576 188.7 547.3 160 512 160L455.5 160L429.5 120.9C419.1 105.4 401.6 96 382.9 96L257.1 96zM250.4 147.6C251.9 145.4 254.4 144 257.1 144L382.8 144C385.5 144 388 145.3 389.5 147.6L422.7 197.4C427.2 204.1 434.6 208.1 442.7 208.1L512 208.1C520.8 208.1 528 215.3 528 224.1L528 480.1C528 488.9 520.8 496.1 512 496.1L128 496C119.2 496 112 488.8 112 480L112 224C112 215.2 119.2 208 128 208L197.3 208C205.3 208 212.8 204 217.3 197.3L250.5 147.5zM320 448C381.9 448 432 397.9 432 336C432 274.1 381.9 224 320 224C258.1 224 208 274.1 208 336C208 397.9 258.1 448 320 448zM256 336C256 300.7 284.7 272 320 272C355.3 272 384 300.7 384 336C384 371.3 355.3 400 320 400C284.7 400 256 371.3 256 336z"/>
+                        </svg>
+                        <a class="game-sidebar-link" on:click=move |_| {
                             if let Ok(json) = serde_json::to_string(&vs) {
                                 #[cfg(target_arch = "wasm32")]
                                 {
@@ -610,20 +677,33 @@ fn SiteHamburger() -> impl IntoView {
                             } else {
                                 t_string!(i18n, take_snapshot).to_owned()
                             }}
-                        </button>
+                        </a>
+                    </div>
                     })
                 }}
 
                 // "Replay snapshot" — always visible
-                <button class="game-sidebar-btn" on:click=move |_| {
+            <div class="game-sidebar-section">
+                    <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
+                        <path fill="currentColor" d="M534.6 182.6C547.1 170.1 547.1 149.8 534.6 137.3L470.6 73.3C461.4 64.1 447.7 61.4 435.7 66.4C423.7 71.4 416 83.1 416 96L416 128L256 128C150 128 64 214 64 320C64 337.7 78.3 352 96 352C113.7 352 128 337.7 128 320C128 249.3 185.3 192 256 192L416 192L416 224C416 236.9 423.8 248.6 435.8 253.6C447.8 258.6 461.5 255.8 470.7 246.7L534.7 182.7zM105.4 457.4C92.9 469.9 92.9 490.2 105.4 502.7L169.4 566.7C178.6 575.9 192.3 578.6 204.3 573.6C216.3 568.6 224 556.9 224 544L224 512L384 512C490 512 576 426 576 320C576 302.3 561.7 288 544 288C526.3 288 512 302.3 512 320C512 390.7 454.7 448 384 448L224 448L224 416C224 403.1 216.2 391.4 204.2 386.4C192.2 381.4 178.5 384.2 169.3 393.3L105.3 457.3z"/>
+                    </svg>
+                <a class="game-sidebar-link" on:click=move |_| {
                     replay_text.set(String::new());
                     replay_error.set(false);
                     replay_open.set(true);
                     sidebar_open.set(false);
-                }>{t!(i18n, replay_snapshot)}</button>
+                }>{t!(i18n, replay_snapshot)}</a>
+            </div>
+            <div>
+                <div class="site-nav-infolinks">
+                    <a href="/page/about">{t!(i18n, about)}</a>
+                    <span>  - </span>
+                    <a href="/page/legal">{t!(i18n, legal)}</a>
+                </div>
             </div>
             <div>
                 <span class="site-nav-version">"v" {VERSION}</span>
+            </div>
             </div>
         </div>
 

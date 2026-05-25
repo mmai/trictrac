@@ -29,6 +29,12 @@ in
         description = "Web server protocol.";
       };
 
+      pages_dir = mkOption {
+        type = types.str;
+        default = "/var/lib/trictrac/pages";
+        description = "Directory containing content pages.";
+      };
+
       hostname = mkOption {
         type = types.str;
         default = "trictrac.localhost";
@@ -132,9 +138,9 @@ in
             # Explicit listen so this vhost isn't shadowed by a default_server
             # created by other virtual hosts with forceSSL = true.
             listen = [
-                { addr = "0.0.0.0"; port = listenPort; ssl = withSSL; }
-                { addr = "[::]"; port = listenPort; ssl = withSSL; }
-              ];
+              { addr = "0.0.0.0"; port = listenPort; ssl = withSSL; }
+              { addr = "[::]"; port = listenPort; ssl = withSSL; }
+            ];
             locations."/" = {
               extraConfig = proxyConfig;
               proxyPass = "http://trictrac-api/";
@@ -195,6 +201,7 @@ in
         environment = {
           DATABASE_URL = "postgresql://${cfg.user}@127.0.0.1/${cfg.user}";
           APP_URL = "${cfg.protocol}://${cfg.hostname}";
+          PAGES_DIR = cfg.pages_dir;
           SMTP_HOST = cfg.smtp.host;
           SMTP_PORT = toString (if cfg.smtp.port != null then cfg.smtp.port
           else if cfg.smtp.tls then 465 else 1025);

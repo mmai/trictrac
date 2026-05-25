@@ -13,6 +13,10 @@ bump version:
   git commit -m "chore: bump version to {{version}}"
   @echo "Done. Finish with: git flow release finish {{version}}"
 
+# Sync pages content to production server
+pages-deploy:
+  rsync -av clients/web/pages/ raspberry:/var/lib/trictrac/pages/
+
 doc:
   cargo doc --no-deps
 shell:
@@ -46,13 +50,17 @@ build:
 
 [working-directory: 'deploy']
 run-relay:
-  ./relay-server
+  PAGES_DIR=../clients/web/pages ./relay-server
 
 build-relay:
   CARGO_PROFILE_RELEASE_OPT_LEVEL=3 cargo build -p relay-server --release
   mkdir -p deploy
   cp target/release/relay-server deploy
   cp -u server/relay-server/GameConfig.json deploy/
+
+# generate web stats report from the current nginx logs
+stats:
+  ssh -t raspberry sudo goaccess /var/log/nginx/trictrac_access.log --log-format=COMBINED -o html > var/stats/report.html
 
 # start a trictrac container with nixos-container
 # `boot.enableContainers = true` must be set on local nixos system

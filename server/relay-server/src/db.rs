@@ -188,6 +188,25 @@ pub async fn update_password_hash(pool: &Pool, user_id: i64, hash: &str) -> Resu
     Ok(())
 }
 
+/// Permanently deletes a user and their auth data.
+/// Game history rows are kept but de-associated (user_id set to NULL).
+pub async fn delete_user(pool: &Pool, user_id: i64) -> Result<(), DbError> {
+    let client = pool.get().await?;
+    client
+        .execute(
+            "UPDATE game_participants SET user_id = NULL WHERE user_id = $1",
+            &[&user_id],
+        )
+        .await?;
+    client
+        .execute("DELETE FROM email_tokens WHERE user_id = $1", &[&user_id])
+        .await?;
+    client
+        .execute("DELETE FROM users WHERE id = $1", &[&user_id])
+        .await?;
+    Ok(())
+}
+
 // ── Email tokens ──────────────────────────────────────────────────────────────
 
 pub async fn create_email_token(

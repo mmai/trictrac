@@ -450,7 +450,9 @@ pub fn App() -> impl IntoView {
 /// Fixed top banner that shows a flash message and auto-dismisses after 5 seconds.
 #[component]
 fn FlashBanner() -> impl IntoView {
-    let flash = use_context::<FlashMessage>().expect("FlashMessage context not found").0;
+    let flash = use_context::<FlashMessage>()
+        .expect("FlashMessage context not found")
+        .0;
 
     Effect::new(move |_| {
         if flash.get().is_some() {
@@ -461,12 +463,16 @@ fn FlashBanner() -> impl IntoView {
         }
     });
 
-    move || flash.get().map(|msg| view! {
-        <div class="flash-banner">
-            <span>{ msg }</span>
-            <button class="flash-dismiss" on:click=move |_| flash.set(None)>"✕"</button>
-        </div>
-    })
+    move || {
+        flash.get().map(|msg| {
+            view! {
+                <div class="flash-banner">
+                    <span>{ msg }</span>
+                    <button class="flash-dismiss" on:click=move |_| flash.set(None)>"✕"</button>
+                </div>
+            }
+        })
+    }
 }
 
 /// Renders the full-screen game overlay, but only when the current route is "/".
@@ -687,6 +693,13 @@ fn SiteHamburger() -> impl IntoView {
                     replay_open.set(true);
                     sidebar_open.set(false);
                 }>{t!(i18n, replay_snapshot)}</a>
+            </div>
+            <div>
+                <div class="site-nav-infolinks">
+                    <a href="/page/about">{t!(i18n, about)}</a>
+                    <span>  - </span>
+                    <a href="/page/legal">{t!(i18n, legal)}</a>
+                </div>
             </div>
             <div>
                 <span class="site-nav-version">"v" {VERSION}</span>

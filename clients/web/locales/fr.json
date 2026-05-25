@@ -145,5 +145,7 @@
   "delete_account_confirm_label": "Tapez votre nom d'utilisateur pour confirmer :",
   "delete_account_confirm_btn": "Supprimer définitivement",
   "delete_account_mismatch": "Le nom d'utilisateur ne correspond pas.",
-  "account_deleted": "Votre compte a été définitivement supprimé."
+  "account_deleted": "Votre compte a été définitivement supprimé.",
+  "about": "À propos",
+  "legal": "Mentions légales"
 }

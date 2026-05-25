@@ -1,13 +1,12 @@
-# À propos du Trictrac
+# À propos
 
-Le trictrac fut un des jeux de société français les plus populaires du XVIe au XIXe siècle. Il se joue avec le même matériel et mouvements de base que le backgammon moderne (à peu de choses près), mais est beaucoup plus complexe. Le but du jeu n'est pas de sortir toutes ses pièces avant l'adversaire, mais d'atteindre un certain nombre de points en réalisant travers de multiples situations de jeu.
+Cette application vous permet de jouer au [trictrac](https://fr.wikipedia.org/wiki/Trictrac) contre un ami en ligne ou localement contre un bot.
 
-## Ce projet
+Le code source est disponible sur [github.com/mmai/trictrac](https://github.com/mmai/trictrac).
+L'application est auto hébergée et tourne sur un simple Raspberry Pi.
 
-Cette application vous permet de jouer au trictrac contre un ami en ligne ou localement contre un bot. Le moteur de jeu est écrit en Rust et compilé en WebAssembly, et s'exécute entièrement dans votre navigateur.
+## Contact et rapport de bogue
 
-Le code source est disponible sur https://github.com/mmai/trictrac
+Pour toute question, rapport de bogue ou retour d'expérience, vous pouvez me contacter à l'adresse rhumbs@rhumbs.fr.
 
-## Contact
-
-Pour toute question, rapport de bogue ou retour d'expérience, veuillez ouvrir une issue sur le dépôt du projet.
+Si vous constatez une anomalie en cours de jeu, vous pouvez copier le contexte d'une partie en cliquant sur _Prendre un instantané_, puis coller le code obtenu dans le message, en précisant le comportement auquel vous vous attendiez, et le comportement erroné constaté.

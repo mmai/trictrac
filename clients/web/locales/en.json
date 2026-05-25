@@ -147,5 +147,7 @@
   "delete_account_confirm_label": "Type your username to confirm:",
   "delete_account_confirm_btn": "Delete permanently",
   "delete_account_mismatch": "Username does not match.",
-  "account_deleted": "Your account has been permanently deleted."
+  "account_deleted": "Your account has been permanently deleted.",
+  "about": "About",
+  "legal": "Legal notices"
 }

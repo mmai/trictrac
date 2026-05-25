@@ -56,7 +56,7 @@
               frontendCargoDeps = rustPlatform.fetchCargoVendor {
                 src = ./.;
                 name = "trictrac-frontend-vendor";
-                hash = "sha256-neJh0ZQGa5LNY8vBu3kYkM+ARkXOW/EHx8sPBOsWsgE=";
+                hash = "sha256-E3MJbEehbXni7B8fQPS8fSri4f2b0A33r2djiK81E2Y=";
               };
             in
             final.stdenv.mkDerivation {

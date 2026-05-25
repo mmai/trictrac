@@ -2093,3 +2093,91 @@ a:hover { text-decoration: underline; }
     letter-spacing: 0.06em;
     color: rgba(200,164,72,0.4);
 }
+
+/* ── Content pages (markdown-rendered) ─────────────────────────────────────── */
+
+.content-page h1 {
+    font-family: var(--font-display);
+    font-size: 2rem;
+    font-weight: 600;
+    color: var(--ui-ink);
+    letter-spacing: 0.04em;
+    margin-bottom: 0.5rem;
+}
+.content-page h2 {
+    font-family: var(--font-display);
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: var(--ui-ink);
+    margin: 1.75rem 0 0.5rem;
+    border-bottom: 1px solid rgba(200,164,72,0.25);
+    padding-bottom: 0.25rem;
+}
+.content-page h3 {
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--ui-ink);
+    margin: 1.25rem 0 0.4rem;
+}
+.content-page p {
+    line-height: 1.7;
+    margin-bottom: 0.9rem;
+    color: var(--ui-ink);
+}
+.content-page ul,
+.content-page ol {
+    margin: 0.5rem 0 1rem 1.5rem;
+    line-height: 1.7;
+    color: var(--ui-ink);
+}
+.content-page li {
+    margin-bottom: 0.25rem;
+}
+.content-page a {
+    color: var(--ui-gold-dark);
+    text-decoration: underline;
+}
+.content-page a:hover {
+    color: var(--ui-ink);
+}
+.content-page code {
+    font-family: monospace;
+    background: rgba(0,0,0,0.07);
+    border-radius: 3px;
+    padding: 0.1em 0.35em;
+    font-size: 0.88em;
+}
+.content-page pre {
+    background: rgba(0,0,0,0.07);
+    border-radius: 5px;
+    padding: 1rem 1.25rem;
+    overflow-x: auto;
+    margin-bottom: 1rem;
+}
+.content-page pre code {
+    background: none;
+    padding: 0;
+}
+.content-page blockquote {
+    border-left: 3px solid rgba(200,164,72,0.5);
+    margin: 0.75rem 0;
+    padding: 0.25rem 1rem;
+    color: #665544;
+    font-style: italic;
+}
+.content-page table {
+    border-collapse: collapse;
+    width: 100%;
+    margin-bottom: 1rem;
+}
+.content-page th,
+.content-page td {
+    border: 1px solid rgba(200,164,72,0.3);
+    padding: 0.4rem 0.75rem;
+    text-align: left;
+}
+.content-page th {
+    background: rgba(200,164,72,0.1);
+    font-weight: 600;
+}

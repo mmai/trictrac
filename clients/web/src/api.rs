@@ -64,6 +64,12 @@ pub struct GameDetail {
     pub participants: Vec<Participant>,
 }
 
+#[derive(Clone, Debug, Deserialize)]
+pub struct PageContent {
+    pub title: String,
+    pub content: String,
+}
+
 // ── Request bodies ────────────────────────────────────────────────────────────
 
 #[derive(Serialize)]
@@ -239,6 +245,18 @@ pub async fn post_reset_password(token: &str, new_password: &str) -> Result<(), 
     } else {
         let text = resp.text().await.unwrap_or_default();
         Err(text)
+    }
+}
+
+pub async fn get_page(slug: &str, lang: &str) -> Result<PageContent, String> {
+    let resp = gloo_net::http::Request::get(&url(&format!("/pages/{slug}?lang={lang}")))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    if resp.status() == 200 {
+        resp.json::<PageContent>().await.map_err(|e| e.to_string())
+    } else {
+        Err(format!("status {}", resp.status()))
     }
 }
 

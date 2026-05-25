@@ -63,15 +63,18 @@ pub struct AppState {
     pub db: Pool,
     /// SMTP mailer for email verification and password reset.
     pub mailer: Mailer,
+    /// Directory containing static content pages as `{slug}/{lang}.md` files.
+    pub pages_dir: String,
 }
 
 impl AppState {
-    pub fn new(db: Pool, mailer: Mailer) -> Self {
+    pub fn new(db: Pool, mailer: Mailer, pages_dir: String) -> Self {
         Self {
             rooms: Mutex::new(HashMap::new()),
             configs: RwLock::new(HashMap::new()),
             db,
             mailer,
+            pages_dir,
         }
     }
 }

@@ -21,9 +21,9 @@ use crate::game::trictrac::backend::TrictracBackend;
 use crate::game::trictrac::types::{GameDelta, PlayerAction, ScoredEvent, SerStage, ViewState};
 use crate::i18n::*;
 use crate::portal::{
-    account::AccountPage, forgot_password::ForgotPasswordPage, game_detail::GameDetailPage,
-    lobby::LobbyPage, profile::ProfilePage, reset_password::ResetPasswordPage,
-    verify_email::VerifyEmailPage,
+    account::AccountPage, content_page::ContentPage, forgot_password::ForgotPasswordPage,
+    game_detail::GameDetailPage, lobby::LobbyPage, profile::ProfilePage,
+    reset_password::ResetPasswordPage, verify_email::VerifyEmailPage,
 };
 use trictrac_store::CheckerMove;
 
@@ -432,6 +432,7 @@ pub fn App() -> impl IntoView {
                     <Route path=path!("/verify-email") view=VerifyEmailPage />
                     <Route path=path!("/forgot-password") view=ForgotPasswordPage />
                     <Route path=path!("/reset-password") view=ResetPasswordPage />
+                    <Route path=path!("/page/:slug") view=ContentPage />
                 </Routes>
             </main>
 

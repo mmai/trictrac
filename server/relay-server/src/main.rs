@@ -66,7 +66,8 @@ async fn main() {
     let auth_backend = AuthBackend::new(pool.clone());
     let auth_layer = AuthManagerLayerBuilder::new(auth_backend, session_layer).build();
 
-    let app_state = Arc::new(AppState::new(pool, mailer));
+    let pages_dir = std::env::var("PAGES_DIR").unwrap_or_else(|_| "pages".to_string());
+    let app_state = Arc::new(AppState::new(pool, mailer, pages_dir));
     let watchdog_state = app_state.clone();
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(1200)); // 20 Min

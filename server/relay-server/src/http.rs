@@ -52,6 +52,7 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/users/{username}/games", get(user_games))
         .route("/games/result", post(game_result))
         .route("/games/{id}", get(game_detail))
+        .route("/pages/{slug}", get(get_page))
 }
 
 // ── Token generation ──────────────────────────────────────────────────────────
@@ -534,4 +535,67 @@ async fn game_result(
     );
 
     Ok(Json(GameResultResponse { game_record_id }))
+}
+
+// ── Static content pages ──────────────────────────────────────────────────────
+
+#[derive(Deserialize)]
+struct LangQuery {
+    #[serde(default = "default_lang")]
+    lang: String,
+}
+
+fn default_lang() -> String {
+    "en".to_string()
+}
+
+#[derive(Serialize)]
+struct PageResponse {
+    title: String,
+    content: String,
+}
+
+async fn get_page(
+    Path(slug): Path<String>,
+    Query(query): Query<LangQuery>,
+    State(state): State<Arc<AppState>>,
+) -> Result<impl IntoResponse, AppError> {
+    // Reject slugs with path-traversal characters or unusual lengths.
+    if slug.is_empty()
+        || slug.len() > 64
+        || !slug.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+    {
+        return Err(AppError::NotFound);
+    }
+    // Normalise lang to a safe identifier.
+    let lang = if !query.lang.is_empty()
+        && query.lang.len() <= 5
+        && query.lang.chars().all(|c| c.is_ascii_alphabetic())
+    {
+        query.lang.to_ascii_lowercase()
+    } else {
+        "en".to_string()
+    };
+
+    let base = std::path::Path::new(&state.pages_dir);
+    let primary = base.join(&slug).join(format!("{lang}.md"));
+
+    let content = match tokio::fs::read_to_string(&primary).await {
+        Ok(c) => c,
+        Err(_) if lang != "en" => {
+            let fallback = base.join(&slug).join("en.md");
+            tokio::fs::read_to_string(&fallback)
+                .await
+                .map_err(|_| AppError::NotFound)?
+        }
+        Err(_) => return Err(AppError::NotFound),
+    };
+
+    let title = content
+        .lines()
+        .find(|l| l.starts_with("# "))
+        .map(|l| l[2..].trim().to_string())
+        .unwrap_or_default();
+
+    Ok(Json(PageResponse { title, content }))
 }

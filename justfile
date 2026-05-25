@@ -14,6 +14,10 @@ bump version:
   git flow release start {{version}}
   @echo "Done. Finish with: git flow release finish {{version}}"
 
+# Sync pages content to production server
+pages-deploy:
+  rsync -av clients/web/pages/ raspberry:/var/lib/trictrac/pages/
+
 doc:
   cargo doc --no-deps
 shell:
@@ -47,7 +51,7 @@ build:
 
 [working-directory: 'deploy']
 run-relay:
-  ./relay-server
+  PAGES_DIR=../clients/web/pages ./relay-server
 
 build-relay:
   CARGO_PROFILE_RELEASE_OPT_LEVEL=3 cargo build -p relay-server --release

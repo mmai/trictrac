@@ -7,21 +7,21 @@ A Leptos-based WASM frontend for trictrac. Builds to a single-page app served by
 ## File Structure
 
 ```
-client_web/
+clients/web/
 ├── Cargo.toml             # Dependencies and i18n locale config
 ├── Trunk.toml             # Serve port 9092
 ├── index.html             # Shell: mounts WASM + links CSS
 ├── assets/style.css       # All styles (~472 lines, no framework)
 ├── locales/
-│   ├── en.json            # 52 English keys
-│   └── fr.json            # 52 French keys
+│   ├── en.json            # English keys
+│   └── fr.json            # French keys
 └── src/
     ├── main.rs            # load_locales!() macro + mount_to_body
-    ├── app.rs             # Root App component, state, network loop (571 lines)
+    ├── app.rs             # Root App component, state, network loop
     ├── components/
     │   ├── mod.rs
-    │   ├── game_screen.rs  # Main in-game UI, move staging (324 lines)
-    │   ├── board.rs        # Board rendering and click handling (372 lines)
+    │   ├── game_screen.rs  # Main in-game UI, move staging
+    │   ├── board.rs        # Board rendering and click handling
     │   ├── die.rs          # SVG die face
     │   ├── score_panel.rs  # Points/holes bar for one player
     │   ├── scoring.rs      # Jan-by-jan scoring notification panel
@@ -29,9 +29,9 @@ client_web/
     │   └── connecting_screen.rs
     └── trictrac/
         ├── mod.rs
-        ├── types.rs        # Protocol types: ViewState, JanEntry, PlayerAction, … (217 lines)
-        ├── backend.rs      # BackEndArchitecture impl, engine bridge (332 lines)
-        └── bot_local.rs    # Local bot: random moves, always Go (34 lines)
+        ├── types.rs        # Protocol types: ViewState, JanEntry, PlayerAction, …
+        ├── backend.rs      # BackEndArchitecture impl, engine bridge
+        └── bot_local.rs    # Local bot: random moves, always Go
 ```
 
 ---
@@ -75,21 +75,21 @@ Playing ──(disconnect / game over)──→ Login
 
 ### Root signals (live in `App`, provided via Leptos context)
 
-| Signal | Type | Purpose |
-|--------|------|---------|
-| `screen` | `RwSignal<Screen>` | Which screen is shown |
+| Signal    | Type                              | Purpose                             |
+| --------- | --------------------------------- | ----------------------------------- |
+| `screen`  | `RwSignal<Screen>`                | Which screen is shown               |
 | `pending` | `RwSignal<VecDeque<GameUiState>>` | Buffered states awaiting "Continue" |
-| `cmd_tx` | `UnboundedSender<NetCommand>` | UI → network command channel |
+| `cmd_tx`  | `UnboundedSender<NetCommand>`     | UI → network command channel        |
 
 Both `pending` and `cmd_tx` are provided as context so any descendant can read/write them without prop-drilling.
 
 ### GameScreen-local signals
 
-| Signal | Type | Purpose |
-|--------|------|---------|
-| `selected_origin` | `RwSignal<Option<u8>>` | First clicked field during move staging |
-| `staged_moves` | `RwSignal<Vec<(u8, u8)>>` | Accumulated (origin, dest) pairs for this turn |
-| `hovered_jan_moves` | `RwSignal<Vec<(CheckerMove, CheckerMove)>>` | Moves to draw arrows for on hover |
+| Signal              | Type                                        | Purpose                                        |
+| ------------------- | ------------------------------------------- | ---------------------------------------------- |
+| `selected_origin`   | `RwSignal<Option<u8>>`                      | First clicked field during move staging        |
+| `staged_moves`      | `RwSignal<Vec<(u8, u8)>>`                   | Accumulated (origin, dest) pairs for this turn |
+| `hovered_jan_moves` | `RwSignal<Vec<(CheckerMove, CheckerMove)>>` | Moves to draw arrows for on hover              |
 
 ### Data flow
 
@@ -108,7 +108,8 @@ User clicks Go/Continue → cmd_tx.send or pending.pop_front()
 
 ## Network and Session
 
-The multiplayer layer is provided by `backbone-lib` (local fork at `../../forks/multiplayer/`). `App` spawns an async task (via `spawn_local`) that multiplexes:
+The multiplayer layer is provided by `backbone-lib`. `App` spawns an async task (via `spawn_local`) that multiplexes:
+
 - `cmd_rx`: commands from UI components
 - `session.next_event()`: updates from the server
 
@@ -135,11 +136,11 @@ Certain opponent events are paused so the local player can see what happened bef
 
 Pause triggers (`infer_pause_reason()` in `app.rs`):
 
-| Reason | Condition |
-|--------|-----------|
-| `AfterOpponentRoll` | Opponent is active; dice values changed |
-| `AfterOpponentGo` | Opponent chose Go (HoldOrGoChoice→Move transition) |
-| `AfterOpponentMove` | Turn switched to us |
+| Reason              | Condition                                          |
+| ------------------- | -------------------------------------------------- |
+| `AfterOpponentRoll` | Opponent is active; dice values changed            |
+| `AfterOpponentGo`   | Opponent chose Go (HoldOrGoChoice→Move transition) |
+| `AfterOpponentMove` | Turn switched to us                                |
 
 While a state is in the pending queue, `GameScreen` shows a "Continue" button. Clicking it calls `pending.pop_front()`; if the queue empties, the live state is displayed.
 
@@ -153,18 +154,19 @@ While a state is in the pending queue, `GameScreen` shows a "Continue" button. C
 
 ### PlayerAction → GameEvent mapping
 
-| PlayerAction | GameEvents emitted |
-|---|---|
-| `Roll` | `GameEvent::Roll`, `GameEvent::RollResult(d1, d2)` |
-| `Move(m1, m2)` | `GameEvent::Move` (after validation) |
-| `Go` | `GameEvent::Go` |
-| `Mark` | internal; drives `MarkPoints`/`MarkAdvPoints` loop automatically |
+| PlayerAction   | GameEvents emitted                                               |
+| -------------- | ---------------------------------------------------------------- |
+| `Roll`         | `GameEvent::Roll`, `GameEvent::RollResult(d1, d2)`               |
+| `Move(m1, m2)` | `GameEvent::Move` (after validation)                             |
+| `Go`           | `GameEvent::Go`                                                  |
+| `Mark`         | internal; drives `MarkPoints`/`MarkAdvPoints` loop automatically |
 
 `drive_automatic_stages()` loops through scoring stages without waiting for player input — these are not interactive in the current implementation (schools are not implemented).
 
 ### ViewState construction
 
 `ViewState::from_game_state()` in `types.rs` converts the engine state to the serialisable snapshot sent to clients:
+
 - `board: [i8; 24]` — direct copy of `Board::positions`
 - `dice: [u8; 2]` — current dice values
 - `stage / turn_stage` — serialisable enums (`SerStage`, `SerTurnStage`)
@@ -175,6 +177,7 @@ While a state is in the pending queue, `GameScreen` shows a "Continue" button. C
 ### Bot
 
 `bot_local.rs` runs in the browser (no server call). It inspects `GameState` directly and returns a `PlayerAction`:
+
 - **RollDice**: always Roll
 - **HoldOrGoChoice**: always Go
 - **Move**: picks a random legal sequence from `MoveRules::get_possible_moves_sequences()`; mirrors moves because Black's board is mirrored
@@ -205,11 +208,11 @@ Fields are 60 × 180 px, alternating gold (`#d4a843` / `#c49030`). Checkers are 
 
 Field CSS classes are computed reactively inside the `view!` macro closure:
 
-| Class | Meaning |
-|-------|---------|
-| `.clickable` | Valid origin during Move stage (lime green) |
-| `.selected` | Currently selected origin (darker green + outline) |
-| `.dest` | Valid destination for the selected origin |
+| Class        | Meaning                                            |
+| ------------ | -------------------------------------------------- |
+| `.clickable` | Valid origin during Move stage (lime green)        |
+| `.selected`  | Currently selected origin (darker green + outline) |
+| `.dest`      | Valid destination for the selected origin          |
 
 `valid_sequences` (from `MoveRules`) is computed once per render and used to derive `valid_origins_for()` and `valid_dests_for()`. The displayed checker count (`displayed_value()`) accounts for staged-but-not-yet-sent moves so the board previews the move visually.
 
@@ -222,6 +225,7 @@ When the player hovers a row in the ScoringPanel, the corresponding checker move
 ## Scoring Display (`scoring.rs`, `score_panel.rs`)
 
 `compute_scored_event()` in `app.rs` diffs consecutive `ViewState` snapshots to produce a `ScoredEvent`:
+
 - `points_earned: i32`
 - `holes_gained: u8`
 - `jans: Vec<JanEntry>` — only events relevant to the beneficiary
@@ -237,6 +241,7 @@ When the player hovers a row in the ScoringPanel, the corresponding checker move
 `leptos_i18n::load_locales!()` is a compile-time macro that reads `locales/en.json` and `locales/fr.json` and generates a typed `i18n` module. There are 52 keys covering UI labels, game-state prompts, jan names, and status messages.
 
 Usage in components:
+
 ```rust
 let i18n = use_i18n();
 t!(i18n, your_turn_roll)                       // → reactive View
@@ -249,9 +254,10 @@ The language switcher (top bar and login screen) calls `i18n.set_locale(Locale::
 
 ## Styling
 
-`assets/style.css` is a single hand-written stylesheet (~472 lines). No CSS framework.
+`assets/style.css` is a single hand-written stylesheet. No CSS framework.
 
 Key design tokens:
+
 - Body background: `#c8b084` (tan)
 - Board background: `#2e6b2e` (dark green)
 - Fields: `#d4a843` / `#c49030` (gold alternating)
@@ -264,15 +270,15 @@ Layout uses Flexbox and CSS Grid throughout. Score bars animate with `transition
 
 ## Protocol Types (`types.rs`)
 
-| Type | Role |
-|------|------|
-| `PlayerAction` | `Roll \| Move(CheckerMove, CheckerMove) \| Go \| Mark` — UI → backend |
-| `GameDelta` | `{ state: ViewState }` — broadcast to all clients on every change |
-| `ViewState` | Full serialisable snapshot of engine state |
-| `JanEntry` | One scoring event: jan type, points, ways, moves, is_double |
-| `ScoredEvent` | Points/holes delta + jan list for one player in one turn |
-| `PlayerScore` | name, points (0–11), holes (0–12), can_bredouille |
-| `SerStage` | `PreGame \| InGame \| Ended` |
+| Type           | Role                                                                               |
+| -------------- | ---------------------------------------------------------------------------------- |
+| `PlayerAction` | `Roll \| Move(CheckerMove, CheckerMove) \| Go \| Mark` — UI → backend              |
+| `GameDelta`    | `{ state: ViewState }` — broadcast to all clients on every change                  |
+| `ViewState`    | Full serialisable snapshot of engine state                                         |
+| `JanEntry`     | One scoring event: jan type, points, ways, moves, is_double                        |
+| `ScoredEvent`  | Points/holes delta + jan list for one player in one turn                           |
+| `PlayerScore`  | name, points (0–11), holes (0–12), can_bredouille                                  |
+| `SerStage`     | `PreGame \| InGame \| Ended`                                                       |
 | `SerTurnStage` | `RollDice \| RollWaiting \| MarkPoints \| HoldOrGoChoice \| Move \| MarkAdvPoints` |
 
 `CheckerMove` comes directly from `trictrac-store`; fields are 1-indexed (0 = stack/exit).

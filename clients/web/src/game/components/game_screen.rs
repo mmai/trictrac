@@ -2,8 +2,9 @@ use std::cell::Cell;
 use std::collections::VecDeque;
 
 use futures::channel::mpsc::UnboundedSender;
+use gloo_storage::Storage as _;
 use leptos::prelude::*;
-use trictrac_store::{Board as StoreBoard, CheckerMove, Color, Dice as StoreDice, Jan, MoveRules};
+use trictrac_store::{Board as StoreBoard, CheckerMove, Color, Dice as StoreDice, Jan, MoveError, MoveRules};
 
 use super::die::Die;
 use crate::app::{GameUiState, NetCommand, PauseReason};
@@ -20,6 +21,8 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
     let i18n = use_i18n();
 
     let vs = state.view_state.clone();
+    let vs_board = vs.board;
+    let vs_dice = vs.dice;
     let player_id = state.player_id;
     let is_my_turn = vs.active_mp_player == Some(player_id);
     let is_move_stage = is_my_turn
@@ -49,6 +52,19 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
     // when the Effect also writes to the same signal it reads).
     let prev_staged_len = Cell::new(0usize);
 
+    // ── Free-play mode ─────────────────────────────────────────────────────────
+    // When enabled the board shows all own-checker fields as valid origins and
+    // invalid moves produce an explanatory error rather than being suppressed.
+    fn load_free_mode() -> bool {
+        gloo_storage::LocalStorage::get::<bool>("trictrac_free_mode").unwrap_or(false)
+    }
+    fn save_free_mode(val: bool) {
+        gloo_storage::LocalStorage::set("trictrac_free_mode", val).ok();
+    }
+    let free_mode: RwSignal<bool> = RwSignal::new(load_free_mode());
+    // None = no error; Some(None) = generic invalid; Some(Some(e)) = specific rule error
+    let move_error: RwSignal<Option<Option<MoveError>>> = RwSignal::new(None);
+
     Effect::new(move |_| {
         let moves = staged_moves.get();
         let n = moves.len();
@@ -61,12 +77,36 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
             let to_cm = |&(from, to): &(u8, u8)| {
                 CheckerMove::new(from as usize, to as usize).unwrap_or_default()
             };
-            cmd_tx_effect
-                .unbounded_send(NetCommand::Action(PlayerAction::Move(
-                    to_cm(&moves[0]),
-                    to_cm(&moves[1]),
-                )))
-                .ok();
+            let m1 = to_cm(&moves[0]);
+            let m2 = to_cm(&moves[1]);
+
+            if free_mode.get_untracked() {
+                // Mirror moves to White-perspective for validation (MoveRules always works as White)
+                let (vm1, vm2) = if player_id == 0 {
+                    (m1, m2)
+                } else {
+                    (m1.mirror(), m2.mirror())
+                };
+                let mut store_board = StoreBoard::new();
+                store_board.set_positions(&Color::White, vs_board);
+                let store_dice = StoreDice { values: vs_dice };
+                let color = if player_id == 0 { Color::White } else { Color::Black };
+                let rules = MoveRules::new(&color, &store_board, store_dice);
+                if rules.moves_follow_rules(&(vm1, vm2)) {
+                    cmd_tx_effect
+                        .unbounded_send(NetCommand::Action(PlayerAction::Move(m1, m2)))
+                        .ok();
+                } else {
+                    // moves_allowed gives the specific TricTrac rule that was broken (if any)
+                    let specific_err = rules.moves_allowed(&(vm1, vm2)).err();
+                    move_error.set(Some(specific_err));
+                }
+            } else {
+                cmd_tx_effect
+                    .unbounded_send(NetCommand::Action(PlayerAction::Move(m1, m2)))
+                    .ok();
+            }
+
             staged_moves.set(vec![]);
             selected_origin.set(None);
             // Reset the counter so the next turn starts clean.
@@ -344,6 +384,7 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
                 last_moves=last_moves
                 hit_fields=hit_fields
                 suppress_dice_anim=suppress_dice_anim
+                free_mode=free_mode
             />
 
             // ── Status, hints, and actions — cream strip below board ─
@@ -384,6 +425,33 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
                         String::new()
                     };
                     (!hint.is_empty()).then(|| view! { <p class="game-sub-prompt">{hint}</p> })
+                }}
+                // ── Free-mode error banner ─────────────────────────────────────
+                {move || {
+                    move_error.get().map(|opt_err| {
+                        let msg: String = match opt_err {
+                            None => t_string!(i18n, err_invalid_move).to_owned(),
+                            Some(MoveError::OpponentCorner) => t_string!(i18n, err_opponent_corner).to_owned(),
+                            Some(MoveError::CornerNeedsTwoCheckers) => t_string!(i18n, err_corner_needs_two).to_owned(),
+                            Some(MoveError::CornerByEffectPossible) => t_string!(i18n, err_corner_by_effect).to_owned(),
+                            Some(MoveError::ExitNeedsAllCheckersOnLastQuarter) => t_string!(i18n, err_exit_needs_all_in_last_jan).to_owned(),
+                            Some(MoveError::ExitByEffectPossible) => t_string!(i18n, err_exit_by_effect).to_owned(),
+                            Some(MoveError::ExitNotFarthest) => t_string!(i18n, err_exit_not_farthest).to_owned(),
+                            Some(MoveError::OpponentCanFillQuarter) => t_string!(i18n, err_opponent_can_fill_quarter).to_owned(),
+                            Some(MoveError::MustFillQuarter) => t_string!(i18n, err_must_fill_quarter).to_owned(),
+                            Some(MoveError::MustPlayAllDice) => t_string!(i18n, err_must_play_all_dice).to_owned(),
+                            Some(MoveError::MustPlayStrongerDie) => t_string!(i18n, err_must_play_stronger_die).to_owned(),
+                        };
+                        view! {
+                            <div class="free-mode-error">
+                                <span class="free-mode-error-msg">{msg}</span>
+                                <button
+                                    class="btn btn-secondary"
+                                    on:click=move |_| { move_error.set(None); }
+                                >{t!(i18n, reset_move)}</button>
+                            </div>
+                        }
+                    })
                 }}
                 <div class="board-actions">
                     {waiting_for_confirm.then(|| view! {
@@ -436,6 +504,21 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
                         })
                     }}
                 </div>
+                // ── Free-play mode toggle ─────────────────────────────────────
+                <label class="free-mode-toggle">
+                    <input
+                        type="checkbox"
+                        prop:checked=move || free_mode.get()
+                        on:change=move |ev| {
+                            let v = event_target_checked(&ev);
+                            save_free_mode(v);
+                            free_mode.set(v);
+                            move_error.set(None);
+                        }
+                    />
+                    {t!(i18n, free_mode_label)}
+                    <span class="free-mode-help" title=move || t_string!(i18n, free_mode_tooltip).to_owned()>"?"</span>
+                </label>
             </div>
 
             // ── Pre-game ceremony overlay ─────────────────────────────────────

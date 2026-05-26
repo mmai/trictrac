@@ -147,5 +147,19 @@
   "delete_account_mismatch": "Le nom d'utilisateur ne correspond pas.",
   "account_deleted": "Votre compte a été définitivement supprimé.",
   "about": "À propos",
-  "legal": "Mentions légales"
+  "legal": "Mentions légales",
+  "free_mode_label": "Mode jeu libre",
+  "free_mode_tooltip": "Sélectionnez n'importe quelle dame et tentez de trouver un coup valide vous-même. Si votre coup enfreint une règle, une explication s'affichera.",
+  "reset_move": "Réessayer",
+  "err_invalid_move": "Ce coup n'est pas valide avec les dés actuels",
+  "err_opponent_corner": "Interdit de jouer sur le coin de repos adverse",
+  "err_corner_needs_two": "Le coin de repos doit être pris et quitté avec 2 dames simultanément",
+  "err_corner_by_effect": "Doit prendre le coin de repos par effet, non par puissance",
+  "err_exit_needs_all_in_last_jan": "Toutes les dames doivent être dans le jan de retour avant de sortir",
+  "err_exit_by_effect": "Doit sortir par effet (sans excédant) si c'est possible",
+  "err_exit_not_farthest": "Avec excédant, doit sortir la dame la plus éloignée de la sortie",
+  "err_opponent_can_fill_quarter": "Interdit de jouer dans un cadran que l'adversaire peut encore remplir",
+  "err_must_fill_quarter": "Doit remplir (ou conserver) un cadran si c'est possible",
+  "err_must_play_all_dice": "Doit jouer les deux dés si c'est possible",
+  "err_must_play_stronger_die": "Doit jouer le dé le plus fort quand un seul peut être joué"
 }

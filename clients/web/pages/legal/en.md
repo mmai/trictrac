@@ -4,7 +4,7 @@
 
 This site does not use third-party analytics or advertising trackers.
 
-If you create an account, your username, email address, and argon2-hashed password are stored in a database on our server. Your email address is used only to send you account-related messages (email verification, password reset). It is never shared with third parties.
+If you create an account, your username, email address, and argon2-hashed password are stored in the database. Your email address is used only to send you account-related messages (email verification, password reset). It is never shared with third parties.
 
 Game records (room codes, move history, outcomes) may be stored to display game history on your profile page.
 

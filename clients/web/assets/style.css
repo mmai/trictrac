@@ -1855,6 +1855,58 @@ a:hover { text-decoration: underline; }
     min-height: 2rem;
 }
 
+/* ── Free-play mode ─────────────────────────────────────────────────────── */
+.free-mode-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-family: var(--font-ui);
+    font-size: 0.78rem;
+    color: #887766;
+    cursor: pointer;
+    user-select: none;
+    padding-top: 0.1rem;
+}
+.free-mode-toggle input[type="checkbox"] {
+    accent-color: var(--ui-gold);
+    cursor: pointer;
+    width: 0.85rem;
+    height: 0.85rem;
+}
+.free-mode-help {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1rem;
+    height: 1rem;
+    border-radius: 50%;
+    border: 1px solid #a89880;
+    font-size: 0.65rem;
+    font-style: normal;
+    color: #a89880;
+    cursor: help;
+    flex-shrink: 0;
+}
+
+.free-mode-error {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: rgba(180, 60, 30, 0.12);
+    border: 1px solid rgba(180, 60, 30, 0.4);
+    border-radius: 4px;
+    padding: 0.4rem 0.75rem;
+    width: 100%;
+    box-sizing: border-box;
+}
+.free-mode-error-msg {
+    flex: 1;
+    font-family: var(--font-ui);
+    font-size: 0.85rem;
+    color: #8b2000;
+    font-style: italic;
+}
+
 /* ── Pre-game ceremony overlay ──────────────────────────────────────────── */
 .ceremony-overlay {
     position: fixed;

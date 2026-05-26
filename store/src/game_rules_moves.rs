@@ -8,7 +8,7 @@ use rand::seq::IndexedRandom;
 use std::cmp;
 use std::collections::HashSet;
 
-#[derive(std::cmp::PartialEq, Debug)]
+#[derive(std::cmp::PartialEq, Debug, Clone, Copy)]
 pub enum MoveError {
     // Opponent corner is forbidden
     OpponentCorner,

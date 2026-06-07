@@ -1291,7 +1291,7 @@ a:hover { text-decoration: underline; }
     pointer-events: auto;
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: flex-end;
     gap: 3px;
     animation: scoring-panel-enter 0.3s ease-out;
 }
@@ -1889,7 +1889,8 @@ a:hover { text-decoration: underline; }
 }
 
 .free-mode-error {
-    text-align: center;
+    display: flex;
+    align-items: center;
     gap: 0.75rem;
     background: rgba(180, 60, 30, 0.12);
     border: 1px solid rgba(180, 60, 30, 0.4);
@@ -1899,6 +1900,7 @@ a:hover { text-decoration: underline; }
     box-sizing: border-box;
 }
 .free-mode-error-msg {
+    flex: 1;
     font-family: var(--font-ui);
     font-size: 0.85rem;
     color: #8b2000;
@@ -2302,6 +2304,10 @@ a:hover { text-decoration: underline; }
     font-weight: 600;
 }
 
+/* ══════════════════════════════════════════════════════════════════════
+   Layout variation 07 — scrolling strip + sidebar controls
+   ══════════════════════════════════════════════════════════════════════ */
+
 /* Prevent horizontal scrollbar from the full-bleed strip */
 .game-overlay { overflow-x: hidden !important; }
 
@@ -2310,9 +2316,10 @@ a:hover { text-decoration: underline; }
 .board-bar    { width: 5px; overflow: hidden; }
 
 /* ── Full-width in-flow player strip ─────────────────────────────────── */
-.players-strip {
+.v07-strip {
     width: 100vw;
     margin-top: -1.5rem;            /* undo game-overlay top padding */
+    margin-left: calc(50% - 50vw); /* align to viewport left */
     display: flex;
     align-items: center;
     background: var(--ui-parchment);
@@ -2322,11 +2329,11 @@ a:hover { text-decoration: underline; }
     gap: 0.5rem;
 }
 
-.strip-player { display: flex; align-items: center; flex: 1; min-width: 0; }
-.strip-player-left  { justify-content: flex-end; }
-.strip-player-right { justify-content: flex-start; }
+.v07-player { display: flex; align-items: center; flex: 1; min-width: 0; }
+.v07-player-left  { justify-content: flex-end; }
+.v07-player-right { justify-content: flex-start; }
 
-.strip-active-zone {
+.v07-active-zone {
     display: flex;
     align-items: center;
     gap: 0.7rem;
@@ -2334,15 +2341,15 @@ a:hover { text-decoration: underline; }
     padding: 0.28rem 0.5rem;
     transition: background 0.15s;
 }
-.strip-active-zone.active { background: rgba(58,42,10,0.08); }
+.v07-active-zone.active { background: rgba(58,42,10,0.08); }
 
 /* Checker-style circles */
-.strip-avatar {
+.v07-avatar {
     width: 38px; height: 38px;
     border-radius: 50%;
     flex-shrink: 0;
 }
-.strip-avatar-me {
+.v07-avatar-me {
     background-image:
         radial-gradient(ellipse 50% 35% at 36% 30%, rgba(255,255,255,0.65) 0%, transparent 100%),
         radial-gradient(circle, transparent 68%, rgba(160,130,70,0.22) 68.5%, rgba(160,130,70,0.22) 71.5%, transparent 72%),
@@ -2351,7 +2358,7 @@ a:hover { text-decoration: underline; }
     border: 1.8px solid var(--checker-ring);
     box-shadow: 0 2px 6px rgba(0,0,0,0.35), inset 0 -1px 3px rgba(0,0,0,0.15);
 }
-.strip-avatar-opp {
+.v07-avatar-opp {
     background-image:
         radial-gradient(ellipse 40% 28% at 36% 30%, rgba(110,65,30,0.38) 0%, transparent 100%),
         radial-gradient(circle, transparent 68%, rgba(200,164,72,0.18) 68.5%, rgba(200,164,72,0.18) 71.5%, transparent 72%),
@@ -2362,31 +2369,31 @@ a:hover { text-decoration: underline; }
 }
 
 /* Strip peg overrides */
-.players-strip .peg-track { gap: 3px; }
-.players-strip .peg-hole  { width: 12px; height: 12px; }
-.players-strip .peg-hole.filled {
+.v07-strip .peg-track { gap: 3px; }
+.v07-strip .peg-hole  { width: 12px; height: 12px; }
+.v07-strip .peg-hole.filled {
     background: #5aab38; border-color: #3a7828;
     box-shadow: 0 0 5px rgba(90,171,56,0.55);
 }
-.players-strip .peg-hole.peg-opp.filled {
+.v07-strip .peg-hole.peg-opp.filled {
     background: #c05030; border-color: #8a3018;
     box-shadow: 0 0 5px rgba(192,80,48,0.55);
 }
 
 /* Strip score-row-name: remove fixed width from v01 */
-.players-strip .score-row-name { width: auto; }
+.v07-strip .score-row-name { width: auto; }
 
 /* No ghost bar below pts-counter in the strip */
-.players-strip .pts-counter-wrap { padding-bottom: 0; }
+.v07-strip .pts-counter-wrap { padding-bottom: 0; }
 
 /* Center "Trictrac" title */
-.players-strip-center {
+.v07-strip-center {
     flex-shrink: 0;
     padding: 0 1rem;
     border-left:  1px solid rgba(138,106,40,0.2);
     border-right: 1px solid rgba(138,106,40,0.2);
 }
-.strip-title {
+.v07-title {
     font-family: var(--font-display);
     font-size: 1.4rem;
     font-weight: 600;
@@ -2397,26 +2404,24 @@ a:hover { text-decoration: underline; }
 }
 
 /* ── Body: board + controls ──────────────────────────────────────────── */
-.main-body {
+.v07-body {
     display: flex;
     align-items: flex-start;
     gap: 0.5rem;
+    width: 100%;
 }
 
 /* ── Controls column (sidebar on wide, row on narrow) ────────────────── */
-.controls {
+.v07-controls {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+    width: 152px;
+    flex-shrink: 0;
     align-self: stretch;
 }
-@media (min-width: 920px) {
-    .controls {
-        width: 200px;
-    }
-}
 
-.ctrl-dice {
+.v07-ctrl-dice {
     background: var(--board-rail);
     border-radius: 5px;
     border-top: 2px solid var(--ui-gold-dark);
@@ -2428,7 +2433,7 @@ a:hover { text-decoration: underline; }
     gap: 0.5rem;
     flex-shrink: 0;
 }
-.ctrl-dice-row {
+.v07-ctrl-dice-row {
     display: flex;
     gap: 0.55rem;
     align-items: center;
@@ -2436,7 +2441,7 @@ a:hover { text-decoration: underline; }
 }
 
 /* Free-mode toggle: light text on dark board-rail background */
-.ctrl-dice .free-mode-toggle {
+.v07-ctrl-dice .free-mode-toggle {
     color: var(--ui-parchment);
     font-size: 0.7rem;
     flex-wrap: wrap;
@@ -2444,12 +2449,12 @@ a:hover { text-decoration: underline; }
     text-align: center;
     gap: 0.3rem;
 }
-.ctrl-dice .free-mode-help {
+.v07-ctrl-dice .free-mode-help {
     border-color: rgba(242,232,208,0.35);
     color: rgba(242,232,208,0.5);
 }
 
-.ctrl-status {
+.v07-ctrl-status {
     background: var(--ui-parchment);
     border-radius: 5px;
     border-top: 2px solid var(--ui-gold-dark);
@@ -2457,13 +2462,12 @@ a:hover { text-decoration: underline; }
     padding: 0.65rem 0.75rem 0.75rem;
     display: flex;
     flex-direction: column;
-    justify-content: space-around;
     align-items: center;
     gap: 0.4rem;
     flex: 1;
     min-width: 0;
 }
-.ctrl-status .game-status {
+.v07-ctrl-status .game-status {
     color: var(--ui-ink);
     text-shadow: none;
     font-size: 1rem;
@@ -2472,12 +2476,12 @@ a:hover { text-decoration: underline; }
     text-align: center;
     line-height: 1.3;
 }
-.ctrl-status .board-actions {
+.v07-ctrl-status .board-actions {
     flex-wrap: wrap;
     justify-content: center;
     min-height: 0;
 }
-.ctrl-status .game-sub-prompt {
+.v07-ctrl-status .game-sub-prompt {
     color: #887766;
     padding: 0;
     width: auto;
@@ -2487,7 +2491,11 @@ a:hover { text-decoration: underline; }
     margin: 0;
 }
 
-.scoring-row .scoring-panels-container {
+/* ── Scoring panels row (below board+controls, in-flow) ──────────────── */
+.v07-scoring-row { width: 100%; }
+
+/* Reset absolute positioning from the old score-area context */
+.v07-scoring-row .scoring-panels-container {
     position: static;
     top: auto; left: auto; right: auto; bottom: auto;
     z-index: auto;
@@ -2498,22 +2506,23 @@ a:hover { text-decoration: underline; }
     align-items: stretch;
     gap: 4px;
 }
-.scoring-row .scoring-panel {
+.v07-scoring-row .scoring-panel {
+    width: 100%;
     box-sizing: border-box;
     margin: 0;
 }
 
 /* ── Responsive: ≤919px → controls becomes a bottom bar ─────────────── */
 @media (max-width: 919px) {
-    .main-body {
+    .v07-body {
         flex-direction: column;
         align-items: stretch;
     }
-    .controls {
+    .v07-controls {
         flex-direction: row;
         width: 100%;
     }
-    .ctrl-status { flex: 1; }
+    .v07-ctrl-status { flex: 1; }
     /* Hide pegs on small screens to save space in the strip */
-    .players-strip .peg-track { display: none; }
+    .v07-strip .peg-track { display: none; }
 }

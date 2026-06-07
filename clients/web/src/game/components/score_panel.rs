@@ -32,19 +32,18 @@ pub fn jan_label(jan: &Jan) -> String {
     }
 }
 
-/// Merged scoreboard showing both players above the board.
+/// Full-width player strip at the top of the game screen.
 ///
-/// - Two stacked rows for a clear race-to-12 visual comparison.
-/// - Points shown as an animated jackpot counter (ticks up on each new point).
-/// - Hole pegs are larger and use green (me) / red (opponent) instead of gold.
-/// - When a hole is gained, the new peg pops in and a brief non-blocking label
-///   appears instead of the old blocking toast popup.
+/// - Left side: me (right-aligned toward center): avatar → name → pegs → pts.
+/// - Center: "Trictrac" italic title.
+/// - Right side: opponent (left-aligned from center): pts → pegs → name → avatar.
+/// - Active player zone gets a subtle rounded highlight.
+/// - Points animate as a jackpot counter; new peg pops in with an animation.
 #[component]
 pub fn MergedScorePanel(
     my_score: PlayerScore,
     opp_score: PlayerScore,
-    /// Points just earned this turn; 0 = no animation. Set to 0 when a hole
-    /// was gained (points wrap around 12, counter stays at end value).
+    /// Points just earned this turn; 0 = no animation.
     #[prop(default = 0)]
     my_points_earned: u8,
     #[prop(default = 0)] opp_points_earned: u8,
@@ -55,14 +54,13 @@ pub fn MergedScorePanel(
     /// True when my hole was scored under bredouille (shows ×2 in the flash).
     #[prop(default = false)]
     my_bredouille: bool,
+    /// `Some(true)` = my turn active, `Some(false)` = opponent active, `None` = no active turn.
+    #[prop(default = None)]
+    active_player_is_me: Option<bool>,
 ) -> impl IntoView {
     let i18n = use_i18n();
 
     // ── Points counter signals ──────────────────────────────────────────────
-    // When no hole was gained: start from (current - earned) and tick up.
-    // When a hole was gained: points wrapped around 12, so skip the animation.
-    // On non-WASM there is no animation; start directly at the final value.
-    // Suppress the unused-variable warning for animation-only params.
     #[cfg(not(target_arch = "wasm32"))]
     let _ = (my_points_earned, opp_points_earned);
     #[cfg(not(target_arch = "wasm32"))]
@@ -122,10 +120,6 @@ pub fn MergedScorePanel(
         }
     }
 
-    // ── Ghost bar widths (show the end value immediately — static reference) ─
-    let my_bar_style = format!("width:{}%", (my_score.points as u32 * 100 / 12).min(100));
-    let opp_bar_style = format!("width:{}%", (opp_score.points as u32 * 100 / 12).min(100));
-
     // ── Hole peg tracks ─────────────────────────────────────────────────────
     let my_holes = my_score.holes;
     let opp_holes = opp_score.holes;
@@ -163,73 +157,77 @@ pub fn MergedScorePanel(
     let my_can_bredouille = my_score.can_bredouille;
     let opp_can_bredouille = opp_score.can_bredouille;
 
+    let my_active = active_player_is_me == Some(true);
+    let opp_active = active_player_is_me == Some(false);
+
     view! {
-        <div class="merged-score-panel">
+        <div class="players-strip">
 
-            // ── My player row ───────────────────────────────────────────
-            <div class="score-row score-row-me">
-                <div class="score-row-name">
-                    <span class="player-name">{my_name}</span>
-                    <span class="you-tag">{t!(i18n, you_suffix)}</span>
-                </div>
-                <div class="pts-counter-wrap">
-                    <div class="pts-ghost-bar-track">
-                        <div class="pts-ghost-bar-fill" style=my_bar_style></div>
+            // ── My player: left side, right-aligned toward center ───────────
+            <div class="strip-player strip-player-left">
+                <div class="strip-active-zone" class:active=my_active>
+                    <div class="strip-avatar strip-avatar-me"></div>
+                    <div class="score-row-name">
+                        <span class="player-name">{my_name}</span>
+                        <span class="you-tag">{t!(i18n, you_suffix)}</span>
                     </div>
-                    <div class="pts-counter-row">
-                        <span class="pts-counter">{move || my_displayed_pts.get()}</span>
-                        <span class="pts-max">"/12"</span>
-                    </div>
-                </div>
-                <div class="peg-track">{my_pegs}</div>
-                {my_can_bredouille.then(|| view! {
-                    <span class="bredouille-badge"
-                          title=move || t_string!(i18n, bredouille_title).to_owned()>
-                        "B"
-                    </span>
-                })}
-                // Flash sits in the free space to the right of the pegs.
-                // margin-left:auto keeps it right-aligned inside the flex row
-                // without adding a new row, so the board never shifts down.
-                {(my_holes_gained > 0).then(|| {
-                    let label = if my_bredouille {
-                        format!("Trou {} · ×2 bredouille", my_holes)
-                    } else {
-                        format!("Trou {}", my_holes)
-                    };
-                    view! {
-                        <div class="hole-flash"
-                             class:hole-flash-bredouille=my_bredouille>
-                            {label}
+                    {my_can_bredouille.then(|| view! {
+                        <span class="bredouille-badge"
+                              title=move || t_string!(i18n, bredouille_title).to_owned()>
+                            "B"
+                        </span>
+                    })}
+                    <div class="peg-track">{my_pegs}</div>
+                    <div class="pts-counter-wrap">
+                        <div class="pts-counter-row">
+                            <span class="pts-counter">{move || my_displayed_pts.get()}</span>
+                            <span class="pts-max">"/12"</span>
                         </div>
-                    }
-                })}
+                    </div>
+                    {(my_holes_gained > 0).then(|| {
+                        let label = if my_bredouille {
+                            format!("Trou {} · ×2 bredouille", my_holes)
+                        } else {
+                            format!("Trou {}", my_holes)
+                        };
+                        view! {
+                            <div class="hole-flash"
+                                 class:hole-flash-bredouille=my_bredouille>
+                                {label}
+                            </div>
+                        }
+                    })}
+                </div>
             </div>
 
-            <div class="score-row-sep"></div>
-
-            // ── Opponent row ────────────────────────────────────────────
-            <div class="score-row score-row-opp">
-                <div class="score-row-name">
-                    <span class="player-name">{opp_name}</span>
-                </div>
-                <div class="pts-counter-wrap">
-                    <div class="pts-ghost-bar-track">
-                        <div class="pts-ghost-bar-fill pts-ghost-bar-opp" style=opp_bar_style></div>
-                    </div>
-                    <div class="pts-counter-row">
-                        <span class="pts-counter">{move || opp_displayed_pts.get()}</span>
-                        <span class="pts-max">"/12"</span>
-                    </div>
-                </div>
-                <div class="peg-track">{opp_pegs}</div>
-                {opp_can_bredouille.then(|| view! {
-                    <span class="bredouille-badge"
-                          title=move || t_string!(i18n, bredouille_title).to_owned()>
-                        "B"
-                    </span>
-                })}
+            // ── Center title ────────────────────────────────────────────────
+            <div class="strip-center">
+                <span class="strip-title">"Trictrac"</span>
             </div>
+
+            // ── Opponent: right side, left-aligned from center ──────────────
+            <div class="strip-player strip-player-right">
+                <div class="strip-active-zone" class:active=opp_active>
+                    <div class="pts-counter-wrap">
+                        <div class="pts-counter-row">
+                            <span class="pts-counter">{move || opp_displayed_pts.get()}</span>
+                            <span class="pts-max">"/12"</span>
+                        </div>
+                    </div>
+                    <div class="peg-track">{opp_pegs}</div>
+                    {opp_can_bredouille.then(|| view! {
+                        <span class="bredouille-badge"
+                              title=move || t_string!(i18n, bredouille_title).to_owned()>
+                            "B"
+                        </span>
+                    })}
+                    <div class="score-row-name">
+                        <span class="player-name">{opp_name}</span>
+                    </div>
+                    <div class="strip-avatar strip-avatar-opp"></div>
+                </div>
+            </div>
+
         </div>
     }
 }

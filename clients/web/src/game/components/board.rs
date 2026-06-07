@@ -39,7 +39,7 @@ fn field_zone_class(field_num: u8) -> &'static str {
 }
 
 /// Returns (d0_used, d1_used) for the bar dice display.
-fn bar_matched_dice_used(staged: &[(u8, u8)], dice: (u8, u8)) -> (bool, bool) {
+pub(crate) fn bar_matched_dice_used(staged: &[(u8, u8)], dice: (u8, u8)) -> (bool, bool) {
     let mut d0 = false;
     let mut d1 = false;
     for &(from, to) in staged {
@@ -251,7 +251,11 @@ fn free_mode_origins_for(board: [i8; 24], staged: &[(u8, u8)], is_white: bool) -
     (1u8..=24)
         .filter(|&f| {
             let v = displayed_value(board, staged, is_white, f);
-            if is_white { v > 0 } else { v < 0 }
+            if is_white {
+                v > 0
+            } else {
+                v < 0
+            }
         })
         .collect()
 }
@@ -278,7 +282,11 @@ fn free_mode_dests_for(
             let &(f0, t0) = &staged[0];
             if t0 == 0 {
                 // First move was an exit — can't reliably infer die, offer both
-                if dice.0 == dice.1 { vec![dice.0] } else { vec![dice.0, dice.1] }
+                if dice.0 == dice.1 {
+                    vec![dice.0]
+                } else {
+                    vec![dice.0, dice.1]
+                }
             } else {
                 let dist: u8 = if is_white {
                     t0.saturating_sub(f0)
@@ -299,7 +307,11 @@ fn free_mode_dests_for(
 
     let opp_present = |f: u8| -> bool {
         let v = displayed_value(board, staged, is_white, f);
-        if is_white { v < 0 } else { v > 0 }
+        if is_white {
+            v < 0
+        } else {
+            v > 0
+        }
     };
 
     let mut dests = vec![];
@@ -315,7 +327,16 @@ fn free_mode_dests_for(
         if dest >= 1 && dest <= 24 {
             let d = dest as u8;
             if !opp_present(d) {
-                dests.push(d);
+                if d == 13 && is_white && displayed_value(board, staged, is_white, 12) < 2 {
+                    // prise de coin par puissance for white
+                    dests.push(12)
+                } else if d == 12 && !is_white && displayed_value(board, staged, is_white, 13) > -2
+                {
+                    // prise de coin par puissance for black
+                    dests.push(13)
+                } else {
+                    dests.push(d);
+                }
             }
         } else if all_in_exit {
             dests.push(0); // exit
@@ -676,23 +697,11 @@ pub fn Board(
         (&TOP_LEFT_B, &TOP_RIGHT_B, &BOT_LEFT_B, &BOT_RIGHT_B)
     };
 
-    // Zone label pairs (top-left, top-right, bot-left, bot-right) per perspective.
-    let (label_tl, label_tr, label_bl, label_br) = if is_white {
-        ("", "jan de retour", "grand jan", "petit jan")
-    } else {
-        ("petit jan", "grand jan", "jan de retour", "")
-    };
-
     view! {
         // board-wrapper keeps zone labels outside .board so the SVG overlay
         // inside .board stays correctly positioned (position:absolute top:0 left:0
         // is relative to .board, not the wrapper).
         <div class="board-wrapper">
-            <div class="zone-labels-row">
-                <div class="zone-label zone-label-quarter">{label_tl}</div>
-                <div class="zone-label zone-label-bar"></div>
-                <div class="zone-label zone-label-quarter">{label_tr}</div>
-            </div>
             <div class="board">
                 <div class="board-row top-row">
                     <div class="board-quarter">{fields_from(tl, true)}</div>
@@ -832,11 +841,6 @@ pub fn Board(
                         .into_any()
                     })
                 }}
-            </div>
-            <div class="zone-labels-row">
-                <div class="zone-label zone-label-quarter">{label_bl}</div>
-                <div class="zone-label zone-label-bar"></div>
-                <div class="zone-label zone-label-quarter">{label_br}</div>
             </div>
         </div>
     }

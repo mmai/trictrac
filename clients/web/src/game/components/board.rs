@@ -112,7 +112,8 @@ fn valid_origins_for(seqs: &[(CheckerMove, CheckerMove)], staged: &[(u8, u8)]) -
 }
 
 /// Pixel center of a board field in the SVG overlay coordinate space.
-/// Geometry: field 60×180px, board padding 4px, gap 4px, bar 20px, center-bar 12px.
+/// Geometry: field 60×180px, board padding 4px, row gap 4px, bar 5px, center-bar 12px.
+/// Quarter width: 6×60 + 5×2(inter-field gap) = 370px. Board total: 761px.
 /// With triangular flèches, arrows target the WIDE BASE of each triangle —
 /// that is where the checker stack actually sits.
 fn field_center(f: usize, is_white: bool) -> Option<(f32, f32)> {
@@ -137,9 +138,9 @@ fn field_center(f: usize, is_white: bool) -> Option<(f32, f32)> {
         }
     };
     // Left-quarter field i center x:  4(pad) + i*62 + 30(half field) = 34 + 62i
-    // Right-quarter:  4 + 370(quarter) + 4(gap) + 68(bar) + 4(gap) + i*62 + 30 = 480 + 62i
+    // Right-quarter:  4 + 370(quarter) + 4(gap) + 5(bar) + 4(gap) + i*62 + 30 = 417 + 62i
     let x = if right {
-        480.0 + qi as f32 * 62.0
+        417.0 + qi as f32 * 62.0
     } else {
         34.0 + qi as f32 * 62.0
     };
@@ -716,7 +717,7 @@ pub fn Board(
                 </div>
                 // SVG overlay: arrows for hovered jan moves
                 <svg
-                    width="824" height="388"
+                    width="761" height="388"
                     style="position:absolute;top:0;left:0;pointer-events:none;overflow:visible"
                 >
                     {move || {

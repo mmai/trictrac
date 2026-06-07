@@ -2334,7 +2334,7 @@ a:hover { text-decoration: underline; }
     padding: 0.28rem 0.5rem;
     transition: background 0.15s;
 }
-.strip-active-zone.active { background: rgba(58,42,10,0.08); }
+.strip-active-zone.active { background: rgba(58,42,10,0.15); }
 
 /* Checker-style circles */
 .strip-avatar {
@@ -2388,12 +2388,12 @@ a:hover { text-decoration: underline; }
 }
 .strip-title {
     font-family: var(--font-display);
-    font-size: 1.4rem;
+    font-size: 2rem;
     font-weight: 600;
-    font-style: italic;
     color: var(--ui-ink);
     letter-spacing: 0.03em;
     white-space: nowrap;
+    margin-left: 1rem;
 }
 
 /* ── Body: board + controls ──────────────────────────────────────────── */

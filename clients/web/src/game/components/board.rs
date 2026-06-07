@@ -39,7 +39,7 @@ fn field_zone_class(field_num: u8) -> &'static str {
 }
 
 /// Returns (d0_used, d1_used) for the bar dice display.
-fn bar_matched_dice_used(staged: &[(u8, u8)], dice: (u8, u8)) -> (bool, bool) {
+pub(crate) fn bar_matched_dice_used(staged: &[(u8, u8)], dice: (u8, u8)) -> (bool, bool) {
     let mut d0 = false;
     let mut d1 = false;
     for &(from, to) in staged {
@@ -112,7 +112,8 @@ fn valid_origins_for(seqs: &[(CheckerMove, CheckerMove)], staged: &[(u8, u8)]) -
 }
 
 /// Pixel center of a board field in the SVG overlay coordinate space.
-/// Geometry: field 60×180px, board padding 4px, gap 4px, bar 20px, center-bar 12px.
+/// Geometry: field 60×180px, board padding 4px, row gap 4px, bar 5px, center-bar 12px.
+/// Quarter width: 6×60 + 5×2(inter-field gap) = 370px. Board total: 761px.
 /// With triangular flèches, arrows target the WIDE BASE of each triangle —
 /// that is where the checker stack actually sits.
 fn field_center(f: usize, is_white: bool) -> Option<(f32, f32)> {
@@ -137,9 +138,9 @@ fn field_center(f: usize, is_white: bool) -> Option<(f32, f32)> {
         }
     };
     // Left-quarter field i center x:  4(pad) + i*62 + 30(half field) = 34 + 62i
-    // Right-quarter:  4 + 370(quarter) + 4(gap) + 68(bar) + 4(gap) + i*62 + 30 = 480 + 62i
+    // Right-quarter:  4 + 370(quarter) + 4(gap) + 5(bar) + 4(gap) + i*62 + 30 = 417 + 62i
     let x = if right {
-        480.0 + qi as f32 * 62.0
+        417.0 + qi as f32 * 62.0
     } else {
         34.0 + qi as f32 * 62.0
     };
@@ -246,6 +247,107 @@ fn valid_dests_for(
     v
 }
 
+/// In free-mode: all fields that own a checker (after staged moves applied).
+fn free_mode_origins_for(board: [i8; 24], staged: &[(u8, u8)], is_white: bool) -> Vec<u8> {
+    (1u8..=24)
+        .filter(|&f| {
+            let v = displayed_value(board, staged, is_white, f);
+            if is_white {
+                v > 0
+            } else {
+                v < 0
+            }
+        })
+        .collect()
+}
+
+/// In free-mode: destinations reachable from `origin` by the remaining die value,
+/// excluding fields occupied by opponent checkers.
+fn free_mode_dests_for(
+    board: [i8; 24],
+    staged: &[(u8, u8)],
+    origin: u8,
+    dice: (u8, u8),
+    is_white: bool,
+    all_in_exit: bool,
+) -> Vec<u8> {
+    let to_use: Vec<u8> = match staged.len() {
+        0 => {
+            if dice.0 == dice.1 {
+                vec![dice.0]
+            } else {
+                vec![dice.0, dice.1]
+            }
+        }
+        1 => {
+            let &(f0, t0) = &staged[0];
+            if t0 == 0 {
+                // First move was an exit — can't reliably infer die, offer both
+                if dice.0 == dice.1 {
+                    vec![dice.0]
+                } else {
+                    vec![dice.0, dice.1]
+                }
+            } else {
+                let dist: u8 = if is_white {
+                    t0.saturating_sub(f0)
+                } else {
+                    f0.saturating_sub(t0)
+                };
+                if dice.0 == dice.1 {
+                    vec![dice.0]
+                } else if dist == dice.0 {
+                    vec![dice.1]
+                } else {
+                    vec![dice.0]
+                }
+            }
+        }
+        _ => return vec![],
+    };
+
+    let opp_present = |f: u8| -> bool {
+        let v = displayed_value(board, staged, is_white, f);
+        if is_white {
+            v < 0
+        } else {
+            v > 0
+        }
+    };
+
+    let mut dests = vec![];
+    for die in to_use {
+        if die == 0 {
+            continue;
+        }
+        let dest: i16 = if is_white {
+            origin as i16 + die as i16
+        } else {
+            origin as i16 - die as i16
+        };
+        if dest >= 1 && dest <= 24 {
+            let d = dest as u8;
+            if !opp_present(d) {
+                if d == 13 && is_white && displayed_value(board, staged, is_white, 12) < 2 {
+                    // prise de coin par puissance for white
+                    dests.push(12)
+                } else if d == 12 && !is_white && displayed_value(board, staged, is_white, 13) > -2
+                {
+                    // prise de coin par puissance for black
+                    dests.push(13)
+                } else {
+                    dests.push(d);
+                }
+            }
+        } else if all_in_exit {
+            dests.push(0); // exit
+        }
+    }
+    dests.sort_unstable();
+    dests.dedup();
+    dests
+}
+
 #[component]
 pub fn Board(
     view_state: ViewState,
@@ -275,8 +377,13 @@ pub fn Board(
     /// Suppress dice animation (echo screen shown after a pending confirm was dismissed).
     #[prop(default = false)]
     suppress_dice_anim: bool,
+    /// When true, any field with own checkers is selectable as origin; destinations
+    /// are computed from dice arithmetic rather than from pre-validated sequences.
+    #[prop(default = RwSignal::new(false))]
+    free_mode: RwSignal<bool>,
 ) -> impl IntoView {
     let board = view_state.board;
+    let vs_dice = view_state.dice;
     let white_points = view_state.scores[0].points;
     let white_can_bredouille = view_state.scores[0].can_bredouille;
     let black_points = view_state.scores[1].points;
@@ -389,6 +496,23 @@ pub fn Board(
                                 if can_stage && sel.is_some() && sel != Some(field_num) {
                                     cls.push_str(" dest");
                                 }
+                            } else if can_stage && free_mode.get() {
+                                // Free-play mode: highlight based on dice arithmetic
+                                if let Some(origin) = sel {
+                                    if origin == field_num {
+                                        cls.push_str(" selected clickable");
+                                    } else {
+                                        let dests = free_mode_dests_for(board, &staged, origin, vs_dice, is_white, all_in_exit);
+                                        if dests.iter().any(|&d| d == field_num && d != 0) {
+                                            cls.push_str(" clickable dest");
+                                        }
+                                    }
+                                } else {
+                                    let origins = free_mode_origins_for(board, &staged, is_white);
+                                    if origins.iter().any(|&o| o == field_num) {
+                                        cls.push_str(" clickable");
+                                    }
+                                }
                             } else if can_stage {
                                 if let Some(origin) = sel {
                                     if origin == field_num {
@@ -430,40 +554,54 @@ pub fn Board(
                             let staged = staged_moves.get_untracked();
                             if staged.len() >= 2 { return; }
 
-                            match selected_origin.get_untracked() {
-                                Some(origin) if origin == field_num => {
-                                    selected_origin.set(None);
-                                }
-                                Some(origin) => {
-                                    let valid = if seqs_k.is_empty() {
-                                        true
-                                    } else {
-                                        valid_dests_for(&seqs_k, &staged, origin)
-                                            .iter()
-                                            .any(|&d| d == field_num)
-                                    };
-                                    if valid {
-                                        staged_moves.update(|v| v.push((origin, field_num)));
+                            if free_mode.get_untracked() {
+                                match selected_origin.get_untracked() {
+                                    Some(origin) if origin == field_num => {
                                         selected_origin.set(None);
                                     }
-                                }
-                                None => {
-                                    if seqs_k.is_empty() {
-                                        let val = displayed_value(board, &staged, is_white, field_num);
-                                        if is_white && val > 0 || !is_white && val < 0 {
-                                            selected_origin.set(Some(field_num));
+                                    Some(origin) => {
+                                        let dests = free_mode_dests_for(board, &staged, origin, vs_dice, is_white, all_in_exit);
+                                        if dests.iter().any(|&d| d == field_num) {
+                                            staged_moves.update(|v| v.push((origin, field_num)));
+                                            selected_origin.set(None);
                                         }
-                                    } else {
-                                        let origins = valid_origins_for(&seqs_k, &staged);
+                                    }
+                                    None => {
+                                        let origins = free_mode_origins_for(board, &staged, is_white);
                                         if origins.iter().any(|&o| o == field_num) {
                                             selected_origin.set(Some(field_num));
-                                            // let dests = valid_dests_for(&seqs_k, &staged, field_num);
-                                            // if !dests.is_empty() && dests.iter().all(|&d| d == 0) {
-                                            //     // All destinations are exits: auto-stage
-                                            //     staged_moves.update(|v| v.push((field_num, 0)));
-                                            // } else {
-                                            //     selected_origin.set(Some(field_num));
-                                            // }
+                                        }
+                                    }
+                                }
+                            } else {
+                                match selected_origin.get_untracked() {
+                                    Some(origin) if origin == field_num => {
+                                        selected_origin.set(None);
+                                    }
+                                    Some(origin) => {
+                                        let valid = if seqs_k.is_empty() {
+                                            true
+                                        } else {
+                                            valid_dests_for(&seqs_k, &staged, origin)
+                                                .iter()
+                                                .any(|&d| d == field_num)
+                                        };
+                                        if valid {
+                                            staged_moves.update(|v| v.push((origin, field_num)));
+                                            selected_origin.set(None);
+                                        }
+                                    }
+                                    None => {
+                                        if seqs_k.is_empty() {
+                                            let val = displayed_value(board, &staged, is_white, field_num);
+                                            if is_white && val > 0 || !is_white && val < 0 {
+                                                selected_origin.set(Some(field_num));
+                                            }
+                                        } else {
+                                            let origins = valid_origins_for(&seqs_k, &staged);
+                                            if origins.iter().any(|&o| o == field_num) {
+                                                selected_origin.set(Some(field_num));
+                                            }
                                         }
                                     }
                                 }
@@ -560,23 +698,11 @@ pub fn Board(
         (&TOP_LEFT_B, &TOP_RIGHT_B, &BOT_LEFT_B, &BOT_RIGHT_B)
     };
 
-    // Zone label pairs (top-left, top-right, bot-left, bot-right) per perspective.
-    let (label_tl, label_tr, label_bl, label_br) = if is_white {
-        ("", "jan de retour", "grand jan", "petit jan")
-    } else {
-        ("petit jan", "grand jan", "jan de retour", "")
-    };
-
     view! {
         // board-wrapper keeps zone labels outside .board so the SVG overlay
         // inside .board stays correctly positioned (position:absolute top:0 left:0
         // is relative to .board, not the wrapper).
         <div class="board-wrapper">
-            <div class="zone-labels-row">
-                <div class="zone-label zone-label-quarter">{label_tl}</div>
-                <div class="zone-label zone-label-bar"></div>
-                <div class="zone-label zone-label-quarter">{label_tr}</div>
-            </div>
             <div class="board">
                 <div class="board-row top-row">
                     <div class="board-quarter">{fields_from(tl, true)}</div>
@@ -591,7 +717,7 @@ pub fn Board(
                 </div>
                 // SVG overlay: arrows for hovered jan moves
                 <svg
-                    width="824" height="388"
+                    width="761" height="388"
                     style="position:absolute;top:0;left:0;pointer-events:none;overflow:visible"
                 >
                     {move || {
@@ -624,15 +750,20 @@ pub fn Board(
                     // even when the initial board has a checker outside the exit zone,
                     // because the first move can bring all checkers in (e.g. 15→21, 19→exit).
                     let staged = staged_moves.get();
-                    let show = is_move_stage && match staged.len() {
-                        0 => seqs_exit.iter().any(|(m1, m2)| m1.get_to() == 0 || m2.get_to() == 0),
-                        1 => {
-                            let (f0, t0) = staged[0];
-                            seqs_exit.iter()
-                                .filter(|(m1, _)| m1.get_from() as u8 == f0 && m1.get_to() as u8 == t0)
-                                .any(|(_, m2)| m2.get_to() == 0)
+                    let show = is_move_stage && if free_mode.get() {
+                        // In free mode show exit button whenever all checkers are in exit zone
+                        all_in_exit && staged.len() < 2
+                    } else {
+                        match staged.len() {
+                            0 => seqs_exit.iter().any(|(m1, m2)| m1.get_to() == 0 || m2.get_to() == 0),
+                            1 => {
+                                let (f0, t0) = staged[0];
+                                seqs_exit.iter()
+                                    .filter(|(m1, _)| m1.get_from() as u8 == f0 && m1.get_to() as u8 == t0)
+                                    .any(|(_, m2)| m2.get_to() == 0)
+                            }
+                            _ => false,
                         }
-                        _ => false,
                     };
                     show.then(|| {
                         let seqs_exit_cls = seqs_exit.clone();
@@ -657,10 +788,15 @@ pub fn Board(
                                     let staged = staged_moves.get();
                                     let sel = selected_origin.get();
                                     let active = match sel {
-                                        Some(origin) => seqs_exit_cls.is_empty()
-                                            || valid_dests_for(&seqs_exit_cls, &staged, origin)
-                                                .iter()
-                                                .any(|&d| d == 0),
+                                        Some(origin) => if free_mode.get() {
+                                            free_mode_dests_for(board, &staged, origin, vs_dice, is_white, all_in_exit)
+                                                .iter().any(|&d| d == 0)
+                                        } else {
+                                            seqs_exit_cls.is_empty()
+                                                || valid_dests_for(&seqs_exit_cls, &staged, origin)
+                                                    .iter()
+                                                    .any(|&d| d == 0)
+                                        },
                                         None => false,
                                     };
                                     if active { "exit-btn exit-active" } else { "exit-btn" }
@@ -672,10 +808,15 @@ pub fn Board(
                                     let Some(origin) = selected_origin.get_untracked() else {
                                         return;
                                     };
-                                    let valid = seqs_exit_click.is_empty()
-                                        || valid_dests_for(&seqs_exit_click, &staged, origin)
-                                            .iter()
-                                            .any(|&d| d == 0);
+                                    let valid = if free_mode.get_untracked() {
+                                        free_mode_dests_for(board, &staged, origin, vs_dice, is_white, all_in_exit)
+                                            .iter().any(|&d| d == 0)
+                                    } else {
+                                        seqs_exit_click.is_empty()
+                                            || valid_dests_for(&seqs_exit_click, &staged, origin)
+                                                .iter()
+                                                .any(|&d| d == 0)
+                                    };
                                     if valid {
                                         staged_moves.update(|v| v.push((origin, 0)));
                                         selected_origin.set(None);
@@ -701,11 +842,6 @@ pub fn Board(
                         .into_any()
                     })
                 }}
-            </div>
-            <div class="zone-labels-row">
-                <div class="zone-label zone-label-quarter">{label_bl}</div>
-                <div class="zone-label zone-label-bar"></div>
-                <div class="zone-label zone-label-quarter">{label_br}</div>
             </div>
         </div>
     }

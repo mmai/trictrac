@@ -149,5 +149,19 @@
   "delete_account_mismatch": "Username does not match.",
   "account_deleted": "Your account has been permanently deleted.",
   "about": "About",
-  "legal": "Legal notices"
+  "legal": "Legal notices",
+  "free_mode_label": "Free play mode",
+  "free_mode_tooltip": "Select any checker and try to find a valid move yourself. If your move breaks a rule, you'll see an explanation.",
+  "reset_move": "Try again",
+  "err_invalid_move": "This move is not valid with the current dice",
+  "err_opponent_corner": "Cannot land on the opponent's rest corner",
+  "err_corner_needs_two": "Must enter and leave the rest corner with 2 checkers at once",
+  "err_corner_by_effect": "Must take the rest corner directly (by effect), not by force",
+  "err_exit_needs_all_in_last_jan": "All checkers must be in the last jan before exiting",
+  "err_exit_by_effect": "Must exit with exact dice value when possible (no overage)",
+  "err_exit_not_farthest": "With overage, must exit the checker farthest from the exit",
+  "err_opponent_can_fill_quarter": "Cannot play in a quarter the opponent can still fill",
+  "err_must_fill_quarter": "Must fill (or keep) a quarter when possible",
+  "err_must_play_all_dice": "Must play both dice when possible",
+  "err_must_play_stronger_die": "Must play the stronger die when only one can be played"
 }

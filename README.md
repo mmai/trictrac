@@ -27,6 +27,6 @@ Open a browser window at `http://127.0.0.1:9091`. You can play against a very ba
 
 ## Inspirations
 
-The multiplayer game architecture, implemented in packages _clients/backbone-lib_, _clients/web/game_, _server/protocol_, _server/relay-server_ is a Leptos-optimized adaptation of the macroquad-based [Carbonfreezer/multiplayer](https://github.com/Carbonfreezer/multiplayer) project. It is a multiplayer game system in Rust targeting browser-based board games compiled as WASM. The original project used Macroquad with a polling-based transport layer; this version replaces that with an async session API built for [Leptos](https://leptos.dev/).
+The multiplayer game architecture, implemented in packages _clients/backbone-lib_, _clients/web/game_, _server/protocol_ and _server/relay-server_ is a [Leptos](https://leptos.dev/)-optimized adaptation of the macroquad-based [Carbonfreezer/multiplayer](https://github.com/Carbonfreezer/multiplayer) project.
 
 The web client UX/UI is inspired by https://playtiao.com.

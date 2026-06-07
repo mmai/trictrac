@@ -161,7 +161,7 @@ body {
 /* ── Stats grid ──────────────────────────────────────────────────── */
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 1rem;
     margin-bottom: 1.5rem;
 }
@@ -304,6 +304,62 @@ a:hover { text-decoration: underline; }
 .portal-empty   { color: #aa9070; font-style: italic; padding: 1rem 0; }
 .portal-error   { color: var(--ui-red-accent); font-size: 0.875rem; margin-top: 0.5rem; }
 .portal-success { color: var(--ui-green-accent); font-size: 0.875rem; margin-top: 0.5rem; }
+
+.flash-banner {
+    position: fixed;
+    top: 1.25rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 500;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem 1.25rem;
+    background: var(--ui-green-accent);
+    color: #f5edd8;
+    border-radius: 6px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+    font-family: var(--font-ui);
+    font-size: 0.95rem;
+    max-width: 90vw;
+    animation: flash-in 0.2s ease;
+}
+@keyframes flash-in {
+    from { opacity: 0; transform: translateX(-50%) translateY(-0.5rem); }
+    to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+.flash-dismiss {
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    font-size: 1rem;
+    opacity: 0.75;
+    padding: 0;
+    line-height: 1;
+}
+.flash-dismiss:hover { opacity: 1; }
+
+.portal-danger-zone {
+    border: 1px solid rgba(122, 30, 42, 0.4);
+    background: rgba(122, 30, 42, 0.04);
+}
+.portal-danger-zone h2 {
+    color: var(--ui-red-accent);
+}
+.portal-danger-btn {
+    padding: 0.5rem 1.25rem;
+    font-family: var(--font-ui);
+    font-size: 0.9rem;
+    background: var(--ui-red-accent);
+    color: #f5edd8;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: opacity 0.15s;
+}
+.portal-danger-btn:hover { opacity: 0.85; }
+.portal-danger-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
 .portal-link {
     color: var(--ui-gold);
@@ -1799,6 +1855,58 @@ a:hover { text-decoration: underline; }
     min-height: 2rem;
 }
 
+/* ── Free-play mode ─────────────────────────────────────────────────────── */
+.free-mode-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-family: var(--font-ui);
+    font-size: 0.78rem;
+    color: #887766;
+    cursor: pointer;
+    user-select: none;
+    padding-top: 0.1rem;
+}
+.free-mode-toggle input[type="checkbox"] {
+    accent-color: var(--ui-gold);
+    cursor: pointer;
+    width: 0.85rem;
+    height: 0.85rem;
+}
+.free-mode-help {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1rem;
+    height: 1rem;
+    border-radius: 50%;
+    border: 1px solid #a89880;
+    font-size: 0.65rem;
+    font-style: normal;
+    color: #a89880;
+    cursor: help;
+    flex-shrink: 0;
+}
+
+.free-mode-error {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: rgba(180, 60, 30, 0.12);
+    border: 1px solid rgba(180, 60, 30, 0.4);
+    border-radius: 4px;
+    padding: 0.4rem 0.75rem;
+    width: 100%;
+    box-sizing: border-box;
+}
+.free-mode-error-msg {
+    flex: 1;
+    font-family: var(--font-ui);
+    font-size: 0.85rem;
+    color: #8b2000;
+    font-style: italic;
+}
+
 /* ── Pre-game ceremony overlay ──────────────────────────────────────────── */
 .ceremony-overlay {
     position: fixed;
@@ -2045,6 +2153,7 @@ a:hover { text-decoration: underline; }
     text-decoration: none;
     opacity: 0.8;
     transition: opacity 0.15s;
+    cursor: pointer;
 }
 .game-sidebar-link:hover { opacity: 1; text-decoration: underline; text-underline-offset: 2px; }
 
@@ -2075,4 +2184,122 @@ a:hover { text-decoration: underline; }
     aspect-ratio: 1;
     max-width: 200px;
     margin: 0 auto;
+}
+
+/* Push the version wrapper to the bottom of the sidebar flex column */
+.sidebar-footer {
+    margin-top: auto;
+    border-top: 1px solid rgba(200,164,72,0.12);
+}
+
+.site-nav-infolinks {
+    margin: 2em 0 1em;
+    text-align: center;
+    font-size: 0.9rem;
+    color: rgba(200,164,72,0.4);
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+
+.site-nav-infolinks > a {
+  width: 100%;
+}
+
+.site-nav-version {
+    margin: 2em 0 1em;
+    display: block;
+    text-align: center;
+    font-family: var(--font-ui);
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    color: rgba(200,164,72,0.4);
+}
+
+/* ── Content pages (markdown-rendered) ─────────────────────────────────────── */
+
+.content-page h1 {
+    font-family: var(--font-display);
+    font-size: 2rem;
+    font-weight: 600;
+    color: var(--ui-ink);
+    letter-spacing: 0.04em;
+    margin-bottom: 0.5rem;
+}
+.content-page h2 {
+    font-family: var(--font-display);
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: var(--ui-ink);
+    margin: 1.75rem 0 0.5rem;
+    border-bottom: 1px solid rgba(200,164,72,0.25);
+    padding-bottom: 0.25rem;
+}
+.content-page h3 {
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--ui-ink);
+    margin: 1.25rem 0 0.4rem;
+}
+.content-page p {
+    line-height: 1.7;
+    margin-bottom: 0.9rem;
+    color: var(--ui-ink);
+}
+.content-page ul,
+.content-page ol {
+    margin: 0.5rem 0 1rem 1.5rem;
+    line-height: 1.7;
+    color: var(--ui-ink);
+}
+.content-page li {
+    margin-bottom: 0.25rem;
+}
+.content-page a {
+    color: var(--ui-gold-dark);
+    text-decoration: underline;
+}
+.content-page a:hover {
+    color: var(--ui-ink);
+}
+.content-page code {
+    font-family: monospace;
+    background: rgba(0,0,0,0.07);
+    border-radius: 3px;
+    padding: 0.1em 0.35em;
+    font-size: 0.88em;
+}
+.content-page pre {
+    background: rgba(0,0,0,0.07);
+    border-radius: 5px;
+    padding: 1rem 1.25rem;
+    overflow-x: auto;
+    margin-bottom: 1rem;
+}
+.content-page pre code {
+    background: none;
+    padding: 0;
+}
+.content-page blockquote {
+    border-left: 3px solid rgba(200,164,72,0.5);
+    margin: 0.75rem 0;
+    padding: 0.25rem 1rem;
+    color: #665544;
+    font-style: italic;
+}
+.content-page table {
+    border-collapse: collapse;
+    width: 100%;
+    margin-bottom: 1rem;
+}
+.content-page th,
+.content-page td {
+    border: 1px solid rgba(200,164,72,0.3);
+    padding: 0.4rem 0.75rem;
+    text-align: left;
+}
+.content-page th {
+    background: rgba(200,164,72,0.1);
+    font-weight: 600;
 }

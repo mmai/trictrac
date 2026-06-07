@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="fr" dir="ltr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Variation 04 — Warm Classic · Scoring en bas</title>
+  <link rel="stylesheet" href="../snapshots/2026-05-30-d4a2ea1c531827bfbc2410af20a00e349d606c87_files/style.css">
+  <style>
+    /* ══════════════════════════════════════════════════════════════════
+       Variation 04: v03 layout + warm palette + scoring below board
+       ─────────────────────────────────────────────────────────────────
+       Differs from 03-dark-modern:
+         • Warm parchment / wood palette (no dark overrides)
+         • .scoring-panel moves to a dedicated row BELOW the board
+           (grows downward → never displaces the board upward)
+           Light green bg when local player scored,
+           light red when opponent scored.
+         • Same compact player strip above the board
+         • Same bottom dock (dice · status · actions)
+       ══════════════════════════════════════════════════════════════════ */
+
+    /* ── Suppress baseline elements ──────────────────────────────────── */
+    .score-area        { display: none !important; }
+    .board-bar         { width: 5px; overflow: hidden; }
+    .bar-die-slot      { display: none; }
+    .zone-labels-row   { display: none; }
+    .game-bottom-strip { display: none; }
+
+    .game-container { gap: 0.5rem; }
+
+    /* ════════════════════════════════════════════════════════════════════
+       PLAYER STRIP — warm palette
+       ════════════════════════════════════════════════════════════════════ */
+
+    .v04-strip {
+      display: flex;
+      align-items: center;
+      width: 100%;
+      background: var(--ui-parchment);
+      border: 1px solid var(--ui-gold-dark);
+      border-radius: 5px;
+      padding: 0.5rem 0.85rem;
+      gap: 0.6rem;
+    }
+
+    /* Player half */
+    .v04-player {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex: 1;
+      min-width: 0;
+    }
+    .v04-player-right { flex-direction: row-reverse; }
+
+    /* Avatar circle */
+    .v04-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-ui);
+      font-size: 0.7rem;
+      font-weight: 600;
+      flex-shrink: 0;
+      letter-spacing: 0;
+    }
+    .v04-avatar-me  {
+      background: rgba(42,107,60,0.12);
+      border: 1.5px solid #2a6b3c;
+      color: #2a6b3c;
+    }
+    .v04-avatar-opp {
+      background: rgba(139,26,26,0.12);
+      border: 1.5px solid #8b1a1a;
+      color: #8b1a1a;
+    }
+
+    /* Name */
+    .v04-name {
+      font-family: var(--font-ui);
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--ui-ink);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 110px;
+    }
+    .v04-you-tag {
+      font-size: 0.6rem;
+      color: rgba(58,42,10,0.45);
+      font-style: italic;
+    }
+    .v04-name-block { display: flex; flex-direction: column; min-width: 0; }
+    .v04-player-right .v04-name-block { align-items: flex-end; }
+
+    /* Dot peg track */
+    .v04-dots {
+      display: flex;
+      gap: 2.5px;
+      flex-shrink: 0;
+    }
+    .v04-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: rgba(58,42,10,0.08);
+      border: 1px solid rgba(58,42,10,0.18);
+      flex-shrink: 0;
+    }
+    .v04-dot.on-me  { background: #2a6b3c; border-color: #1e5029; box-shadow: 0 0 3px rgba(42,107,60,0.4); }
+    .v04-dot.on-opp { background: #8b1a1a; border-color: #6a1212; box-shadow: 0 0 3px rgba(139,26,26,0.4); }
+
+    /* Score */
+    .v04-score {
+      flex-shrink: 0;
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+    }
+    .v04-score-num {
+      font-family: var(--font-display);
+      font-size: 1.55rem;
+      font-weight: 600;
+      color: var(--ui-ink);
+      display: block;
+    }
+    .v04-score-max {
+      font-family: var(--font-ui);
+      font-size: 0.58rem;
+      color: rgba(58,42,10,0.38);
+      display: block;
+      margin-top: -3px;
+    }
+
+    /* Bredouille badge */
+    .v04-bred {
+      font-size: 0.72rem;
+      color: var(--ui-gold);
+      flex-shrink: 0;
+    }
+
+    /* Center: VS + game info + turn pill */
+    .v04-strip-center {
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.15rem;
+      padding: 0 0.85rem;
+      border-left: 1px solid rgba(58,42,10,0.15);
+      border-right: 1px solid rgba(58,42,10,0.15);
+    }
+    .v04-vs {
+      font-family: var(--font-ui);
+      font-size: 0.55rem;
+      font-weight: 600;
+      letter-spacing: 0.16em;
+      color: rgba(58,42,10,0.28);
+      text-transform: uppercase;
+    }
+    .v04-game-info {
+      font-family: var(--font-ui);
+      font-size: 0.65rem;
+      color: rgba(58,42,10,0.28);
+      white-space: nowrap;
+    }
+    .v04-turn-pill {
+      font-family: var(--font-ui);
+      font-size: 0.62rem;
+      font-weight: 500;
+      color: #2a6b3c;
+      background: rgba(42,107,60,0.10);
+      border: 1px solid rgba(42,107,60,0.28);
+      border-radius: 20px;
+      padding: 0.1em 0.6em;
+      white-space: nowrap;
+    }
+
+    /* ════════════════════════════════════════════════════════════════════
+       SCORING ROW — below the board, in normal flow
+       Grows downward → board position is never affected.
+       ════════════════════════════════════════════════════════════════════ */
+
+    .v04-scoring-row {
+      width: 100%;
+    }
+
+    /* Override the scoring-panels-container baseline positioning */
+    .v04-scoring-row .scoring-panels-container {
+      position: static;
+      top: auto;
+      left: auto;
+      z-index: auto;
+      display: block;
+    }
+
+    /* ── Scoring panel: light green (local player scored) ─────────────── */
+    .v04-scoring-row .scoring-panel {
+      background: #edf7ee;
+      border: 1px solid #a8d4b0;
+      border-left: 3px solid #2d7a3c;
+      box-shadow: 0 2px 8px rgba(42,107,60,0.10);
+      width: 100%;
+      box-sizing: border-box;
+      margin: 0;
+    }
+    .v04-scoring-row .scoring-total { color: #1e5829; }
+    .v04-scoring-row .jan-label     { color: #2a3d28; }
+    .v04-scoring-row .jan-tag       { color: rgba(42,80,42,0.6); background: rgba(42,107,60,0.07); }
+    .v04-scoring-row .jan-pts       { color: #1e5829; }
+    .v04-scoring-row .scoring-collapse-btn { color: rgba(42,80,42,0.4); }
+    .v04-scoring-row .scoring-collapse-btn:hover { color: rgba(42,80,42,0.75); }
+    .v04-scoring-row .scoring-expand-btn {
+      background: #edf7ee;
+      border-color: #a8d4b0;
+      color: #2d7a3c;
+    }
+
+    /* ── Opponent scoring panel: light red ────────────────────────────── */
+    .v04-scoring-row .scoring-panel.opp-scored {
+      background: #fceaea;
+      border-color: #dea8a8;
+      border-left-color: #b52b2b;
+      box-shadow: 0 2px 8px rgba(139,26,26,0.10);
+    }
+    .v04-scoring-row .scoring-panel.opp-scored .scoring-total { color: #7a1e1e; }
+    .v04-scoring-row .scoring-panel.opp-scored .jan-label     { color: #3d2a2a; }
+    .v04-scoring-row .scoring-panel.opp-scored .jan-tag       { color: rgba(100,42,42,0.6); background: rgba(139,26,26,0.07); }
+    .v04-scoring-row .scoring-panel.opp-scored .jan-pts       { color: #7a1e1e; }
+    .v04-scoring-row .scoring-panel.opp-scored .scoring-collapse-btn { color: rgba(100,42,42,0.4); }
+    .v04-scoring-row .scoring-panel.opp-scored .scoring-expand-btn {
+      background: #fceaea;
+      border-color: #dea8a8;
+      color: #b52b2b;
+    }
+
+    /* ════════════════════════════════════════════════════════════════════
+       BOTTOM DOCK — warm palette
+       ════════════════════════════════════════════════════════════════════ */
+
+    .v04-dock {
+      display: flex;
+      align-items: center;
+      width: 100%;
+      background: var(--ui-parchment);
+      border: 1px solid var(--ui-gold-dark);
+      border-radius: 5px;
+      padding: 0.6rem 1rem;
+      gap: 0;
+    }
+
+    .v04-dock-dice {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      flex-shrink: 0;
+      padding-right: 1rem;
+      border-right: 1px solid rgba(58,42,10,0.15);
+    }
+
+    .v04-dock-status {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0 1rem;
+    }
+
+    .v04-dock .game-status {
+      text-shadow: none;
+      font-size: 0.95rem;
+      padding: 0;
+      width: auto;
+      text-align: center;
+    }
+    .v04-dock .board-actions {
+      min-height: 0;
+      gap: 0.5rem;
+    }
+
+    .v04-dock-extra {
+      flex-shrink: 0;
+      padding-left: 1rem;
+      border-left: 1px solid rgba(58,42,10,0.15);
+    }
+
+    /* ════════════════════════════════════════════════════════════════════
+       RESPONSIVE
+       ════════════════════════════════════════════════════════════════════ */
+
+    @media (max-width: 900px) {
+      .v04-dock {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.5rem;
+      }
+      .v04-dock-dice {
+        border-right: none;
+        border-bottom: 1px solid rgba(58,42,10,0.12);
+        padding-right: 0;
+        padding-bottom: 0.5rem;
+        justify-content: center;
+      }
+      .v04-dock-extra {
+        border-left: none;
+        border-top: 1px solid rgba(58,42,10,0.12);
+        padding-left: 0;
+        padding-top: 0.5rem;
+        text-align: center;
+      }
+    }
+
+    @media (max-width: 680px) {
+      .v04-dots { display: none; }
+      .v04-strip-center { padding: 0 0.4rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Left navigation sidebar ───────────────────────────────────────── -->
+<button class="game-hamburger game-hamburger-open" aria-label="Menu">
+  <span class="hb-bar hb-top"></span>
+  <span class="hb-bar hb-mid"></span>
+  <span class="hb-bar hb-bot"></span>
+</button>
+
+<div class="game-sidebar game-sidebar-open">
+  <div class="game-sidebar-header">
+    <span class="game-sidebar-brand">Trictrac</span>
+    <div class="lang-switcher">
+      <button>EN</button>
+      <button class="lang-active">FR</button>
+    </div>
+  </div>
+  <div class="game-sidebar-section">
+    <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><path fill="currentColor" d="M304 70.1C313.1 61.9 326.9 61.9 336 70.1L568 278.1C577.9 286.9 578.7 302.1 569.8 312C560.9 321.9 545.8 322.7 535.9 313.8L527.9 306.6L527.9 511.9C527.9 547.2 499.2 575.9 463.9 575.9L175.9 575.9C140.6 575.9 111.9 547.2 111.9 511.9L111.9 306.6L103.9 313.8C94 322.6 78.9 321.8 70 312C61.1 302.2 62 287 71.8 278.1L304 70.1zM320 120.2L160 263.7L160 512C160 520.8 167.2 528 176 528L224 528L224 424C224 384.2 256.2 352 296 352L344 352C383.8 352 416 384.2 416 424L416 528L464 528C472.8 528 480 520.8 480 512L480 263.7L320 120.3zM272 528L368 528L368 424C368 410.7 357.3 400 344 400L296 400C282.7 400 272 410.7 272 424L272 528z"></path></svg>
+    <a href="#" class="game-sidebar-link">Nouvelle partie</a>
+  </div>
+  <div class="game-sidebar-section">
+    <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><path fill="currentColor" d="M416 160L480 160C497.7 160 512 174.3 512 192L512 448C512 465.7 497.7 480 480 480L416 480C398.3 480 384 494.3 384 512C384 529.7 398.3 544 416 544L480 544C533 544 576 501 576 448L576 192C576 139 533 96 480 96L416 96C398.3 96 384 110.3 384 128C384 145.7 398.3 160 416 160zM406.6 342.6C419.1 330.1 419.1 309.8 406.6 297.3L278.6 169.3C266.1 156.8 245.8 156.8 233.3 169.3C220.8 181.8 220.8 202.1 233.3 214.6L306.7 288L96 288C78.3 288 64 302.3 64 320C64 337.7 78.3 352 96 352L306.7 352L233.3 425.4C220.8 437.9 220.8 458.2 233.3 470.7C245.8 483.2 266.1 483.2 278.6 470.7L406.6 342.7z"></path></svg>
+    <a href="#" class="game-sidebar-link">Se connecter</a>
+  </div>
+  <div class="sidebar-footer">
+    <div><span class="site-nav-version">v0.2.15</span></div>
+  </div>
+</div>
+
+<!-- ── Portal behind the overlay ─────────────────────────────────────── -->
+<main>
+  <div style="display:flex;justify-content:center;align-items:flex-start;padding-top:5vh" class="portal-main">
+    <div class="login-card">
+      <div class="login-card-header"><div class="login-board-stripe"></div></div>
+      <div class="login-card-body">
+        <h1 class="login-title">Trictrac</h1>
+        <p class="login-subtitle"><em>Une interprétation numérique</em></p>
+        <div class="login-ornament">✦</div>
+        <div class="login-actions">
+          <button class="login-btn login-btn-secondary">Jouer contre le bot</button>
+          <button class="login-btn login-btn-primary">Inviter un adversaire</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     GAME OVERLAY
+     ══════════════════════════════════════════════════════════════════════ -->
+<div class="game-overlay">
+  <div class="game-container">
+
+    <!-- ════════════════════════════════════════════════════════════════
+         PLAYER STRIP
+         ════════════════════════════════════════════════════════════════ -->
+    <div class="v04-strip">
+
+      <!-- Player 1 (me) ──────────────────────────────────────────────── -->
+      <div class="v04-player">
+        <div class="v04-avatar v04-avatar-me">A</div>
+        <div class="v04-name-block">
+          <span class="v04-name">Anonyme</span>
+          <span class="v04-you-tag">(vous)</span>
+        </div>
+        <div class="v04-dots">
+          <div class="v04-dot on-me"></div>
+          <div class="v04-dot"></div><div class="v04-dot"></div>
+          <div class="v04-dot"></div><div class="v04-dot"></div>
+          <div class="v04-dot"></div><div class="v04-dot"></div>
+          <div class="v04-dot"></div><div class="v04-dot"></div>
+          <div class="v04-dot"></div><div class="v04-dot"></div>
+          <div class="v04-dot"></div>
+        </div>
+        <span class="v04-bred" title="Bredouille armée">⚜</span>
+        <div class="v04-score">
+          <span class="v04-score-num">6</span>
+          <span class="v04-score-max">/12</span>
+        </div>
+      </div>
+
+      <!-- Center ─────────────────────────────────────────────────────── -->
+      <div class="v04-strip-center">
+        <span class="v04-vs">VS</span>
+        <span class="v04-game-info">jeu en 12 trous</span>
+        <span class="v04-turn-pill">votre tour</span>
+      </div>
+
+      <!-- Player 2 (opponent) ─────────────────────────────────────────── -->
+      <div class="v04-player v04-player-right">
+        <div class="v04-avatar v04-avatar-opp">B</div>
+        <div class="v04-name-block">
+          <span class="v04-name">Bot</span>
+        </div>
+        <div class="v04-dots">
+          <div class="v04-dot on-opp"></div>
+          <div class="v04-dot"></div><div class="v04-dot"></div>
+          <div class="v04-dot"></div><div class="v04-dot"></div>
+          <div class="v04-dot"></div><div class="v04-dot"></div>
+          <div class="v04-dot"></div><div class="v04-dot"></div>
+          <div class="v04-dot"></div><div class="v04-dot"></div>
+          <div class="v04-dot"></div>
+        </div>
+        <div class="v04-score">
+          <span class="v04-score-num">2</span>
+          <span class="v04-score-max">/12</span>
+        </div>
+      </div>
+
+    </div><!-- /.v04-strip -->
+
+    <!-- ════════════════════════════════════════════════════════════════
+         BOARD
+         ════════════════════════════════════════════════════════════════ -->
+    <div class="board-wrapper">
+      <div class="board">
+
+        <!-- top row ──────────────────────────────────────────────────── -->
+        <div class="board-row top-row">
+          <div class="board-quarter">
+            <div class="field zone-opponent corner" id="field-13"><span class="field-num">13</span></div>
+            <div class="field zone-opponent" id="field-14"><span class="field-num">14</span></div>
+            <div class="field zone-opponent" id="field-15">
+              <span class="field-num">15</span>
+              <div class="checker-stack">
+                <div class="checker black"></div><div class="checker black"></div><div class="checker black"></div>
+              </div>
+            </div>
+            <div class="field zone-opponent" id="field-16"><span class="field-num">16</span></div>
+            <div class="field zone-opponent" id="field-17"><span class="field-num">17</span></div>
+            <div class="field zone-opponent" id="field-18"><span class="field-num">18</span></div>
+          </div>
+          <div class="board-bar"></div>
+          <div class="board-quarter">
+            <div class="field zone-retour" id="field-19">
+              <span class="field-num">19</span>
+              <div class="hit-ripple hit-ripple-top"></div>
+              <div class="checker-stack"><div class="checker black"></div></div>
+            </div>
+            <div class="field zone-retour" id="field-20"><span class="field-num">20</span></div>
+            <div class="field zone-retour" id="field-21"><span class="field-num">21</span></div>
+            <div class="field zone-retour" id="field-22"><span class="field-num">22</span></div>
+            <div class="field zone-retour point-no-bredouille" id="field-23"><span class="field-num">23</span></div>
+            <div class="field zone-retour point-no-bredouille" id="field-24">
+              <span class="field-num">24</span>
+              <div class="checker-stack">
+                <div class="checker black"></div><div class="checker black"></div>
+                <div class="checker black"></div><div class="checker black">11</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="board-center-bar"></div>
+
+        <!-- bottom row ───────────────────────────────────────────────── -->
+        <div class="board-row bot-row">
+          <div class="board-quarter">
+            <div class="field zone-grand corner corner-available clickable dest" id="field-12"
+                 title="Coin de repos — must enter and leave with 2 checkers">
+              <span class="field-num">12</span>
+            </div>
+            <div class="field zone-grand clickable dest" id="field-11"><span class="field-num">11</span></div>
+            <div class="field zone-grand" id="field-10"><span class="field-num">10</span></div>
+            <div class="field zone-grand" id="field-9">
+              <span class="field-num">9</span>
+              <div class="checker-stack"><div class="checker white"></div></div>
+            </div>
+            <div class="field zone-grand" id="field-8">
+              <span class="field-num">8</span>
+              <div class="checker-stack"><div class="checker white"></div><div class="checker white"></div></div>
+            </div>
+            <div class="field zone-grand selected clickable" id="field-7">
+              <span class="field-num">7</span>
+              <div class="checker-stack"><div class="checker white"></div><div class="checker white"></div></div>
+            </div>
+          </div>
+          <div class="board-bar"></div>
+          <div class="board-quarter">
+            <div class="field zone-petit point-no-bredouille" id="field-6"><span class="field-num">6</span></div>
+            <div class="field zone-petit point-no-bredouille" id="field-5"><span class="field-num">5</span></div>
+            <div class="field zone-petit point-no-bredouille" id="field-4"><span class="field-num">4</span></div>
+            <div class="field zone-petit point-no-bredouille" id="field-3"><span class="field-num">3</span></div>
+            <div class="field zone-petit point-no-bredouille" id="field-2"><span class="field-num">2</span></div>
+            <div class="field zone-petit point-no-bredouille" id="field-1">
+              <span class="field-num">1</span>
+              <div class="checker-stack">
+                <div class="checker white">10</div><div class="checker white"></div>
+                <div class="checker white"></div><div class="checker white"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <svg style="position:absolute;top:0;left:0;pointer-events:none;overflow:visible" width="761" height="388"></svg>
+
+      </div><!-- /.board -->
+    </div><!-- /.board-wrapper -->
+
+    <!-- ════════════════════════════════════════════════════════════════
+         SCORING ROW — below the board, in normal flow.
+         Only present when a scoring event occurred this turn.
+         Green panel = local player scored; red panel = opponent scored.
+         ════════════════════════════════════════════════════════════════ -->
+    <div class="v04-scoring-row">
+
+      <!-- Local player scored (green) -->
+      <div class="scoring-panels-container">
+        <div class="scoring-panel-wrapper">
+          <button class="scoring-expand-btn" title="Afficher le détail">+</button>
+          <div class="scoring-panel">
+            <div class="scoring-panel-head">
+              <div class="scoring-total">+4 pts</div>
+              <button class="scoring-collapse-btn">−</button>
+            </div>
+            <div class="scoring-jan-row">
+              <span class="jan-label">Battage à vrai (petit jan)</span>
+              <span class="jan-tag">simple</span>
+              <span class="jan-tag">×1</span>
+              <span class="jan-pts">+4</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Opponent scored (red) — shown when opponent marks points -->
+      <!--
+      <div class="scoring-panels-container">
+        <div class="scoring-panel-wrapper">
+          <div class="scoring-panel opp-scored">
+            <div class="scoring-panel-head">
+              <div class="scoring-total">+2 pts</div>
+              <button class="scoring-collapse-btn">−</button>
+            </div>
+            <div class="scoring-jan-row">
+              <span class="jan-label">Jan de retour</span>
+              <span class="jan-tag">simple</span>
+              <span class="jan-tag">×1</span>
+              <span class="jan-pts">+2</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      -->
+
+    </div><!-- /.v04-scoring-row -->
+
+    <!-- ════════════════════════════════════════════════════════════════
+         BOTTOM DOCK — dice | status + actions | free-mode
+         ════════════════════════════════════════════════════════════════ -->
+    <div class="v04-dock">
+
+      <!-- Dice ─────────────────────────────────────────────────────── -->
+      <div class="v04-dock-dice">
+        <!-- Die 1 — 6 (active) -->
+        <svg class="die-face" width="52" height="52" viewBox="0 0 48 48">
+          <rect x="1.5" y="1.5" width="45" height="45" rx="7" ry="7"></rect>
+          <circle cx="13" cy="13" r="4.5"></circle>
+          <circle cx="35" cy="13" r="4.5"></circle>
+          <circle cx="13" cy="24" r="4.5"></circle>
+          <circle cx="35" cy="24" r="4.5"></circle>
+          <circle cx="13" cy="35" r="4.5"></circle>
+          <circle cx="35" cy="35" r="4.5"></circle>
+        </svg>
+        <!-- Die 2 — 4 (used) -->
+        <svg class="die-face die-used" width="52" height="52" viewBox="0 0 48 48">
+          <rect x="1.5" y="1.5" width="45" height="45" rx="7" ry="7"></rect>
+          <circle cx="13" cy="13" r="4.5"></circle>
+          <circle cx="35" cy="13" r="4.5"></circle>
+          <circle cx="13" cy="35" r="4.5"></circle>
+          <circle cx="35" cy="35" r="4.5"></circle>
+        </svg>
+      </div>
+
+      <!-- Status + actions ─────────────────────────────────────────── -->
+      <div class="v04-dock-status">
+        <div class="game-status">Déplacez une dame (1 sur 2)</div>
+        <div class="board-actions">
+          <button class="btn btn-secondary">Passer</button>
+        </div>
+      </div>
+
+      <!-- Free-mode toggle ─────────────────────────────────────────── -->
+      <div class="v04-dock-extra">
+        <label class="free-mode-toggle">
+          <input type="checkbox">Mode libre
+          <span class="free-mode-help" title="Sélectionnez n'importe quelle dame et tentez de trouver un coup valide vous-même.">?</span>
+        </label>
+      </div>
+
+    </div><!-- /.v04-dock -->
+
+  </div><!-- /.game-container -->
+</div><!-- /.game-overlay -->
+
+</body>
+</html>

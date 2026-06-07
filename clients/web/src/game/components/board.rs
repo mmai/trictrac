@@ -327,7 +327,16 @@ fn free_mode_dests_for(
         if dest >= 1 && dest <= 24 {
             let d = dest as u8;
             if !opp_present(d) {
-                dests.push(d);
+                if d == 13 && is_white && displayed_value(board, staged, is_white, 12) < 2 {
+                    // prise de coin par puissance for white
+                    dests.push(12)
+                } else if d == 12 && !is_white && displayed_value(board, staged, is_white, 13) > -2
+                {
+                    // prise de coin par puissance for black
+                    dests.push(13)
+                } else {
+                    dests.push(d);
+                }
             }
         } else if all_in_exit {
             dests.push(0); // exit

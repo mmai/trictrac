@@ -94,19 +94,22 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
                     cmd_tx_effect
                         .unbounded_send(NetCommand::Action(PlayerAction::Move(m1, m2)))
                         .ok();
+                    staged_moves.set(vec![]);
+                    selected_origin.set(None);
+                    prev_staged_len.set(0);
                 } else {
                     let specific_err = rules.moves_allowed(&(vm1, vm2)).err();
                     move_error.set(Some(specific_err));
+                    // Keep staged_moves intact so pieces stay in place until Retry is clicked.
                 }
             } else {
                 cmd_tx_effect
                     .unbounded_send(NetCommand::Action(PlayerAction::Move(m1, m2)))
                     .ok();
+                staged_moves.set(vec![]);
+                selected_origin.set(None);
+                prev_staged_len.set(0);
             }
-
-            staged_moves.set(vec![]);
-            selected_origin.set(None);
-            prev_staged_len.set(0);
         }
     });
 
@@ -457,7 +460,11 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
                                         <span class="free-mode-error-msg">{msg}</span>
                                         <button
                                             class="btn btn-secondary"
-                                            on:click=move |_| { move_error.set(None); }
+                                            on:click=move |_| {
+                                                staged_moves.set(vec![]);
+                                                selected_origin.set(None);
+                                                move_error.set(None);
+                                            }
                                         >{t!(i18n, reset_move)}</button>
                                     </div>
                                 }

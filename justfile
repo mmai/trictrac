@@ -9,9 +9,36 @@ bump version:
   git flow release start {{version}}
   sed -i '/^\[workspace\.package\]/,/^\[/{s/^version = ".*"/version = "{{version}}"/}' Cargo.toml
   sed -i 's/version = "[0-9.]*"; # trictrac-version/version = "{{version}}"; # trictrac-version/' flake.nix
+  just frontend-flake-hash
   git add Cargo.toml flake.nix
   git commit -m "chore: bump version to {{version}}"
-  @echo "Done. Finish with: git flow release finish {{version}}"
+  @echo "Done. Finish with: `git flow release finish {{version}}`"
+
+# Get new trictrac front-end nix package hash and update flake.nix with it
+frontend-flake-hash:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  FAKE_HASH="sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+  # Match only non-commented hash lines (i.e. lines where 'hash' is the first non-space token)
+  CURRENT_HASH=$(grep -P '^\s+hash = "' flake.nix | grep -oP 'sha256-[^"]+' | head -1)
+  echo "Current hash: $CURRENT_HASH"
+  sed -i "s|$CURRENT_HASH|$FAKE_HASH|" flake.nix
+  set +e
+  OUTPUT=$(nix build .#trictrac-front --no-link 2>&1)
+  set -e
+  NEW_HASH=$(echo "$OUTPUT" | grep -oP 'got:\s+\Ksha256-\S+' || true)
+  if [ -n "$NEW_HASH" ]; then
+    sed -i "s|$FAKE_HASH|$NEW_HASH|" flake.nix
+    if [ "$NEW_HASH" = "$CURRENT_HASH" ]; then
+      echo "Hash already up to date: $CURRENT_HASH"
+    else
+      echo "Updated: $CURRENT_HASH → $NEW_HASH"
+    fi
+  else
+    sed -i "s|$FAKE_HASH|$CURRENT_HASH|" flake.nix
+    printf "Unexpected build output (no hash mismatch found):\n%s\n" "$OUTPUT" >&2
+    exit 1
+  fi
 
 # Sync pages content to production server
 pages-deploy:

@@ -36,6 +36,11 @@
                 cargo = rustToolchain;
                 rustc = rustToolchain;
               };
+              frontendCargoDeps = rustPlatform.fetchCargoVendor {
+                src = ./.;
+                name = "trictrac-frontend-vendor";
+                hash = "sha256-XBxdRT/f69GDfVc18/DnnAiY1vjMGMWfcYot0K0jevg=";
+              };
               # Must match the wasm-bindgen version in Cargo.lock
               wasm-bindgen-version = "0.2.118";
               # wasm-bindgen-version = "0.2.121";
@@ -52,12 +57,6 @@
               #     hash = "sha256-DPdCDPTAPBrbqLUqnCwQu1dePs9lGg85JCJOCIr9qjU=";
               #   };
               # };
-
-              frontendCargoDeps = rustPlatform.fetchCargoVendor {
-                src = ./.;
-                name = "trictrac-frontend-vendor";
-                hash = "sha256-R75zHXKhv0nkBv6U24ZCAtwp1yaSbr0bFywWQHwhSkM=";
-              };
             in
             final.stdenv.mkDerivation {
               name = "trictrac-front";
@@ -103,7 +102,7 @@
 
           trictrac = with final; rustPlatform.buildRustPackage {
             pname = "trictrac";
-            version = "0.2.16"; # trictrac-version
+            version = "0.2.17"; # trictrac-version
             src = ./.;
 
             nativeBuildInputs = [ pkg-config ];

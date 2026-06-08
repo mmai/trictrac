@@ -169,7 +169,6 @@ pub fn MergedScorePanel(
                     <div class="strip-avatar strip-avatar-me"></div>
                     <div class="score-row-name">
                         <span class="player-name">{my_name}</span>
-                        <span class="you-tag">{t!(i18n, you_suffix)}</span>
                     </div>
                     {my_can_bredouille.then(|| view! {
                         <span class="bredouille-badge"

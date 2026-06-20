@@ -150,7 +150,7 @@
   "account_deleted": "Your account has been permanently deleted.",
   "about": "About",
   "legal": "Legal notices",
-  "free_mode_label": "Free play mode",
+  "free_mode_label": "Free move mode",
   "free_mode_tooltip": "Select any checker and try to find a valid move yourself. If your move breaks a rule, you'll see an explanation.",
   "reset_move": "Try again",
   "err_invalid_move": "This move is not valid with the current dice",

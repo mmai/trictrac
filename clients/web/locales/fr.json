@@ -148,7 +148,7 @@
   "account_deleted": "Votre compte a été définitivement supprimé.",
   "about": "À propos",
   "legal": "Mentions légales",
-  "free_mode_label": "Mode jeu libre",
+  "free_mode_label": "Déplacement libre",
   "free_mode_tooltip": "Sélectionnez n'importe quelle dame et tentez de trouver un coup valide vous-même. Si votre coup enfreint une règle, une explication s'affichera.",
   "reset_move": "Réessayer",
   "err_invalid_move": "Ce coup n'est pas valide avec les dés actuels",

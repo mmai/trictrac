@@ -696,9 +696,9 @@ fn SiteHamburger() -> impl IntoView {
             </div>
             <div>
                 <div class="site-nav-infolinks">
-                    <a href="/page/about">{t!(i18n, about)}</a>
+                    <a href="/page/about" on:click=move |_| { sidebar_open.set(false); } >{t!(i18n, about)}</a>
                     <span>  - </span>
-                    <a href="/page/legal">{t!(i18n, legal)}</a>
+                    <a href="/page/legal" on:click=move |_| { sidebar_open.set(false); } >{t!(i18n, legal)}</a>
                 </div>
             </div>
             <div>

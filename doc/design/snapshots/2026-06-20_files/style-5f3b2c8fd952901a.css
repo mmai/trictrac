@@ -784,7 +784,6 @@ a:hover { text-decoration: underline; }
     text-overflow: ellipsis;
     white-space: nowrap;
     min-width: 4em;
-    text-align: left;
 }
 
 .score-bars { display: flex; flex-direction: row; gap: 1.5rem; flex: 1; align-items: center; }
@@ -865,7 +864,6 @@ a:hover { text-decoration: underline; }
     letter-spacing: 0.06em;
     cursor: default;
     box-shadow: 0 1px 3px rgba(0,0,0,0.25);
-    margin: 0.4em;
 }
 
 /* ── Merged scoreboard (both players, above board) ──────────────────── */
@@ -942,7 +940,6 @@ a:hover { text-decoration: underline; }
     display: flex;
     align-items: baseline;
     gap: 0.1rem;
-    direction: ltr;
 }
 
 .pts-counter {
@@ -2325,8 +2322,9 @@ a:hover { text-decoration: underline; }
     gap: 0.5rem;
 }
 
-.strip-player { display: flex; justify-content: flex-end; align-items: center; flex: 1; min-width: 0; }
-.strip-player-left  { }
+.strip-player { display: flex; align-items: center; flex: 1; min-width: 0; }
+.strip-player-left  { justify-content: flex-end; }
+.strip-player-right { justify-content: flex-start; }
 
 .strip-active-zone {
     display: flex;
@@ -2364,7 +2362,7 @@ a:hover { text-decoration: underline; }
 }
 
 /* Strip peg overrides */
-.players-strip .peg-track { gap: 3px; direction: ltr; }
+.players-strip .peg-track { gap: 3px; }
 .players-strip .peg-hole  { width: 12px; height: 12px; }
 .players-strip .peg-hole.filled {
     background: #5aab38; border-color: #3a7828;
@@ -2406,23 +2404,16 @@ a:hover { text-decoration: underline; }
 }
 
 /* ── Controls column (sidebar on wide, row on narrow) ────────────────── */
-/* left-control displayed only on wide screen to center board */
-.controls, .left-controls {
+.controls {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
     align-self: stretch;
 }
-@media (min-width: 1120px) {
-    .left-controls {
-        width: 200px;
-    }
-}
 @media (min-width: 920px) {
     .controls {
         width: 200px;
     }
-    .strip-player-right { direction: rtl; }
 }
 
 .ctrl-dice {
@@ -2511,11 +2502,6 @@ a:hover { text-decoration: underline; }
     margin: 0;
 }
 
-@media (max-width: 1119px) {
-    .left-controls {
-        width: 0;
-    }
-  }
 /* ── Responsive: ≤919px → controls becomes a bottom bar ─────────────── */
 @media (max-width: 919px) {
     .main-body {
@@ -2527,7 +2513,6 @@ a:hover { text-decoration: underline; }
         width: 100%;
     }
     .ctrl-status { flex: 1; }
-    .strip-center { display: none; }
-    /*  move second player below first player */ 
-    .players-strip { flex-flow: column; }
+    /* Hide pegs on small screens to save space in the strip */
+    .players-strip .peg-track { display: none; }
 }

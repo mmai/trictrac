@@ -345,6 +345,7 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
 
             // ── Board + controls (sidebar on wide, footer on narrow) ─────────
             <div class="main-body">
+                <div class="left-controls"></div>
                 <Board
                     view_state=vs
                     player_id=player_id

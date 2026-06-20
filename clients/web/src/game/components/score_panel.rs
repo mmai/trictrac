@@ -183,19 +183,6 @@ pub fn MergedScorePanel(
                         })}
                         </div>
                     </div>
-                    {(my_holes_gained > 0).then(|| {
-                        let label = if my_bredouille {
-                            format!("Trou {} · ×2 bredouille", my_holes)
-                        } else {
-                            format!("Trou {}", my_holes)
-                        };
-                        view! {
-                            <div class="hole-flash"
-                                 class:hole-flash-bredouille=my_bredouille>
-                                {label}
-                            </div>
-                        }
-                    })}
                 </div>
             </div>
 

@@ -126,7 +126,13 @@ pub fn GameScreen(state: GameUiState) -> impl IntoView {
     }
 
     let dice = vs.dice;
-    let show_dice = dice != (0, 0);
+    // Hide dice during RollDice/RollWaiting: the stored dice values are stale from the
+    // previous turn and showing them would trigger the tumble animation incorrectly.
+    let show_dice = dice != (0, 0)
+        && !matches!(
+            vs.turn_stage,
+            SerTurnStage::RollDice | SerTurnStage::RollWaiting
+        );
 
     // ── Button senders ─────────────────────────────────────────────────────────
     let cmd_tx_go = cmd_tx.clone();

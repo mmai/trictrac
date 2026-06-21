@@ -6,9 +6,8 @@ use backbone_lib::traits::{BackEndArchitecture, BackendCommand};
 use crate::app::{GameUiState, NetCommand, PauseReason, Screen};
 use crate::game::trictrac::backend::TrictracBackend;
 use crate::game::trictrac::bot_local::bot_decide;
-use crate::game::trictrac::types::{
-    JanEntry, ScoredEvent, SerStage, SerTurnStage, ViewState,
-};
+use crate::game::trictrac::types::{JanEntry, ScoredEvent, SerStage, SerTurnStage, ViewState};
+use backbone_lib::platform::sleep_ms;
 use trictrac_store::CheckerMove;
 
 use std::collections::VecDeque;
@@ -124,6 +123,7 @@ async fn run_local_bot_game_loop(
             match bot_decide(backend.get_game(), pgr.as_ref()) {
                 None => break,
                 Some(action) => {
+                    sleep_ms(500).await;
                     backend.inform_rpc(1, action);
                     for cmd in backend.drain_commands() {
                         if let BackendCommand::Delta(delta) = cmd {
@@ -189,7 +189,11 @@ pub fn compute_last_moves(
 }
 
 /// Computes a scoring event for `player_id` by comparing the previous and next ViewState.
-pub fn compute_scored_event(prev: &ViewState, next: &ViewState, player_id: u16) -> Option<ScoredEvent> {
+pub fn compute_scored_event(
+    prev: &ViewState,
+    next: &ViewState,
+    player_id: u16,
+) -> Option<ScoredEvent> {
     let prev_score = &prev.scores[player_id as usize];
     let next_score = &next.scores[player_id as usize];
 
@@ -275,7 +279,11 @@ pub fn push_or_show(
 
 /// Compares the previous and next ViewState to decide whether the transition
 /// warrants a confirmation pause.
-pub fn infer_pause_reason(prev: &ViewState, next: &ViewState, player_id: u16) -> Option<PauseReason> {
+pub fn infer_pause_reason(
+    prev: &ViewState,
+    next: &ViewState,
+    player_id: u16,
+) -> Option<PauseReason> {
     let opponent_id = 1 - player_id;
 
     if next.stage == SerStage::PreGameRoll {
@@ -297,7 +305,8 @@ pub fn infer_pause_reason(prev: &ViewState, next: &ViewState, player_id: u16) ->
         if next.dice != prev.dice {
             return Some(PauseReason::AfterOpponentRoll);
         }
-        if prev.turn_stage == SerTurnStage::HoldOrGoChoice && next.turn_stage == SerTurnStage::Move {
+        if prev.turn_stage == SerTurnStage::HoldOrGoChoice && next.turn_stage == SerTurnStage::Move
+        {
             return Some(PauseReason::AfterOpponentGo);
         }
     }

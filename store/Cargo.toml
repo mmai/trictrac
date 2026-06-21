@@ -22,3 +22,7 @@ transpose = "0.2.2"
 [[bin]]
 name = "random_game"
 path = "src/bin/random_game.rs"
+
+[[bin]]
+name = "weight_tuner"
+path = "src/bin/weight_tuner.rs"

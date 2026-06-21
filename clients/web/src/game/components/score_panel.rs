@@ -169,34 +169,20 @@ pub fn MergedScorePanel(
                     <div class="strip-avatar strip-avatar-me"></div>
                     <div class="score-row-name">
                         <span class="player-name">{my_name}</span>
-                        <span class="you-tag">{t!(i18n, you_suffix)}</span>
                     </div>
-                    {my_can_bredouille.then(|| view! {
-                        <span class="bredouille-badge"
-                              title=move || t_string!(i18n, bredouille_title).to_owned()>
-                            "B"
-                        </span>
-                    })}
                     <div class="peg-track">{my_pegs}</div>
                     <div class="pts-counter-wrap">
                         <div class="pts-counter-row">
                             <span class="pts-counter">{move || my_displayed_pts.get()}</span>
                             <span class="pts-max">"/12"</span>
+                        {my_can_bredouille.then(|| view! {
+                            <span class="bredouille-badge"
+                                title=move || t_string!(i18n, bredouille_title).to_owned()>
+                                "B"
+                            </span>
+                        })}
                         </div>
                     </div>
-                    {(my_holes_gained > 0).then(|| {
-                        let label = if my_bredouille {
-                            format!("Trou {} · ×2 bredouille", my_holes)
-                        } else {
-                            format!("Trou {}", my_holes)
-                        };
-                        view! {
-                            <div class="hole-flash"
-                                 class:hole-flash-bredouille=my_bredouille>
-                                {label}
-                            </div>
-                        }
-                    })}
                 </div>
             </div>
 
@@ -208,23 +194,23 @@ pub fn MergedScorePanel(
             // ── Opponent: right side, left-aligned from center ──────────────
             <div class="strip-player strip-player-right">
                 <div class="strip-active-zone" class:active=opp_active>
+                    <div class="strip-avatar strip-avatar-opp"></div>
+                    <div class="score-row-name">
+                        <span class="player-name">{opp_name}</span>
+                    </div>
+                    <div class="peg-track">{opp_pegs}</div>
                     <div class="pts-counter-wrap">
                         <div class="pts-counter-row">
                             <span class="pts-counter">{move || opp_displayed_pts.get()}</span>
                             <span class="pts-max">"/12"</span>
+                        {opp_can_bredouille.then(|| view! {
+                            <span class="bredouille-badge"
+                                title=move || t_string!(i18n, bredouille_title).to_owned()>
+                                "B"
+                            </span>
+                        })}
                         </div>
                     </div>
-                    <div class="peg-track">{opp_pegs}</div>
-                    {opp_can_bredouille.then(|| view! {
-                        <span class="bredouille-badge"
-                              title=move || t_string!(i18n, bredouille_title).to_owned()>
-                            "B"
-                        </span>
-                    })}
-                    <div class="score-row-name">
-                        <span class="player-name">{opp_name}</span>
-                    </div>
-                    <div class="strip-avatar strip-avatar-opp"></div>
                 </div>
             </div>
 

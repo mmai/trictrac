@@ -39,7 +39,7 @@
               frontendCargoDeps = rustPlatform.fetchCargoVendor {
                 src = ./.;
                 name = "trictrac-frontend-vendor";
-                hash = "sha256-XBxdRT/f69GDfVc18/DnnAiY1vjMGMWfcYot0K0jevg=";
+                hash = "sha256-HJ9iUzsaMKapKb9DH0aoX7keuShq5fnHk1TSvNlw2CQ=";
               };
               # Must match the wasm-bindgen version in Cargo.lock
               wasm-bindgen-version = "0.2.118";

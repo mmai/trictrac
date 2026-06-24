@@ -216,6 +216,7 @@ fn GamesTable(games: Vec<GameSummary>, page: RwSignal<i64>) -> impl IntoView {
                 {rows.into_iter().map(|g| {
                     let started = api::format_ts(g.started_at, locale_tag, &api::DateFormatOptions::date_only());
                     let ended = g.ended_at.map(|ts| api::format_ts(ts, locale_tag, &api::DateFormatOptions::date_only())).unwrap_or_else(|| "—".into());
+                    let room_display = if g.room_code == "bot" { "vs Bot".to_string() } else { g.room_code.clone() };
                     let outcome_class = match g.outcome.as_deref() {
                         Some("win")  => "outcome-win",
                         Some("loss") => "outcome-loss",
@@ -230,7 +231,7 @@ fn GamesTable(games: Vec<GameSummary>, page: RwSignal<i64>) -> impl IntoView {
                     };
                     view! {
                         <tr>
-                            <td>{ g.room_code.clone() }</td>
+                            <td>{ room_display }</td>
                             <td>{ started }</td>
                             <td>{ ended }</td>
                             <td class=outcome_class>{ outcome_text }</td>

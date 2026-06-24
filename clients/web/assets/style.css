@@ -342,7 +342,6 @@ a:hover { text-decoration: underline; }
 
 .portal-danger-zone {
     border: 1px solid rgba(122, 30, 42, 0.4);
-    background: rgba(122, 30, 42, 0.04);
 }
 .portal-danger-zone h2 {
     color: var(--ui-red-accent);

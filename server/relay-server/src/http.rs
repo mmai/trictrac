@@ -13,6 +13,7 @@
 //!   GET  /users/:username/games?page=0&per_page=20
 //!   GET  /games/:id
 //!   POST /games/result
+//!   POST /games/bot-result
 
 use axum::{
     Json, Router,
@@ -52,6 +53,7 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/users/{username}", get(user_profile))
         .route("/users/{username}/games", get(user_games))
         .route("/games/result", post(game_result))
+        .route("/games/bot-result", post(bot_game_result))
         .route("/games/{id}", get(game_detail))
         .route("/pages/{slug}", get(get_page))
 }
@@ -546,6 +548,26 @@ async fn game_result(
     );
 
     Ok(Json(GameResultResponse { game_record_id }))
+}
+
+// ── Bot game result ───────────────────────────────────────────────────────────
+
+#[derive(Deserialize)]
+struct BotGameResultBody {
+    result: String,
+    outcome: String,
+}
+
+/// Called by the WASM client when a logged-in user finishes a bot game.
+async fn bot_game_result(
+    auth_session: AuthSession<AuthBackend>,
+    State(state): State<Arc<AppState>>,
+    Json(body): Json<BotGameResultBody>,
+) -> Result<impl IntoResponse, AppError> {
+    let user = auth_session.user.ok_or(AppError::Unauthorized)?;
+    db::insert_bot_game(&state.db, user.id, &body.result, &body.outcome).await?;
+    tracing::info!(user_id = user.id, outcome = body.outcome, "Bot game recorded");
+    Ok(StatusCode::OK)
 }
 
 // ── Static content pages ──────────────────────────────────────────────────────

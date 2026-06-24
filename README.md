@@ -17,14 +17,6 @@ just dev
 
 Open a browser window at `http://127.0.0.1:9091`. You can play against a very basic bot, or invite an other player to connect at the same address.
 
-## Code structure
-
-- game rules and game state are implemented in the _store/_ folder.
-- a server for the network game is implemented in _server/relay-server_, which uses _server/protocol_
-- the web client is in _clients/web_, it connects to the server using the _clients/backbone-lib_ library
-- the command-line application is implemented in _clients/cli/_; it allows you to play against a bot, or to have two bots play against each other
-- the bots algorithms and the training of their models are implemented in the _bot/_ and _spiel_bot_ folders. This is a work in progress, they are not performant at all.
-
 ## Inspirations
 
 The multiplayer game architecture, implemented in packages _clients/backbone-lib_, _clients/web/game_, _server/protocol_ and _server/relay-server_ is a [Leptos](https://leptos.dev/)-optimized adaptation of the macroquad-based [Carbonfreezer/multiplayer](https://github.com/Carbonfreezer/multiplayer) project.

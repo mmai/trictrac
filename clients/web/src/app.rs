@@ -293,12 +293,19 @@ pub fn App() -> impl IntoView {
                                 pending,
                                 player_name.clone(),
                                 backend,
+                                auth_username,
                             )
                             .await
                         }
                         None => {
-                            run_local_bot_game(screen, &mut cmd_rx, pending, player_name.clone())
-                                .await
+                            run_local_bot_game(
+                                screen,
+                                &mut cmd_rx,
+                                pending,
+                                player_name.clone(),
+                                auth_username,
+                            )
+                            .await
                         }
                     };
                     if !restart {

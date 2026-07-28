@@ -102,7 +102,7 @@
 
           trictrac = with final; rustPlatform.buildRustPackage {
             pname = "trictrac";
-            version = "0.2.19"; # trictrac-version
+            version = "0.2.20"; # trictrac-version
             src = ./.;
 
             nativeBuildInputs = [ pkg-config ];

@@ -202,6 +202,7 @@ in
           DATABASE_URL = "postgresql://${cfg.user}@127.0.0.1/${cfg.user}";
           APP_URL = "${cfg.protocol}://${cfg.hostname}";
           PAGES_DIR = cfg.pages_dir;
+          RELAY_PORT = toString cfg.apiPort;
           SMTP_HOST = cfg.smtp.host;
           SMTP_PORT = toString (if cfg.smtp.port != null then cfg.smtp.port
           else if cfg.smtp.tls then 465 else 1025);

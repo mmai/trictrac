@@ -321,6 +321,34 @@ pub async fn insert_participant(
     Ok(())
 }
 
+/// Records a completed bot game for a logged-in user in a single transaction.
+pub async fn insert_bot_game(
+    pool: &Pool,
+    user_id: i64,
+    result: &str,
+    outcome: &str,
+) -> Result<(), DbError> {
+    let mut client = pool.get().await?;
+    let tx = client.transaction().await?;
+    let now = now_unix();
+    let row = tx
+        .query_one(
+            "INSERT INTO game_records (game_id, room_code, started_at, ended_at, result) \
+             VALUES ('trictrac', 'bot', $1, $1, $2) RETURNING id",
+            &[&now, &result],
+        )
+        .await?;
+    let record_id: i64 = row.get(0);
+    tx.execute(
+        "INSERT INTO game_participants (game_record_id, user_id, player_id, outcome) \
+         VALUES ($1, $2, 0, $3)",
+        &[&record_id, &user_id, &outcome],
+    )
+    .await?;
+    tx.commit().await?;
+    Ok(())
+}
+
 /// Returns win/loss/draw counts for a user. All values are 0 when the user has no games.
 pub async fn get_user_stats(pool: &Pool, user_id: i64) -> Result<UserStats, DbError> {
     let client = pool.get().await?;

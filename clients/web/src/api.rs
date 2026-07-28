@@ -188,6 +188,22 @@ pub async fn get_user_games(username: &str, page: i64) -> Result<GamesResponse, 
     }
 }
 
+pub async fn submit_bot_game_result(result: String, outcome: String) -> Result<(), String> {
+    let body = serde_json::json!({ "result": result, "outcome": outcome });
+    let resp = gloo_net::http::Request::post(&url("/games/bot-result"))
+        .credentials(web_sys::RequestCredentials::Include)
+        .json(&body)
+        .map_err(|e| e.to_string())?
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    if resp.status() == 200 {
+        Ok(())
+    } else {
+        Err(format!("status {}", resp.status()))
+    }
+}
+
 pub async fn get_game_detail(id: i64) -> Result<GameDetail, String> {
     let resp = gloo_net::http::Request::get(&url(&format!("/games/{id}")))
         .credentials(web_sys::RequestCredentials::Include)

@@ -35,7 +35,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
 /// Activates error tracing, spawns a watch dog task to eliminate eventual  dead rooms, then it sets up the roting system to serve the
-/// web sockets and listen for the pages enlist and reload. The server listens on port 8080.
+/// web sockets and listen for the pages enlist and reload.
 async fn main() {
     tracing_subscriber::registry()
         .with(
@@ -104,7 +104,11 @@ async fn main() {
         .layer(auth_layer)
         .layer(cors);
 
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:8080")
+    let port: u16 = std::env::var("RELAY_PORT")
+        .ok()
+        .and_then(|p| p.parse().ok())
+        .unwrap_or(8080);
+    let listener = tokio::net::TcpListener::bind(("127.0.0.1", port))
         .await
         .unwrap();
 

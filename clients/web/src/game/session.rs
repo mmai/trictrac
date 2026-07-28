@@ -1,8 +1,10 @@
 use futures::channel::mpsc;
 use leptos::prelude::*;
+use leptos::task::spawn_local;
 
 use backbone_lib::traits::{BackEndArchitecture, BackendCommand};
 
+use crate::api;
 use crate::app::{GameUiState, NetCommand, PauseReason, Screen};
 use crate::game::trictrac::backend::TrictracBackend;
 use crate::game::trictrac::bot_local::bot_decide;
@@ -18,6 +20,7 @@ pub async fn run_local_bot_game(
     cmd_rx: &mut mpsc::UnboundedReceiver<NetCommand>,
     pending: RwSignal<VecDeque<GameUiState>>,
     player_name: String,
+    auth_username: RwSignal<Option<String>>,
 ) -> bool {
     let mut backend = TrictracBackend::new(0);
     backend.player_arrival(0);
@@ -49,7 +52,7 @@ pub async fn run_local_bot_game(
         suppress_dice_anim: false,
     }));
 
-    run_local_bot_game_loop(screen, cmd_rx, pending, player_name, backend, vs).await
+    run_local_bot_game_loop(screen, cmd_rx, pending, player_name, backend, vs, auth_username).await
 }
 
 /// Runs a bot game from a pre-built backend and initial ViewState (used for snapshot replay).
@@ -60,6 +63,7 @@ pub async fn run_local_bot_game_with_backend(
     pending: RwSignal<VecDeque<GameUiState>>,
     player_name: String,
     backend: TrictracBackend,
+    auth_username: RwSignal<Option<String>>,
 ) -> bool {
     let mut vs = backend.get_view_state().clone();
     patch_bot_names(&mut vs, &player_name);
@@ -76,7 +80,7 @@ pub async fn run_local_bot_game_with_backend(
         suppress_dice_anim: false,
     }));
 
-    run_local_bot_game_loop(screen, cmd_rx, pending, player_name, backend, vs).await
+    run_local_bot_game_loop(screen, cmd_rx, pending, player_name, backend, vs, auth_username).await
 }
 
 async fn run_local_bot_game_loop(
@@ -86,8 +90,10 @@ async fn run_local_bot_game_loop(
     player_name: String,
     mut backend: TrictracBackend,
     mut vs: ViewState,
+    auth_username: RwSignal<Option<String>>,
 ) -> bool {
     use futures::StreamExt;
+    let mut result_submitted = false;
     loop {
         match cmd_rx.next().await {
             Some(NetCommand::Action(action)) => {
@@ -150,6 +156,19 @@ async fn run_local_bot_game_loop(
                         }
                     }
                 }
+            }
+        }
+
+        if vs.stage == SerStage::Ended && !result_submitted {
+            result_submitted = true;
+            if let Some(_) = auth_username.get_untracked() {
+                let scores = vs.scores.clone();
+                spawn_local(async move {
+                    let (h0, h1) = (scores[0].holes, scores[1].holes);
+                    let outcome = if h0 > h1 { "win" } else if h0 < h1 { "loss" } else { "draw" };
+                    let result_str = format!("{} - {}", h0, h1);
+                    let _ = api::submit_bot_game_result(result_str, outcome.to_string()).await;
+                });
             }
         }
     }
